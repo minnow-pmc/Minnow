@@ -11,3 +11,10 @@
 *.lai
 *.la
 *.a
+
+#Tool artifacts
+*.bak
+applet/
+*~
+*.orig
+*.rej
