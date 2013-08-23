@@ -45,7 +45,13 @@ ConfigurationTree::FindNode(const char *name)
       {
         if (name[child_name_length] == '\0')
         {
-          return child;
+          // found a match but just to be safe, clear child of match
+          // in case its not a leaf node
+          node = child;
+          child = node + 1;
+          if ((uint8_t*)node < (uint8_t*)node_array + sizeof(node_array))
+            child->Clear();
+          return node;
         }
         else if (name[child_name_length] == '.')
         {
@@ -97,7 +103,7 @@ ConfigurationTree::FindNextLeafNode(const ConfigurationTreeNode *search_root_nod
         firstNode = false;
         node = child;
       }
-      // if this a leaf node (remember you can reach a terminus of the search which is not a leaf node)
+      // is this a leaf node? (remember you can reach a terminus of the search which is not a leaf node)
       if (node->IsLeafNode())
         return node;
     }
@@ -162,7 +168,6 @@ ConfigurationTree::GetFirstChild(const ConfigurationTreeNode *node, bool inUseOn
   
   ConfigurationTreeNode *child = (ConfigurationTreeNode *)node + 1;
   child->Clear();
-  
   while (node->InitializeNextChild(*child))
   {
     if (inUseOnly && !child->IsInUse())

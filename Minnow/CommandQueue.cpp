@@ -16,14 +16,24 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
-//
-// This file handles each of the Pacemaker Orders
-// 
 
-#ifndef ORDER_HANDLERS_H
-#define ORDER_HANDLERS_H
+#include "CommandQueue.h"
 
-void process_command();
-
-#endif
+uint8_t *CommandQueue::queue_buffer;
+uint16_t CommandQueue::queue_buffer_length;
+  
+uint8_t *CommandQueue::queue_head;
+uint8_t *CommandQueue::queue_tail;
+uint8_t CommandQueue::in_progress_length;
+  
+void 
+CommandQueue::Init(uint8_t *buffer, uint16_t buffer_length)
+{
+  queue_buffer = buffer;
+  queue_buffer_length = buffer_length;
+  
+  queue_head = &buffer[0];
+  queue_tail = &buffer[0];
+  in_progress_length = 0;
+}
+  

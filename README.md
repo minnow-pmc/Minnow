@@ -10,6 +10,7 @@ The Minnow firmware was originally created by Robert Fairlie-Cuninghame based on
 There is still much to do. 
 
 TODO List 
+- Makefile and Arduino libraries directory
 - Complete configuration implementation of all device types
 - Add EEPROM storage of device names
 - Complete queue implementation
@@ -42,7 +43,7 @@ Currently supported firmware configuration commands:
   
 * Diagnostic/development elements
   - debug.stack_memory
-  - stats.stack_low_water_mark
+  - debug.stack_low_water_mark
   
 
 

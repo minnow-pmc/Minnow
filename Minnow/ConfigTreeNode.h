@@ -70,7 +70,7 @@ public:
 #define NODE_TYPE_CONFIG_LEAF_BUZZER_PIN                  67
 
 #define NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME        68
-#define NODE_TYPE_CONFIG_LEAF_HEATER_PIN                  69
+#define NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN           69
 
 // System configuration   
 #define NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME        180

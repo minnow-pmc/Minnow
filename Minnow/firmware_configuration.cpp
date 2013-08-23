@@ -29,6 +29,7 @@
 #include "Minnow.h"
 #include "response.h"
 #include "NVConfigStore.h"
+#include "CommandQueue.h"
 
 #include "Device_InputSwitch.h"
 #include "Device_OutputSwitch.h"
@@ -314,7 +315,7 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_HEATER, instance_id, response_data_buf, response_data_buf_len)) > 0)
         generate_response_data_addlen(retval);
       break;
-    case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
+    case NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN:
       utoa(Device_Heater::GetHeaterPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
@@ -338,7 +339,7 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     case NODE_TYPE_STATS_LEAF_QUEUE_MEMORY:
     {
       extern uint16_t message_queue_len;
-      utoa(message_queue_len, response_data_buf, 10);
+      utoa(CommandQueue::GetQueueBufferLength(), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
     }
@@ -379,7 +380,7 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_OUTPUT_SWITCH_PIN:
   case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN:
   case NODE_TYPE_CONFIG_LEAF_BUZZER_PIN:
-  case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
+  case NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN:
     return setPin(node_type, parent_instance_id, value);
 
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE:
@@ -492,7 +493,7 @@ bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
     retval = Device_Buzzer::SetPin(device_number, pin);
     break;
     
-  case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
+  case NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN:
     retval = Device_Heater::SetHeaterPin(device_number, pin);
     break;
 

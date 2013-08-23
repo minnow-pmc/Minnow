@@ -13,9 +13,9 @@
   #error Please set LANGUAGE_CHOICE in config.h
 #endif
 
-// The language used for firmware configuration strings can be set independent
-// of the main language choice (for instance if the use of standard English-based
-// configuration files is desired)
+// The language used for firmware configuration strings can be set independently
+// of the main language choice (for instance if the use of standard English 
+// firmware configurations is desired)
 #ifndef CONFIG_STRINGS_LANGUAGE_CHOICE
   #define CONFIG_STRINGS_LANGUAGE_CHOICE LANGUAGE_CHOICE
 #endif
@@ -26,7 +26,7 @@
 
 #if LANGUAGE_CHOICE == 1 // English
 
-#define MSG_ERR_HARDWARE_CANNOT_SOFT_RESET "Hardware does not support soft reset"
+#define MSG_ERR_HARDWARE_CANNOT_SOFT_RESET "Hardware does not support software reset. System stopped"
 #define ERR_MSG_INSUFFICENT_BYTES "Insufficient parameter bytes received. Rcvd: "
 #define ERR_MSG_GENERIC_APP_AT_OFFSET "Parameter data invalid at index: "
 #define ERR_MSG_CONFIG_NODE_NOT_FOUND "Config element invalid: "
@@ -64,6 +64,8 @@
 #define CONFIG_STR_INPUT_DIG              "input_dig"
 #define CONFIG_STR_OUTPUT_DIG             "output_dig"
 #define CONFIG_STR_OUTPUT_PWM             "output_pwm"
+#define CONFIG_STR_BUZZER                 "buzzer"
+#define CONFIG_STR_HEATER                 "heater"
 
 // Specific attribute names
 #define CONFIG_STR_HARDWARE_NAME          "hardware_name"
@@ -71,6 +73,8 @@
 #define CONFIG_STR_HARDWARE_REV           "hardware_rev"
 #define CONFIG_STR_BOARD_IDENTITY         "board_identity"
 #define CONFIG_STR_BOARD_SERIAL_NUM       "board_serialnum"
+
+#define CONFIG_STR_HEATER_HEATER_PIN       "heater_pin"
 
 #define CONFIG_STR_RX_COUNT               "rx_count"
 #define CONFIG_STR_RX_ERROR               "rx_error"

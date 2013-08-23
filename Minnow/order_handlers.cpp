@@ -35,9 +35,110 @@
 
 #include "NVConfigStore.h" 
 
+//===========================================================================
+//=============================imported variables============================
+//===========================================================================
+
+
+//===========================================================================
+//=============================private variables=============================
+//===========================================================================
+
+
+//===========================================================================
+//=============================public variables=============================
+//===========================================================================
+
+//===========================================================================
+//=============================ROUTINES=============================
+//===========================================================================
+
+// Basic Pacemaker Orders
+FORCE_INLINE static void handle_resume_order();
+FORCE_INLINE static void handle_request_information_order();
+FORCE_INLINE static void handle_device_name_order();
+FORCE_INLINE static void handle_request_temperature_reading_order();
+FORCE_INLINE static void handle_get_heater_configuration_order();
+FORCE_INLINE static void handle_configure_heater_order();
+FORCE_INLINE static void handle_set_heater_target_temperature_order();
+FORCE_INLINE static void handle_get_input_switch_state_order();
+FORCE_INLINE static void handle_set_output_switch_state_order();
+FORCE_INLINE static void handle_set_pwm_output_state_order();
+FORCE_INLINE static void handle_write_firmware_configuration_value_order();
+
 //
-// Basic Order Handlers
+// Top level order handler
 //
+void process_command()
+{
+  if (is_stopped && !stopped_is_acknowledged && order_code != ORDER_RESUME)
+  {
+    send_stopped_response();
+    return;
+  }
+ 
+  switch (order_code)
+  {
+  case ORDER_RESET:
+    emergency_stop();
+#ifndef USE_WATCHDOG_TO_RESET
+    send_failed_response(PSTR(MSG_ERR_HARDWARE_CANNOT_SOFT_RESET)); // we have no way to reset
+#else
+    die();
+#endif  
+    break;
+  case ORDER_RESUME:
+    handle_resume_order();
+    break;
+  case ORDER_REQUEST_INFORMATION:
+    handle_request_information_order();
+    break;
+  case ORDER_DEVICE_NAME:
+    handle_device_name_order();
+    break;
+  case ORDER_REQUEST_TEMPERATURE_READING:
+    handle_request_temperature_reading_order();
+    break;
+  case ORDER_GET_HEATER_CONFIGURATION:
+    handle_get_heater_configuration_order();
+    break;
+  case ORDER_CONFIGURE_HEATER:
+    handle_configure_heater_order();
+    break;
+  case ORDER_SET_HEATER_TARGET_TEMP:
+    handle_set_heater_target_temperature_order();
+    break;
+  case ORDER_GET_INPUT_SWITCH_STATE:
+    handle_get_input_switch_state_order();
+    break;
+  case ORDER_SET_OUTPUT_SWITCH_STATE:
+    handle_set_output_switch_state_order();
+    break;
+  case ORDER_SET_PWM_OUTPUT_STATE:
+    handle_set_pwm_output_state_order();
+    break;
+  case ORDER_WRITE_FIRMWARE_CONFIG_VALUE:
+    handle_write_firmware_configuration_value_order();
+    break;
+  case ORDER_READ_FIRMWARE_CONFIG_VALUE:
+    // note: get_command() already makes the end of the command (ie. name) null-terminated
+    handle_firmware_configuration_request((const char *)&parameter_value[0], 0);
+    break;
+  case ORDER_TRAVERSE_FIRMWARE_CONFIG:
+    // note: get_command() already makes the end of the command (ie. name) null-terminated
+    handle_firmware_configuration_traversal((const char *)&parameter_value[0]);
+    break;
+  case ORDER_EMERGENCY_STOP:
+    emergency_stop();
+    send_OK_response();
+    break;
+  default:
+    generate_response_start(RSP_APPLICATION_ERROR);
+    generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER);
+    generate_response_send();
+    break;
+  }
+}
  
 void handle_resume_order()
 {
@@ -288,7 +389,7 @@ void handle_configure_heater_order()
   send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
 }
   
-void handle_set_heater_target_temperature_order(bool validate_only)
+void handle_set_heater_target_temperature_order()
 {
   const uint8_t heater_number = parameter_value[0];
   const int16_t temp = (parameter_value[1] << 8) & parameter_value[2];
@@ -312,9 +413,6 @@ void handle_set_heater_target_temperature_order(bool validate_only)
     return;
   }
   
-  if (validate_only)
-    return;
-
   Device_Heater::SetTargetTemperature(heater_number, temp);
   
   send_OK_response();
@@ -363,7 +461,7 @@ void handle_get_input_switch_state_order()
   generate_response_send();
 }
   
-void handle_set_output_switch_state_order(bool validate_only)
+void handle_set_output_switch_state_order()
 {
   uint8_t device_type, device_number, device_state;
 
@@ -386,7 +484,7 @@ void handle_set_output_switch_state_order(bool validate_only)
     
     switch(device_type)
     {
-    case PM_DEVICE_TYPE_SWITCH_INPUT:
+    case PM_DEVICE_TYPE_SWITCH_OUTPUT:
     {
       if (!Device_OutputSwitch::IsInUse(device_number))
       {
@@ -401,27 +499,25 @@ void handle_set_output_switch_state_order(bool validate_only)
     }
   }  
 
-  if (!validate_only)
+  // we only write the switches if all are valid
+  for (uint8_t i = 0; i < parameter_length; i+=3)
   {
-    for (uint8_t i = 0; i < parameter_length; i+=3)
+    device_type = parameter_value[i];
+    device_number = parameter_value[i+1];
+    device_state = parameter_value[i+2];
+    
+    switch(device_type)
     {
-      device_type = parameter_value[i];
-      device_number = parameter_value[i+1];
-      device_state = parameter_value[i+2];
-      
-      switch(device_type)
-      {
-      case PM_DEVICE_TYPE_SWITCH_INPUT:
-        Device_OutputSwitch::WriteState(device_number, device_state);
-        break;
-      }
+    case PM_DEVICE_TYPE_SWITCH_OUTPUT:
+      Device_OutputSwitch::WriteState(device_number, device_state);
+      break;
     }
   }
   
   send_OK_response();
 }
    
-void handle_set_pwm_output_state_order(bool validate_only)
+void handle_set_pwm_output_state_order()
 {
   uint8_t device_type, device_number;
   uint16_t device_state;
@@ -454,10 +550,7 @@ void handle_set_pwm_output_state_order(bool validate_only)
         send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      if (!validate_only)
-      {
-        Device_PwmOutput::WriteState(device_number, device_state);
-      }
+      Device_PwmOutput::WriteState(device_number, device_state);
       break;
     }
     case PM_DEVICE_TYPE_BUZZER:
@@ -467,10 +560,7 @@ void handle_set_pwm_output_state_order(bool validate_only)
         send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      if (!validate_only)
-      {
-        Device_Buzzer::WriteState(device_number, device_state);
-      }
+      Device_Buzzer::WriteState(device_number, device_state);
       break;
     }
     default:
