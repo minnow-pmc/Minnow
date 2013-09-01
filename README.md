@@ -13,13 +13,12 @@ TODO List
 - Makefile and Arduino libraries directory
 - Complete configuration implementation of all device types
 - Add EEPROM storage of device names
-- Complete queue implementation
 - Integrate heater control parameters and functionality
 - Add stepper control
 - Add homing and endstop control
 - Add movement control
 - Add event handling
-
+- Add coding guide
 
 Currently supported firmware configuration commands:
 
@@ -45,6 +44,5 @@ Currently supported firmware configuration commands:
   - debug.stack_memory
   - debug.stack_low_water_mark
   
-
 
 

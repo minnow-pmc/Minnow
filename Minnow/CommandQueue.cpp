@@ -19,12 +19,11 @@
 
 #include "CommandQueue.h"
 
-uint8_t *CommandQueue::queue_buffer;
-uint16_t CommandQueue::queue_buffer_length;
-  
-uint8_t *CommandQueue::queue_head;
-uint8_t *CommandQueue::queue_tail;
-uint8_t CommandQueue::in_progress_length;
+#include "QueueCommandStructs.h"
+#include "Minnow.h"
+#include "movement.h"
+
+// queue statics placed in the movement.cpp compilation unit to allow better ISR optimization
   
 void 
 CommandQueue::Init(uint8_t *buffer, uint16_t buffer_length)
@@ -32,8 +31,161 @@ CommandQueue::Init(uint8_t *buffer, uint16_t buffer_length)
   queue_buffer = buffer;
   queue_buffer_length = buffer_length;
   
-  queue_head = &buffer[0];
-  queue_tail = &buffer[0];
+  queue_head = queue_buffer;
+  queue_tail = queue_buffer;
   in_progress_length = 0;
+  
+  current_queue_command_count = 0;
+  total_attempted_queue_command_count = 0;
 }
   
+uint8_t *
+CommandQueue::GetCommandInsertionPoint(uint8_t length_required)
+{
+  const uint8_t *cached_queue_head; 
+  CRITICAL_SECTION_START
+  cached_queue_head = (const uint8_t *)queue_head;
+  if (cached_queue_head == queue_tail)
+  {
+    queue_head = queue_buffer;
+    cached_queue_head = queue_buffer;
+    queue_tail = queue_buffer;
+  }
+  CRITICAL_SECTION_END
+  
+  if (cached_queue_head <= queue_tail)
+  {
+    // does command fit before end of buffer?
+    if ((queue_buffer + queue_buffer_length) - queue_tail > length_required) 
+      return (uint8_t *)queue_tail+1;
+    // otherwise does command fit after start of buffer?
+    if (cached_queue_head - queue_buffer <= length_required + 1)
+      return 0;
+    // yes it fits but we need to skip remaining space at end of buffer
+    if (queue_tail < queue_buffer + queue_buffer_length)
+    {
+      *queue_tail = 0;
+      CRITICAL_SECTION_START
+      queue_tail = queue_buffer + queue_buffer_length; 
+      CRITICAL_SECTION_END
+    }
+    return queue_buffer+1;
+  }
+  else
+  {
+    // will it fit at all?
+    if (cached_queue_head - queue_tail <= length_required + 1)
+      return 0;
+    return (uint8_t *)queue_tail+1;
+  }
+}
+
+bool 
+CommandQueue::EnqueueCommand(uint8_t command_length)
+{
+  bool success;
+  CRITICAL_SECTION_START
+  if (queue_head <= queue_tail)
+  {
+    if (queue_tail < queue_buffer + queue_buffer_length)
+      success = queue_tail + command_length < queue_buffer + queue_buffer_length;
+    else
+      success = queue_buffer + command_length + 1 < queue_head;
+  }
+  else
+  {
+    success = queue_tail + command_length + 1 < queue_head;
+  }
+    
+  if (success)
+  {
+    if (queue_tail >= queue_buffer + queue_buffer_length)
+    {
+      queue_buffer[0] = command_length;
+      queue_tail = queue_buffer + command_length + 1;
+    }
+    else
+    {
+      queue_tail[0] = command_length;
+      queue_tail += command_length + 1; 
+    }
+    current_queue_command_count += 1;
+
+#if 0
+    DEBUGPGM("EC: head=");
+    DEBUG((int)(CommandQueue::queue_head - queue_buffer));
+    DEBUGPGM(" tail=");
+    DEBUG((int)(CommandQueue::queue_tail - queue_buffer));
+    DEBUGPGM(" length=");
+    DEBUGLN((int)command_length);
+#endif    
+
+#ifdef QUEUE_DEBUG
+    extern uint16_t queue_debug_enqueue_count;
+    queue_debug_enqueue_count += 1;
+#endif    
+
+    if (in_progress_length == 0)
+      mv_wake_up();
+  }  
+  CRITICAL_SECTION_END
+  if (!success)
+  {
+    int a = CommandQueue::queue_head - queue_buffer;
+    int b = CommandQueue::queue_tail - queue_buffer;
+    int c = command_length;
+    DEBUGPGM("BL: head=");
+    DEBUG(a);
+    DEBUGPGM(" tail=");
+    DEBUG(b);
+    DEBUGPGM(" len=");
+    DEBUGLN(c);
+    DEBUGPGMLN("Bad length for EnqueueCommand"); // shouldn't happen if GetCommandInsertionPoint was called correctly
+  }    
+  return success;
+}
+
+void 
+CommandQueue::FlushQueuedCommands()
+{
+  CRITICAL_SECTION_START
+  if (in_progress_length != 0)
+  {
+    queue_tail = queue_head + in_progress_length + 1;
+    current_queue_command_count = 1;
+  }
+  else
+  {
+    queue_head = 0;
+    current_queue_command_count = 0;
+  }
+  CRITICAL_SECTION_END
+}
+  
+void CommandQueue::GetQueueInfo(uint16_t &remaining_slots, bool &is_in_progress, 
+                                uint16_t &current_command_count, uint16_t &total_executed_queue_command_count)
+{
+  CRITICAL_SECTION_START
+  current_command_count = current_queue_command_count;
+  is_in_progress = in_progress_length != 0;
+  total_executed_queue_command_count = total_attempted_queue_command_count;
+  const uint8_t * const cached_queue_head = (const uint8_t *)queue_head; 
+  CRITICAL_SECTION_END
+  if (cached_queue_head == queue_tail)
+  {
+    remaining_slots = queue_buffer_length / QUEUE_SLOT_SIZE;
+  }
+  else if (cached_queue_head < queue_tail)
+  {
+    remaining_slots = ((cached_queue_head - queue_buffer) 
+                            + ((queue_buffer + queue_buffer_length) - queue_tail))
+                        / QUEUE_SLOT_SIZE;
+  }
+  else
+  {
+    remaining_slots = (cached_queue_head - queue_tail) / QUEUE_SLOT_SIZE;
+  }
+}
+  
+
+

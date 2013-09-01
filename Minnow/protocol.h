@@ -95,15 +95,15 @@
 #define PARAM_FRAME_RECEIPT_ERROR_TYPE_UNABLE_TO_ACCEPT   0x2
 
 // Application Error Response Parameter values
-#define PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER                0x0
-#define PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT         0x1
-#define PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE          0x2
-#define PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE          0x3
-#define PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER        0x4
-#define PARAM_APP_ERROR_TYPE_INCORRECT_MODE               0x5
-#define PARAM_APP_ERROR_TYPE_BUSY                         0x6
-#define PARAM_APP_ERROR_TYPE_FAILED                       0x7
-#define PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR               0x8
+#define PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER                0x1
+#define PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT         0x2
+#define PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE          0x3
+#define PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE          0x4
+#define PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER        0x5
+#define PARAM_APP_ERROR_TYPE_INCORRECT_MODE               0x6
+#define PARAM_APP_ERROR_TYPE_BUSY                         0x7
+#define PARAM_APP_ERROR_TYPE_FAILED                       0x8
+#define PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR               0x9
 
 // Stopped Response Parameter values
 #define PARAM_STOPPED_STATE_UNACKNOWLEDGED                0x0
@@ -144,6 +144,10 @@
 
 #define ORDER_RESET                            0x7f
 
+// Queued Command Extension
+#define ORDER_QUEUE_COMMAND_BLOCKS             0x12
+#define ORDER_CLEAR_COMMAND_QUEUE              0x17
+
 //
 // Order Parameter Values
 //
@@ -177,5 +181,22 @@
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0
 #define PARAM_HEATER_CONFIG_HOST_SENSOR_CONFIG            0x1
+
+//
+// Queue Command Types
+//
+#define QUEUE_COMMAND_ORDER_WRAPPER                       1  // TODO get right values here
+#define QUEUE_COMMAND_DELAY                               2
+#define QUEUE_COMMAND_LINEAR_MOVE                         3
+#define QUEUE_COMMAND_SET_ACTIVE_TOOLHEAD                 4
+
+//
+// Queue Command Error Types
+//
+#define QUEUE_COMMAND_ERROR_TYPE_QUEUE_FULL               0x1       
+#define QUEUE_COMMAND_ERROR_TYPE_UNKNOWN_COMMAND_BLOCK    0x2
+#define QUEUE_COMMAND_ERROR_TYPE_MALFORMED_BLOCK          0x3
+#define QUEUE_COMMAND_ERROR_TYPE_ERROR_IN_COMMAND_BLOCK   0x4
+
 
 #endif

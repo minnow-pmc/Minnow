@@ -110,23 +110,7 @@ bool Device_Heater::SetMaxTemperature(uint8_t device_number, int16_t temp)
   return true;
 }
 
-bool Device_Heater::SetTargetTemperature(uint8_t device_number, int16_t temp)
-{
-  if (!ValidateConfig(device_number))
-    return false;
-  
-  if (heater_target_temps[device_number] == PM_TEMPERATURE_INVALID)
-  {
-    pinMode(heater_pins[device_number], OUTPUT);
-    pinMode(heater_thermistor_pins[device_number], INPUT);
-  }
-  
-  heater_target_temps[device_number] = temp;
-
-  return true;
-}
-
-bool Device_Heater::ValidateConfig(uint8_t device_number)
+bool Device_Heater::ValidateTargetTemperature(uint8_t device_number, int16_t temp)
 {
   if (device_number >= MAX_HEATERS
       || heater_pins[device_number] == 0xFF
@@ -136,6 +120,9 @@ bool Device_Heater::ValidateConfig(uint8_t device_number)
       || (heater_control_modes[device_number] != HEATER_CONTROL_MODE_PID
             && heater_control_modes[device_number] != HEATER_CONTROL_MODE_BANG_BANG))
     return false;
-  else
-    return true;
+    
+  if (temp > heater_max_temps[device_number] || temp < 0)
+    return false;
+    
+  return true;
 }

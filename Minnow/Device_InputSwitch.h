@@ -46,9 +46,8 @@ public:
   
   static bool SetPin(uint8_t device_number, uint8_t pin);
 
-  // Not: this write method is not used for time-critical input pins
-  // such as stepper or heater pins
-  // TODO ... but still, look at using digitalWriteFast library
+  // Not: this read method is not used for time-critical input pins
+  // such as stepper or heater pins or for enqueued commands
   FORCE_INLINE static uint8_t ReadState(uint8_t device_number)
   {
     return digitalRead(input_switch_pins[device_number]);

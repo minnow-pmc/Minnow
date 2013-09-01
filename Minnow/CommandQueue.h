@@ -27,7 +27,7 @@
 // Command Queue class
 //
 // Implements queuing of commands. The stepper ISR is responsible for removing 
-// commands
+// commands. 
 //
 // Maybe TODO: A possible improvement in the future is have two types of queue. The first (larger) 
 // queue holds the compact PaceMaker commands (straight off the wire) - which allows a much 
@@ -41,27 +41,34 @@ class CommandQueue
 {
 public:
 
+  #define QUEUE_SLOT_SIZE 20 // TODO put in real value here
+
   static void Init(uint8_t *queue_buffer, uint16_t queue_buffer_len);
   
   static uint8_t *GetCommandInsertionPoint(uint8_t length_required);
   static bool EnqueueCommand(uint8_t command_length);
   static void FlushQueuedCommands();
   
-  static bool IsCommandExecuting();
-  static uint16_t GetQueuedCommandCount();
-  static uint16_t GetRemainingQueueSpace();
+  static bool IsCommandExecuting() { return in_progress_length != 0; } // don't need critical section for single byte read
+  static void GetQueueInfo(uint16_t &remaining_slots, bool& is_in_progress, uint16_t &current_command_count, uint16_t &total_executed_queue_command_count);
+
   
   static uint16_t GetQueueBufferLength() { return queue_buffer_length; }
 
-private:
+//private: //RM
+  public:
+  
+  friend void movement_ISR();
 
   static uint8_t *queue_buffer;
   static uint16_t queue_buffer_length;
   
-  static uint8_t *queue_head;
-  static uint8_t *queue_tail;
-  static uint8_t in_progress_length;
+  static volatile uint8_t *queue_head;
+  static volatile uint8_t *queue_tail;
   
+  static volatile uint8_t in_progress_length;
+  static volatile uint16_t current_queue_command_count;
+  static volatile uint16_t total_attempted_queue_command_count;
 };
 
 #endif

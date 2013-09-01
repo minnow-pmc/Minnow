@@ -83,12 +83,17 @@ public:
   static bool SetThermistorType(uint8_t device_number, uint8_t type);
   static bool SetControlMode(uint8_t device_number, uint8_t mode);
   static bool SetMaxTemperature(uint8_t device_number, int16_t temp);
-  static bool SetTargetTemperature(uint8_t device_number, int16_t temp);
   
-  static bool ValidateConfig(uint8_t device_number);
+  static bool ValidateTargetTemperature(uint8_t device_number, int16_t temp);
 
-
+  FORCE_INLINE static void SetTargetTemperature(uint8_t device_number, int16_t temp)
+  {
+    heater_target_temps[device_number] = temp;
+  }
+  
 private:
+
+  friend void movement_ISR();
 
   static uint8_t heater_pins[MAX_HEATERS];
   static uint8_t heater_thermistor_pins[MAX_HEATERS];

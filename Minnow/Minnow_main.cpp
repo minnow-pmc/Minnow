@@ -62,7 +62,7 @@ extern uint8_t reply_control_byte;
 
 static uint8_t recv_buf_len = 0;
 static uint8_t recv_buf[MAX_RECV_BUF_LEN];
-static PROGMEM uint32_t autodetect_baudrates[] = AUTODETECT_BAUDRATES;
+static PROGMEM const uint32_t autodetect_baudrates[] = AUTODETECT_BAUDRATES;
 static uint8_t autodetect_baudrates_index = 0;
 
 //===========================================================================
@@ -172,10 +172,9 @@ void setup()
   Device_PwmOutput::Init();
   Device_Heater::Init();
   Device_Buzzer::Init();
-
 }
 
-static FORCE_INLINE bool get_command()
+FORCE_INLINE static bool get_command()
 {
   char serial_char;
   
@@ -261,9 +260,10 @@ void loop()
     // does this match the sequence number of the last reply 
     if ((control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK) == 
             (reply_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK) 
-        && (control_byte & CONTROL_BYTE_ORDER_HOST_RESET_BIT) == 0)
+        && (control_byte & CONTROL_BYTE_ORDER_HOST_RESET_BIT) == 0
+        && reply_control_byte != 0xFF)
     {
-      if (!reply_started && reply_control_byte != 0xFF)
+      if (!reply_started)
       { 
         // resend last response
         reply_started = true;
@@ -274,7 +274,7 @@ void loop()
         // this is an unexpected error case (matching sequence number but nothing to send)
         generate_response_start(RSP_FRAME_RECEIPT_ERROR);
         generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_UNABLE_TO_ACCEPT);
-        generate_response_msg_add(PSTR(MSG_ERR_NO_RESPONSE_TO_SEND));
+        generate_response_msg_addPGM(PSTR(MSG_ERR_NO_RESPONSE_TO_SEND));
         generate_response_send();
       }
       return;
@@ -304,8 +304,10 @@ void emergency_stop()
 
 void die()
 {
+  // TODO turn off heaters and motors
+
   cli(); // Stop interrupts
-  // Unfortunately we have no way to do a hardware reset!
+  // Unfortunately we have no reliable way to do a hardware reset!
   //
   // Normally you'd be able to reset by enabling the watchdog but the
   // standard Arduino bootloader is retarded and doesn't disable the 
@@ -316,7 +318,11 @@ void die()
   // the USE_WATCHDOG_TO_RESET flag) but we can't set this as default.
 #ifdef USE_WATCHDOG_TO_RESET
   wdt_enable(WDTO_1S);
-#endif  
   while (true) { } // wait for manual reset (or watchdog if enabled)
+#else
+  // just do a software only reset
+  void(* resetFunc) (void) = 0; //declare reset function @ address 0
+  resetFunc();  //call reset
+#endif  
 }
 

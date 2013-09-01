@@ -29,6 +29,8 @@
 
 
 
+#define QUEUE_DEBUG
+
 
 //
 // Switches to make development testing easier
@@ -68,14 +70,13 @@
 //
 
 // TODO: treat these differently once event framework is implemented
-#define ERROR(x) DSerial.print(x)
-#define ERROR_EOL() DSerial.write('\n')
-#define ERROR_F(x,y) DSerial.print(x,y)
-#define ERRORPGM(x) DSerial.printPGM(PSTR(x))
-#define ERROREOL() DSerial.write('\n')
-#define ERRORLN(x) do{DSerial.print(x);DSerial.write('\n');} while (0)
-#define ERRORPGMLN(x) do{DSerial.printPGM(PSTR(x));DSerial.write('\n');}while(0)
-#define ERRORPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(PSTR(name),(value))
+#define ERROR(x) DSerial.print(true, x)
+#define ERROR_F(x,y) DSerial.print(true, x,y)
+#define ERRORPGM(x) DSerial.printPGM(true, PSTR(x))
+#define ERROR_EOL() DSerial.println(true)
+#define ERRORLN(x) DSerial.println(true, x)
+#define ERRORPGMLN(x) do{DSerial.printPGM(true, PSTR(x));DSerial.println(true);}while(0)
+#define ERRORPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(true, PSTR(name),(value))
 
 
 #if !DEBUG_ENABLED
@@ -84,7 +85,6 @@
 #define DEBUG_EOL() 
 #define DEBUG_F(x,y) 
 #define DEBUGPGM(x) 
-#define DEBUGEOL() 
 #define DEBUGLN(x) 
 #define DEBUGPGMLN(x) 
 #define DEBUGPGM_ECHOPAIR(name,value) 
@@ -97,14 +97,13 @@ extern DebugSerial DSerial;
 //
 // Debug macros
 //
-#define DEBUG(x) DSerial.print(x)
-#define DEBUG_EOL() DSerial.write('\n')
-#define DEBUG_F(x,y) DSerial.print(x,y)
-#define DEBUGPGM(x) DSerial.printPGM(PSTR(x))
-#define DEBUGEOL() DSerial.write('\n')
-#define DEBUGLN(x) do{DSerial.print(x);DSerial.write('\n');} while (0)
-#define DEBUGPGMLN(x) do{DSerial.printPGM(PSTR(x));DSerial.write('\n');}while(0)
-#define DEBUGPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(PSTR(name),(value))
+#define DEBUG(x) DSerial.print(false, x)
+#define DEBUG_F(x,y) DSerial.print(false, x, y)
+#define DEBUGPGM(x) DSerial.printPGM(false, PSTR(x))
+#define DEBUG_EOL() DSerial.println(false)
+#define DEBUGLN(x) DSerial.println(false, x)
+#define DEBUGPGMLN(x) do{DSerial.printPGM(false, PSTR(x));DSerial.println(false);}while(0)
+#define DEBUGPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(false, PSTR(name),(value))
 
 //
 // Debug implementation class
@@ -126,7 +125,7 @@ class DebugSerial
     void begin();
     void flush(void);
     
-    FORCE_INLINE void write(uint8_t c)
+    FORCE_INLINE void write(bool error, uint8_t c)
     {
 #if USE_PACEMAKER_FRAMES_FOR_DEBUG
       debug_buf[debug_buf_len++] = c;
@@ -142,86 +141,159 @@ class DebugSerial
     //
     // Convenience functions
     //
-  
-    FORCE_INLINE void write(const char *str)
+
+    void print(bool error, long n, int base);
+    
+    FORCE_INLINE void write(bool error, const char *str)
     {
       while (*str)
-        write(*str++);
+        write(error, *str++);
     }
     
-    FORCE_INLINE void write(const uint8_t *buffer, size_t size)
+    FORCE_INLINE void write(bool error, const uint8_t *buffer, size_t size)
     {
       while (size--)
-        write(*buffer++);
+        write(error, *buffer++);
     }
 
-    FORCE_INLINE void print(const String &s)
+    FORCE_INLINE void print(bool error, const String &s)
     {
       for (int i = 0; i < (int)s.length(); i++) {
-        write(s[i]);
+        write(error, s[i]);
       }
     }
     
-    FORCE_INLINE void print(const char *str)
+    FORCE_INLINE void print(bool error, const char *str)
     {
-      write(str);
+      write(error, str);
     }
     
-    void print(char, int = BYTE);
-    void print(unsigned char, int = BYTE);
-    void print(int, int = DEC);
-    void print(unsigned int, int = DEC);
-    void print(long, int = DEC);
-    void print(unsigned long, int = DEC);
-    void print(double, int = 2);
+    FORCE_INLINE void print(bool error, char c, int base = BYTE)
+    {
+      print(error, (long) c, base);
+    }
 
-    void println(const String &s);
-    void println(const char[]);
-    void println(char, int = BYTE);
-    void println(unsigned char, int = BYTE);
-    void println(int, int = DEC);
-    void println(unsigned int, int = DEC);
-    void println(long, int = DEC);
-    void println(unsigned long, int = DEC);
-    void println(double, int = 2);
-    void println(void);
+    FORCE_INLINE void print(bool error, unsigned char b, int base = BYTE)
+    {
+      print(error, (unsigned long) b, base);
+    }
 
+    FORCE_INLINE void print(bool error, int n, int base = DEC)
+    {
+      print(error, (long) n, base);
+    }
+
+    FORCE_INLINE void print(bool error, unsigned int n, int base = DEC)
+    {
+      print(error, (unsigned long) n, base);
+    }
+
+    FORCE_INLINE void print(bool error, unsigned long n, int base = DEC)
+    {
+      if (base == BYTE) write(error, n);
+      else printNumber(error, n, base);
+    }
+
+    FORCE_INLINE void print(bool error, double n, int digits = 2)
+    {
+      printFloat(error, n, digits);
+    }
+
+    FORCE_INLINE void println(bool error)
+    {
+      print(error, '\n');  
+    }
+
+    FORCE_INLINE void println(bool error, const String &s)
+    {
+      print(error, s);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, const char c[])
+    {
+      print(error, c);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, char c, int base = BYTE)
+    {
+      print(error, c, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, unsigned char b, int base = BYTE)
+    {
+      print(error, b, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, int n, int base = DEC)
+    {
+      print(error, n, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, unsigned int n, int base = DEC)
+    {
+      print(error, n, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, long n, int base = DEC)
+    {
+      print(n, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, unsigned long n, int base = DEC)
+    {
+      print(n, base);
+      println(error);
+    }
+
+    FORCE_INLINE void println(bool error, double n, int digits = 2)
+    {
+      print(n, digits);
+      println(error);
+    }
+    
     //
     // PROGMEM methods
     //
     
-    FORCE_INLINE void printPGM(const char *str)
+    FORCE_INLINE void printPGM(bool error, const char *str)
     {
       char ch=pgm_read_byte(str);
       while(ch)
       {
-        write(ch);
+        write(error, ch);
         ch=pgm_read_byte(++str);
       }
     }
     
-    FORCE_INLINE void printPGM_pair(const char *s_P, float v)
+    FORCE_INLINE void printPGM_pair(bool error, const char *s_P, float v)
     {
-      printPGM(s_P);
-      printFloat(v, 2);
+      printPGM(error, s_P);
+      printFloat(error, v, 2);
     }
     
-    FORCE_INLINE void printPGM_pair(const char *s_P, double v)
+    FORCE_INLINE void printPGM_pair(bool error, const char *s_P, double v)
     {
-      printPGM(s_P);
-      printFloat(v, 2);
+      printPGM(error, s_P);
+      printFloat(error, v, 2);
     }
     
-    FORCE_INLINE void printPGM_pair(const char *s_P, unsigned long v)
+    FORCE_INLINE void printPGM_pair(bool error, const char *s_P, unsigned long v)
     {
-      printPGM(s_P);
-      printNumber(v, DEC);
+      printPGM(error, s_P);
+      printNumber(error, v, DEC);
     }
-    
+      
 private:
 
-    void printNumber(unsigned long, uint8_t);
-    void printFloat(double, uint8_t);
+    void printNumber(bool error, unsigned long, uint8_t);
+    void printFloat(bool error, double, uint8_t);
 
   #if USE_PACEMAKER_FRAMES_FOR_DEBUG
     uint8_t debug_header[PM_HEADER_SIZE];

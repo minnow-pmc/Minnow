@@ -56,4 +56,9 @@
 // Only enable the watchdog for reset if you Arduino bootloader supports disabling the watchdog
 //#define USE_WATCHDOG_FOR_RESET
 
+// Does the Arduino use an AT90USB USB Serial UART?
+#if defined (__AVR_AT90USB1287__) || defined (__AVR_AT90USB1286__) || defined (__AVR_AT90USB646__) || defined(__AVR_AT90USB647__)
+  #define AT90USB
+#endif  
+
 #endif

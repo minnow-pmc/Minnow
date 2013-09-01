@@ -50,8 +50,7 @@ public:
   static bool SetPin(uint8_t device_number, uint8_t pin);
 
   // Not: this write method is not used for time-critical output pins
-  // such as stepper or heater pins
-  // TODO look at using digitalWriteFast library
+  // such as stepper or heater pins or for queued commands executed in the ISR.
   FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t state)
   {
     if (state < OUTPUT_SWITCH_STATE_DISABLED)
@@ -71,6 +70,9 @@ public:
   }
 
 private:
+
+  friend bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool continuing);
+
   static uint8_t output_switch_pins[MAX_OUTPUT_SWITCHES];
   static bool output_switch_disabled[MAX_OUTPUT_SWITCHES];
 };

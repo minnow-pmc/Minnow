@@ -70,121 +70,32 @@ void DebugSerial::flush()
 
 /// imports from print.h
 
-void DebugSerial::print(char c, int base)
-{
-  print((long) c, base);
-}
 
-void DebugSerial::print(unsigned char b, int base)
-{
-  print((unsigned long) b, base);
-}
-
-void DebugSerial::print(int n, int base)
-{
-  print((long) n, base);
-}
-
-void DebugSerial::print(unsigned int n, int base)
-{
-  print((unsigned long) n, base);
-}
-
-void DebugSerial::print(long n, int base)
+void DebugSerial::print(bool error, long n, int base)
 {
   if (base == 0) {
-    write(n);
+    write(error, n);
   } else if (base == 10) {
     if (n < 0) {
-      print('-');
+      print(error, '-');
       n = -n;
     }
-    printNumber(n, 10);
+    printNumber(error, n, 10);
   } else {
-    printNumber(n, base);
+    printNumber(error, n, base);
   }
 }
 
-void DebugSerial::print(unsigned long n, int base)
-{
-  if (base == 0) write(n);
-  else printNumber(n, base);
-}
-
-void DebugSerial::print(double n, int digits)
-{
-  printFloat(n, digits);
-}
-
-void DebugSerial::println(void)
-{
-  print('\r');
-  print('\n');  
-}
-
-void DebugSerial::println(const String &s)
-{
-  print(s);
-  println();
-}
-
-void DebugSerial::println(const char c[])
-{
-  print(c);
-  println();
-}
-
-void DebugSerial::println(char c, int base)
-{
-  print(c, base);
-  println();
-}
-
-void DebugSerial::println(unsigned char b, int base)
-{
-  print(b, base);
-  println();
-}
-
-void DebugSerial::println(int n, int base)
-{
-  print(n, base);
-  println();
-}
-
-void DebugSerial::println(unsigned int n, int base)
-{
-  print(n, base);
-  println();
-}
-
-void DebugSerial::println(long n, int base)
-{
-  print(n, base);
-  println();
-}
-
-void DebugSerial::println(unsigned long n, int base)
-{
-  print(n, base);
-  println();
-}
-
-void DebugSerial::println(double n, int digits)
-{
-  print(n, digits);
-  println();
-}
 
 // Private Methods /////////////////////////////////////////////////////////////
 
-void DebugSerial::printNumber(unsigned long n, uint8_t base)
+void DebugSerial::printNumber(bool error, unsigned long n, uint8_t base)
 {
   unsigned char buf[8 * sizeof(long)]; // Assumes 8-bit chars. 
   unsigned long i = 0;
 
   if (n == 0) {
-    print('0');
+    print(error, '0');
     return;
   } 
 
@@ -194,17 +105,17 @@ void DebugSerial::printNumber(unsigned long n, uint8_t base)
   }
 
   for (; i > 0; i--)
-    print((char) (buf[i - 1] < 10 ?
+    print(error, (char) (buf[i - 1] < 10 ?
       '0' + buf[i - 1] :
       'A' + buf[i - 1] - 10));
 }
 
-void DebugSerial::printFloat(double number, uint8_t digits) 
+void DebugSerial::printFloat(bool error, double number, uint8_t digits) 
 { 
   // Handle negative numbers
   if (number < 0.0)
   {
-     print('-');
+     print(error, '-');
      number = -number;
   }
 
@@ -218,18 +129,18 @@ void DebugSerial::printFloat(double number, uint8_t digits)
   // Extract the integer part of the number and print it
   unsigned long int_part = (unsigned long)number;
   double remainder = number - (double)int_part;
-  print(int_part);
+  print(error, int_part);
 
   // Print the decimal point, but only if there are digits beyond
   if (digits > 0)
-    print("."); 
+    print(error, "."); 
 
   // Extract digits from the remainder one at a time
   while (digits-- > 0)
   {
     remainder *= 10.0;
     int toPrint = int(remainder);
-    print(toPrint);
+    print(error, toPrint);
     remainder -= toPrint; 
   } 
 }

@@ -42,6 +42,7 @@
 #define ERR_MSG_EXPECTED_BOOL_VALUE "Expected a boolean value (0,1,true,false)."
 #define ERR_MSG_CONFIG_NODE_NOT_WRITABLE "Firmware configuration value is not a writable element."
 #define ERR_MSG_CONFIG_NODE_NOT_READABLE "Firmware configuration value is not a readable element."
+#define ERR_MSG_QUEUE_ORDER_NOT_PERMITTED "Order not permitted for queuing: "
 
 #define MSG_EXPECTING "Expecting: "
 

@@ -47,8 +47,7 @@ public:
   static bool SetPin(uint8_t device_number, uint8_t pin);
 
   // Not: this write method is not used for time-critical output pins
-  // such as stepper or heater pins
-  // TODO look at using digitalWriteFast library
+  // such as stepper or heater pins or for enqueued commands
   FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t state)
   {
     analogWrite(buzzer_pins[device_number], state >> 8);

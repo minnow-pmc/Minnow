@@ -231,9 +231,6 @@ void generate_response_send()
   uint8_t param_length;
   uint8_t i;
   
-  PSERIAL.print("sendcode="); //RM
-  PSERIAL.println((int)reply_header[PM_ORDER_CODE_OFFSET]);
-  
   if (reply_msg_len == 0)
     param_length = reply_data_len;
   else
@@ -269,10 +266,10 @@ void send_insufficient_bytes_error_response(uint8_t expected_num_bytes)
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
   generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
-  generate_response_data_addbyte(parameter_length);
+  generate_response_msg_addbyte(parameter_length);
   generate_response_msg_add(", ");
   generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
-  generate_response_data_addbyte(expected_num_bytes);
+  generate_response_msg_addbyte(expected_num_bytes);
   generate_response_send();
 }
 

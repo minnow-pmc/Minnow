@@ -27,6 +27,7 @@
 #include "response.h"
 #include "firmware_configuration.h"
 
+
 #include "Device_InputSwitch.h"
 #include "Device_OutputSwitch.h"
 #include "Device_PwmOutput.h" 
@@ -34,11 +35,14 @@
 #include "Device_Buzzer.h" 
 
 #include "NVConfigStore.h" 
+#include "enqueue_command.h"
+#include "CommandQueue.h"
 
 //===========================================================================
 //=============================imported variables============================
 //===========================================================================
 
+extern uint16_t total_executed_queued_command_count;
 
 //===========================================================================
 //=============================private variables=============================
@@ -65,6 +69,7 @@ FORCE_INLINE static void handle_get_input_switch_state_order();
 FORCE_INLINE static void handle_set_output_switch_state_order();
 FORCE_INLINE static void handle_set_pwm_output_state_order();
 FORCE_INLINE static void handle_write_firmware_configuration_value_order();
+FORCE_INLINE static void handle_clear_command_queue_order();
 
 //
 // Top level order handler
@@ -81,11 +86,7 @@ void process_command()
   {
   case ORDER_RESET:
     emergency_stop();
-#ifndef USE_WATCHDOG_TO_RESET
-    send_failed_response(PSTR(MSG_ERR_HARDWARE_CANNOT_SOFT_RESET)); // we have no way to reset
-#else
     die();
-#endif  
     break;
   case ORDER_RESUME:
     handle_resume_order();
@@ -131,6 +132,12 @@ void process_command()
   case ORDER_EMERGENCY_STOP:
     emergency_stop();
     send_OK_response();
+    break;
+  case ORDER_QUEUE_COMMAND_BLOCKS:
+    enqueue_command();
+    break;
+  case ORDER_CLEAR_COMMAND_QUEUE:
+    handle_clear_command_queue_order();
     break;
   default:
     generate_response_start(RSP_APPLICATION_ERROR);
@@ -407,7 +414,7 @@ void handle_set_heater_target_temperature_order()
   }
 
   // TODO - generate error message
-  if (!Device_Heater::ValidateConfig(heater_number))
+  if (!Device_Heater::ValidateTargetTemperature(heater_number, temp))
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_FAILED,0);
     return;
@@ -591,4 +598,20 @@ void handle_write_firmware_configuration_value_order()
   handle_firmware_configuration_request((const char *)&parameter_value[0], (const char *)&parameter_value[name_length+1]);
 } 
  
- 
+void handle_clear_command_queue_order()
+{
+  CommandQueue::FlushQueuedCommands();
+  
+  uint16_t remaining_slots;
+  bool is_in_progress;
+  uint16_t current_command_count;
+  uint16_t total_command_count;
+  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  
+  generate_response_start(RSP_OK);
+  generate_response_data_add(remaining_slots);
+  generate_response_data_add(current_command_count);
+  generate_response_data_add(total_command_count);
+  generate_response_send(); 
+} 
+  
