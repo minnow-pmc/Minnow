@@ -35,6 +35,7 @@
 
 // Languages
 // 1  English
+// 2  German - Deutsch
 #define LANGUAGE_CHOICE 1
 
 //
