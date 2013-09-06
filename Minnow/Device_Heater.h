@@ -25,6 +25,8 @@
 #define DEVICE_HEATER_H
 
 #include "Minnow.h"
+#include "SoftPwmState.h"
+#include "Device_TemperatureSensor.h"
 
 class Device_Heater
 {
@@ -34,12 +36,16 @@ public:
 #define HEATER_CONTROL_MODE_PID           1
 #define HEATER_CONTROL_MODE_BANG_BANG     2
 
-  static void Init();
-  static uint8_t GetNumDevices();
+  static uint8_t Init(uint8_t num_pwm_devices);
+  
+  FORCE_INLINE static uint8_t GetNumDevices()
+  {
+    return num_heaters;
+  }
   
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
-    return (device_number < MAX_HEATERS 
+    return (device_number < num_heaters 
       && heater_pins[device_number] != 0xFF);
   }
 
@@ -48,14 +54,9 @@ public:
     return heater_pins[device_number];
   }
   
-  FORCE_INLINE static uint8_t GetThermisterPin(uint8_t device_number)
+  FORCE_INLINE static uint8_t GetTempSensor(uint8_t device_number)
   {
-    return heater_thermistor_pins[device_number];
-  }
-  
-  FORCE_INLINE static uint8_t GetThermisterType(uint8_t device_number)
-  {
-    return heater_thermistor_types[device_number];
+    return heater_temp_sensors[device_number];
   }
   
   FORCE_INLINE static uint8_t GetControlMode(uint8_t device_number)
@@ -75,35 +76,39 @@ public:
   
   FORCE_INLINE static int16_t ReadCurrentTemperature(uint8_t device_number)
   {
-    return heater_current_temps[device_number];
+    return Device_TemperatureSensor::ReadCurrentTemperature(heater_temp_sensors[device_number]);
   }
   
-  static bool SetHeaterPin(uint8_t device_number, uint8_t pin);
-  static bool SetThermistorPin(uint8_t device_number, uint8_t pin);
-  static bool SetThermistorType(uint8_t device_number, uint8_t type);
-  static bool SetControlMode(uint8_t device_number, uint8_t mode);
-  static bool SetMaxTemperature(uint8_t device_number, int16_t temp);
-  
-  static bool ValidateTargetTemperature(uint8_t device_number, int16_t temp);
+  // these configuration functions return APP_ERROR_TYPE_SUCCESS or error code
+  static uint8_t SetHeaterPin(uint8_t device_number, uint8_t pin);
+  static uint8_t SetTempSensor(uint8_t heater_device_number, uint8_t sensor_device_number);
+  static uint8_t SetControlMode(uint8_t device_number, uint8_t mode);
+  static uint8_t SetMaxTemperature(uint8_t device_number, int16_t temp);
+  static uint8_t EnableSoftPwm(uint8_t device_number, bool enable);
+
+  static uint8_t ValidateTargetTemperature(uint8_t device_number, int16_t temp);
 
   FORCE_INLINE static void SetTargetTemperature(uint8_t device_number, int16_t temp)
   {
     heater_target_temps[device_number] = temp;
   }
   
+  static void UpdateHeaters();
 private:
 
-  friend void movement_ISR();
+  friend void updateSoftPwm();
 
-  static uint8_t heater_pins[MAX_HEATERS];
-  static uint8_t heater_thermistor_pins[MAX_HEATERS];
-  static uint8_t heater_thermistor_types[MAX_HEATERS];
-  static uint8_t heater_control_modes[MAX_HEATERS];
-  static int16_t heater_max_temps[MAX_HEATERS];
+  static uint8_t num_heaters;
+  static uint8_t *heater_pins;
+  static uint8_t *heater_temp_sensors;
+  static uint8_t *heater_control_modes;
+  static int16_t *heater_max_temps;
 
-  static int16_t heater_target_temps[MAX_HEATERS];
-  static int16_t heater_current_temps[MAX_HEATERS];
+  static int16_t *heater_target_temps;
   
+  // additional state to support soft pwm 
+  static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 heaters
+  static SoftPwmState *soft_pwm_state; // allocated on first use    
 };
 
 

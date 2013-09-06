@@ -239,6 +239,20 @@ void generate_response_send()
   reply_header[PM_LENGTH_BYTE_OFFSET] = param_length;
 
   // TODO set event flag if required
+
+#if TRACE_RESPONSE
+  DEBUGPGM("\nResp(");  
+  DEBUG_F(reply_header[PM_ORDER_CODE_OFFSET], HEX);  
+  DEBUGPGM(", len=");  
+  DEBUG_F(param_length, DEC);  
+  DEBUGPGM("):");  
+  for (i = 0; i < param_length; i++)
+  {
+    DEBUG(' '); 
+    DEBUG_F(reply_buf[i], HEX);  
+  }
+  DEBUG_EOL();
+#endif  
   
   for (i = 0; i < PM_HEADER_SIZE; i++)
     PSERIAL.write(reply_header[i]);
@@ -265,10 +279,10 @@ void send_insufficient_bytes_error_response(uint8_t expected_num_bytes)
 {
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
-  generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+  generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
   generate_response_msg_addbyte(parameter_length);
   generate_response_msg_add(", ");
-  generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
+  generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
   generate_response_msg_addbyte(expected_num_bytes);
   generate_response_send();
 }
@@ -277,7 +291,7 @@ void send_app_error_response(uint8_t error_type, uint8_t parameter_offset)
 {
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(error_type);
-  generate_response_msg_addPGM(PSTR(ERR_MSG_GENERIC_APP_AT_OFFSET));
+  generate_response_msg_addPGM(PMSG(ERR_MSG_GENERIC_APP_AT_OFFSET));
   generate_response_msg_addbyte(parameter_offset);
   generate_response_send();
 }
@@ -286,7 +300,7 @@ void send_failed_response(const char* reason)
 {
   generate_response_start(RSP_APPLICATION_ERROR, 0);
   generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FAILED);
-  generate_response_msg_addPGM(PSTR(ERR_MSG_GENERIC_APP_AT_OFFSET));
+  generate_response_msg_addPGM(PMSG(ERR_MSG_GENERIC_APP_AT_OFFSET));
   generate_response_send();
 }
 

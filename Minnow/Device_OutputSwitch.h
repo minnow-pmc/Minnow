@@ -33,12 +33,16 @@ public:
 #define OUTPUT_SWITCH_STATE_HIGH      1
 #define OUTPUT_SWITCH_STATE_DISABLED  2
 
-  static void Init();
-  static uint8_t GetNumDevices();
+  static uint8_t Init(uint8_t num_output_switches);
+  
+  FORCE_INLINE static uint8_t GetNumDevices()
+  {
+    return num_output_switches;
+  }
   
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
-    return (device_number < MAX_OUTPUT_SWITCHES 
+    return (device_number < num_output_switches 
       && output_switch_pins[device_number] != 0xFF);
   }
 
@@ -47,9 +51,9 @@ public:
     return output_switch_pins[device_number];
   }
   
-  static bool SetPin(uint8_t device_number, uint8_t pin);
+  static uint8_t SetPin(uint8_t device_number, uint8_t pin);
 
-  // Not: this write method is not used for time-critical output pins
+  // Note: this write method is not used for time-critical output pins
   // such as stepper or heater pins or for queued commands executed in the ISR.
   FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t state)
   {
@@ -73,8 +77,9 @@ private:
 
   friend bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool continuing);
 
-  static uint8_t output_switch_pins[MAX_OUTPUT_SWITCHES];
-  static bool output_switch_disabled[MAX_OUTPUT_SWITCHES];
+  static uint8_t num_output_switches;
+  static uint8_t *output_switch_pins;
+  static bool *output_switch_disabled;
 };
 
 #endif

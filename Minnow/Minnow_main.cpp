@@ -34,16 +34,15 @@
 #include "crc8.h"
 #include "firmware_configuration.h"
 
-#include "Device_InputSwitch.h"
-#include "Device_OutputSwitch.h"
-#include "Device_PwmOutput.h"
-#include "Device_Heater.h"
-#include "Device_Buzzer.h"
+#include "movement_ISR.h"
+#include "temperature_ISR.h"
 
+#include "Device_TemperatureSensor.h"
+#include "Device_Heater.h"
 #include "CommandQueue.h"
 
 #include <avr/pgmspace.h>
-#ifdef USE_WATCHDOG_TO_RESET
+#if USE_WATCHDOG_FOR_RESET
   #include <avr/wdt.h>
 #endif
 
@@ -91,38 +90,35 @@ uint8_t reset_cause = 0; // cache of MCUSR register written by bootloader
 
 uint16_t last_rcvd_time; // time a byte was last received
 
+extern "C" {
+  extern unsigned int __bss_end;
+  extern unsigned int __heap_start;
+  extern size_t __malloc_margin;
+  extern void *__brkval;
+}
 
 //===========================================================================
 //=============================ROUTINES=============================
 //===========================================================================
 
-extern "C"{
-  extern unsigned int __bss_end;
-  extern unsigned int __heap_start;
-  extern void *__brkval;
+uint16_t freeMemory() 
+{
+  int free_memory;
 
-  uint16_t freeMemory() {
-    int free_memory;
+  if((int)__brkval == 0)
+    free_memory = ((int)&free_memory) - ((int)&__bss_end);
+  else
+    free_memory = ((int)&free_memory) - ((int)__brkval);
 
-    if((int)__brkval == 0)
-      free_memory = ((int)&free_memory) - ((int)&__bss_end);
-    else
-      free_memory = ((int)&free_memory) - ((int)__brkval);
-
-    return free_memory;
-  }
-
-  uint8_t *startOfCommandQueueBuffer() {
-    if((int)__brkval == 0)
-      return ((uint8_t *)&__bss_end) + 1;
-    else
-      return ((uint8_t *)__brkval) + 1;
-  }
+  return free_memory;
 }
 
 uint8_t *startOfStack() 
 {
-  return startOfCommandQueueBuffer() + CommandQueue::GetQueueBufferLength();
+  if((int)__brkval == 0)
+    return (uint8_t *)&__bss_end;
+  else
+    return (uint8_t *)__brkval;
 }
 
 // This function fills the unused stack with a known pattern after the 
@@ -142,20 +138,62 @@ uint16_t countStackLowWatermark()
     cnt += 1;
   return cnt;  
 }
+
+//
+// The queue is allocated the first time that it is flushed or something
+// is enqueued. Normally this is done after all other memory allocations have
+// occurred as the queue will take up all remaining RAM above configured thresholds.
+//
+void allocate_command_queue_memory()
+{
+  uint16_t memory_size = 0; 
+  uint8_t *memory; 
   
+  if (freeMemory() > MAX_STACK_SIZE)
+  {
+    memory_size = max(freeMemory() - MAX_STACK_SIZE, MIN_QUEUE_SIZE);
+  }
+  else if (freeMemory() >= MIN_STACK_SIZE + MIN_QUEUE_SIZE)
+  {
+    memory_size = max(freeMemory() - (MIN_STACK_SIZE * 1.3), MIN_QUEUE_SIZE);
+  }
+  
+  if (memory_size == 0 || (memory = (uint8_t *)malloc(memory_size)) == 0)
+  {
+    ERRORPGM_P(PMSG(ERR_MSG_INSUFFICIENT_QUEUE_MEMORY));
+    ERRORLN((int)MIN_QUEUE_SIZE);
+    // to do enter error state
+    return;
+  }
+  CommandQueue::Init(memory, memory_size);
+}
+
+void applyDebugConfiguration()
+{
+#if APPLY_DEBUG_CONFIGURATION
+
+#ifdef DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST
+  DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST;
+#endif  
+
+#ifdef DEBUG_STATIC_COMMAND_LIST
+  DEBUG_STATIC_COMMAND_LIST;
+#endif
+
+#endif
+}
 
 void setup()
 {
   reset_cause = MCUSR;   // only works if bootloader doesn' t set MCUSR to 0
   MCUSR=0;
 
-#ifdef USE_WATCHDOG_TO_RESET
+#if USE_WATCHDOG_FOR_RESET
   wdt_disable();   // turn off watchdog 
 #endif
   
-  // allow command queue to use all remaining RAM
-  CommandQueue::Init(startOfCommandQueueBuffer(), freeMemory() - STACK_SIZE);
-
+  __malloc_margin = MIN_STACK_SIZE;
+  
   writeStackLowWaterMarkPattern();
 
   // initialize PaceMaker serial port to first value
@@ -167,11 +205,10 @@ void setup()
   DSerial.begin();
 #endif  
 
-  Device_InputSwitch::Init();
-  Device_OutputSwitch::Init();
-  Device_PwmOutput::Init();
-  Device_Heater::Init();
-  Device_Buzzer::Init();
+  movement_ISR_init();
+  temperature_ISR_init();
+
+  applyDebugConfiguration();
 }
 
 FORCE_INLINE static bool get_command()
@@ -274,7 +311,7 @@ void loop()
         // this is an unexpected error case (matching sequence number but nothing to send)
         generate_response_start(RSP_FRAME_RECEIPT_ERROR);
         generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_UNABLE_TO_ACCEPT);
-        generate_response_msg_addPGM(PSTR(MSG_ERR_NO_RESPONSE_TO_SEND));
+        generate_response_msg_addPGM(PMSG(MSG_ERR_NO_RESPONSE_TO_SEND));
         generate_response_send();
       }
       return;
@@ -288,13 +325,16 @@ void loop()
     {
       generate_response_start(RSP_APPLICATION_ERROR, 1);
       generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PSTR(MSG_ERR_NO_RESPONSE_GENERATED));
+      generate_response_msg_addPGM(PMSG(MSG_ERR_NO_RESPONSE_GENERATED));
       generate_response_send();
     }
     
     recv_buf_len = 0;
   }
-  // TODO add idle loop stuff
+
+  // Idle loop activities
+  Device_TemperatureSensor::UpdateTemperatureSensors();
+  Device_Heater::UpdateHeaters();
 }
 
 void emergency_stop()
@@ -316,7 +356,7 @@ void die()
   //
   // Some bootloaders do something smarter (in which case you can enable
   // the USE_WATCHDOG_TO_RESET flag) but we can't set this as default.
-#ifdef USE_WATCHDOG_TO_RESET
+#if USE_WATCHDOG_FOR_RESET
   wdt_enable(WDTO_1S);
   while (true) { } // wait for manual reset (or watchdog if enabled)
 #else

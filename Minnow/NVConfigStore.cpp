@@ -26,6 +26,8 @@
 #include "NVConfigStore.h"
 #include <stdint.h>
 
+#include "response.h"
+
 NonVolatileConfigurationStore NVConfigStore;
 
 void 
@@ -108,63 +110,69 @@ int8_t NonVolatileConfigurationStore::GetDeviceName(uint8_t device_type, uint8_t
 #endif  
 }
   
-bool NonVolatileConfigurationStore::SetBoardIdentity(const char *buffer)
+uint8_t NonVolatileConfigurationStore::SetBoardIdentity(const char *buffer)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 
-bool NonVolatileConfigurationStore::SetBoardSerialNumber(const char *buffer)
+uint8_t NonVolatileConfigurationStore::SetBoardSerialNumber(const char *buffer)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 
-bool NonVolatileConfigurationStore::SetHardwareName(const char *buffer)
+uint8_t NonVolatileConfigurationStore::SetHardwareName(const char *buffer)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 
-bool NonVolatileConfigurationStore::SetHardwareType(uint8_t type)
+uint8_t NonVolatileConfigurationStore::SetHardwareType(uint8_t type)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 
-bool NonVolatileConfigurationStore::SetHardwareRevision(uint8_t rev)
+uint8_t NonVolatileConfigurationStore::SetHardwareRevision(uint8_t rev)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 
-bool NonVolatileConfigurationStore::SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer)
+uint8_t NonVolatileConfigurationStore::SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer)
 {
 #if USE_EEPROM
   // TODO
-  return false;
+  return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
 #else
-  return false;
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
 #endif  
 }
 

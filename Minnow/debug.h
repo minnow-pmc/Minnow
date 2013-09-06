@@ -27,9 +27,8 @@
 // TODO More work is needed on handling of debug and errors!!! Not finished. 
 //
 
-
-
-#define QUEUE_DEBUG
+#define QUEUE_DEBUG 1
+#define QUEUE_TEST 0
 
 
 //
@@ -37,6 +36,8 @@
 //
 #define DEBUG_DONT_CHECK_CRC8_VALUE   1
 #define DEBUG_NOT_STOPPED_INITIALLY   1
+
+#define TRACE_RESPONSE 1
 
 ///////////////////////////////
 // Debug tracing config
@@ -54,7 +55,7 @@
 //
 
 #if USE_PACEMAKER_FRAMES_FOR_DEBUG
-  #define DEBUG_BUFFER_SIZE             40
+  #define DEBUG_BUFFER_SIZE             128
 #endif  
 
 #if USE_SERIAL_PORT_FOR_DEBUG
@@ -72,10 +73,12 @@
 // TODO: treat these differently once event framework is implemented
 #define ERROR(x) DSerial.print(true, x)
 #define ERROR_F(x,y) DSerial.print(true, x,y)
-#define ERRORPGM(x) DSerial.printPGM(true, PSTR(x))
+#define ERRORPGM(x) ERRORPGM_P(PSTR(x))
+#define ERRORPGM_P(x) DSerial.printPGM(true, x)
 #define ERROR_EOL() DSerial.println(true)
 #define ERRORLN(x) DSerial.println(true, x)
-#define ERRORPGMLN(x) do{DSerial.printPGM(true, PSTR(x));DSerial.println(true);}while(0)
+#define ERRORLNPGM(x) ERRORLNPGM_P(PSTR(x))
+#define ERRORLNPGM_P(x) do{DSerial.printPGM(true, x);DSerial.println(true);}while(0)
 #define ERRORPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(true, PSTR(name),(value))
 
 
@@ -85,8 +88,10 @@
 #define DEBUG_EOL() 
 #define DEBUG_F(x,y) 
 #define DEBUGPGM(x) 
+#define DEBUGPGM_P(x) 
 #define DEBUGLN(x) 
-#define DEBUGPGMLN(x) 
+#define DEBUGLNPGM(x) 
+#define DEBUGLNPGM_P(x) 
 #define DEBUGPGM_ECHOPAIR(name,value) 
 
 #else
@@ -99,10 +104,12 @@ extern DebugSerial DSerial;
 //
 #define DEBUG(x) DSerial.print(false, x)
 #define DEBUG_F(x,y) DSerial.print(false, x, y)
-#define DEBUGPGM(x) DSerial.printPGM(false, PSTR(x))
+#define DEBUGPGM(x) DEBUGPGM_P(PSTR(x))
+#define DEBUGPGM_P(x) DSerial.printPGM(false, x)
 #define DEBUG_EOL() DSerial.println(false)
 #define DEBUGLN(x) DSerial.println(false, x)
-#define DEBUGPGMLN(x) do{DSerial.printPGM(false, PSTR(x));DSerial.println(false);}while(0)
+#define DEBUGLNPGM(x) DEBUGLNPGM_P(PSTR(x))
+#define DEBUGLNPGM_P(x) do{DSerial.printPGM(false, x);DSerial.println(false);}while(0)
 #define DEBUGPGM_ECHOPAIR(name,value) DSerial.printPGM_pair(false, PSTR(name),(value))
 
 //
@@ -306,5 +313,95 @@ private:
 };
 
 #endif //USE_PACEMAKER_FRAMES_FOR_DEBUG || USE_SERIAL_PORT_FOR_DEBUG || USE_EVENTS_FOR_DEBUG
+
+//
+// Macros to apply configuration at boot time (useful for testing without host-based configuration) 
+//
+
+#define APPLY_DEBUG_CONFIGURATION 1
+#if APPLY_DEBUG_CONFIGURATION
+
+// Macro used in DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST to write a firmware configuration value.
+#define DEBUG_WRITE_FIRMWARE_CONFIGURATION(name,value) \
+do { \
+  static PROGMEM const char namePstr[] = name; \
+  static PROGMEM const char valuePstr[] = value; \
+  DEBUGPGM("WriteConfig: "); \
+  DEBUGPGM_P(namePstr); \
+  DEBUG("="); \
+  DEBUGLNPGM_P(valuePstr); \
+  strcpy_P((char *)parameter_value, namePstr); \
+  strcpy_P((char *)&parameter_value[sizeof(namePstr)], valuePstr); \
+  handle_firmware_configuration_request((char *)parameter_value, (char *)&parameter_value[sizeof(namePstr)]); \
+} while (0) \
+
+#define DEBUG_READ_FIRMWARE_CONFIGURATION(name) \
+do { \
+  static PROGMEM const char namePstr[] = name; \
+  DEBUGPGM("ReadConfig: "); \
+  DEBUGPGM_P(namePstr); \
+  strcpy_P((char *)parameter_value, namePstr); \
+  handle_firmware_configuration_request((char *)parameter_value, 0); \
+} while (0) \
+
+// Macro used in DEBUG_STATIC_COMMAND_LIST to send a Pacemaker command using an array initializer
+// for the parameter data.
+// e.g., DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS }) )
+#define DEBUG_COMMAND_ARRAY(name, order, parameter_array) \
+do { \
+  static PROGMEM const uint8_t parameterPstr[] = parameter_array; \
+  DEBUGPGM("\nExecuting "); \
+  DEBUGPGM(STRINGIFY(order)); \
+  DEBUGPGM(" :"); \
+  DEBUGPGM(name); \
+  DEBUGPGM("(len="); \
+  DEBUG((int)sizeof(parameterPstr)); \
+  DEBUGLNPGM(")"); \
+  order_code = order; \
+  parameter_length = sizeof(parameterPstr); \
+  memcpy_P(parameter_value, parameterPstr, parameter_length); \
+  process_command(); \
+} while (0) \
+
+// Macro used in DEBUG_STATIC_COMMAND_LIST to send a Pacemaker command using a string specifier
+// for the parameter data.
+// e.g., DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, "\x10" )
+#define DEBUG_COMMAND_STR(name, order, parameter_str) \
+do { \
+  static PROGMEM const char parameterPstr[] = parameter_str; \
+  DEBUGPGM("\nExecuting: "); \
+  DEBUGPGM(name); \
+  DEBUGPGM("(len="); \
+  DEBUG((int)sizeof(parameterPstr) - 1); \
+  DEBUGLNPGM(")"); \
+  order_code = order; \
+  parameter_length = sizeof(parameterPstr) - 1; \
+  memcpy_P(parameter_value, parameterPstr, parameter_length); \
+  process_command(); \
+} while (0)
+
+//
+// Static Configuration to set at start up
+//
+
+#define DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST \
+   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "6"); \
+   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "2"); \
+   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "2"); \
+   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1"); \
+   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "4"); \
+   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory"); \
+   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark"); \
+   DEBUG_READ_FIRMWARE_CONFIGURATION("stats.queue_memory"); 
+   
+#define DEBUG_STATIC_COMMAND_LIST \
+   DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS }) ); \
+   DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_REQUEST_INFORMATION, "\x11" ); \
+   DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) ); \
+   DEBUG_COMMAND_STR("Flish Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" ); \
+   DEBUG_COMMAND_STR("Read Quue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" ); \
+   
+#endif //if APPLY_DEBUG_CONFIGURATION  
+
 
 #endif //DEBUG_H

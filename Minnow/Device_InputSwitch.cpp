@@ -22,40 +22,56 @@
 //
 
 #include "Device_InputSwitch.h"
+#include "response.h"
 
-uint8_t Device_InputSwitch::input_switch_pins[MAX_INPUT_SWITCHES];
+uint8_t Device_InputSwitch::num_input_switches = 0;
+uint8_t *Device_InputSwitch::input_switch_pins;
 
 //
 // Methods
 //
 
-void Device_InputSwitch::Init()
+uint8_t Device_InputSwitch::Init(uint8_t num_devices)
 {
-  memset(input_switch_pins, 0xFF, sizeof(input_switch_pins));
-}
-
-uint8_t Device_InputSwitch::GetNumDevices()
-{
-  for (int8_t i=MAX_INPUT_SWITCHES-1; i>=0; i--)
+  if (num_input_switches != 0)
   {
-    if (input_switch_pins[i] != 0xFF)
-      return i+1;
-  }    
-  return 0;
+    generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
+    return PARAM_APP_ERROR_TYPE_FAILED;
+  }
+  if (num_devices == 0)
+    return APP_ERROR_TYPE_SUCCESS;
+
+  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*input_switch_pins));
+  if (memory == 0)
+  {
+    generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
+    return PARAM_APP_ERROR_TYPE_FAILED;
+  }
+
+  input_switch_pins = memory;
+  
+  memset(input_switch_pins, 0xFF, num_devices * sizeof(*input_switch_pins));
+
+  num_input_switches = num_devices;
+  return APP_ERROR_TYPE_SUCCESS;
 }
 
-
-bool Device_InputSwitch::SetPin(uint8_t device_number, uint8_t pin)
+uint8_t Device_InputSwitch::SetPin(uint8_t device_number, uint8_t pin)
 {
-  if (device_number >= MAX_INPUT_SWITCHES)
-    return false;
+  if (device_number >= num_input_switches)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+  
+  if (digitalPinToPort(pin) == NOT_A_PIN)
+  {
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
   
   input_switch_pins[device_number] = pin;
-  
-  if (pin != 0xFF)
-    pinMode(pin, INPUT);
 
-  return true;
+  pinMode(pin, INPUT);
+
+  return APP_ERROR_TYPE_SUCCESS;
 }
 
 

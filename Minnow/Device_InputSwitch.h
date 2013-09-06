@@ -30,12 +30,16 @@ class Device_InputSwitch
 {
 public:
 
-  static void Init();
-  static uint8_t GetNumDevices();
+  static uint8_t Init(uint8_t num_input_switches);
+  
+  FORCE_INLINE static uint8_t GetNumDevices()
+  {
+    return num_input_switches;
+  }
   
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
-    return (device_number < MAX_INPUT_SWITCHES 
+    return (device_number < num_input_switches 
       && input_switch_pins[device_number] != 0xFF);
   }
 
@@ -44,9 +48,10 @@ public:
     return input_switch_pins[device_number];
   }
   
-  static bool SetPin(uint8_t device_number, uint8_t pin);
+  // returns APP_ERROR_TYPE_SUCCESS or error code
+  static uint8_t SetPin(uint8_t device_number, uint8_t pin);
 
-  // Not: this read method is not used for time-critical input pins
+  // Note: this read method is not used for time-critical input pins
   // such as stepper or heater pins or for enqueued commands
   FORCE_INLINE static uint8_t ReadState(uint8_t device_number)
   {
@@ -54,7 +59,8 @@ public:
   }
 
 private:
-  static uint8_t input_switch_pins[MAX_INPUT_SWITCHES];
+  static uint8_t num_input_switches;
+  static uint8_t *input_switch_pins;
 };
 
 #endif

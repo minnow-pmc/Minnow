@@ -280,7 +280,9 @@ void handle_request_information_order()
 
   default:
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,0);
+    return;
   }
+  generate_response_send();  
 }
  
 void handle_device_name_order()
@@ -600,6 +602,9 @@ void handle_write_firmware_configuration_value_order()
  
 void handle_clear_command_queue_order()
 {
+  if (CommandQueue::GetQueueBufferLength() == 0)
+    allocate_command_queue_memory();
+
   CommandQueue::FlushQueuedCommands();
   
   uint16_t remaining_slots;
@@ -614,4 +619,3 @@ void handle_clear_command_queue_order()
   generate_response_data_add(total_command_count);
   generate_response_send(); 
 } 
-  

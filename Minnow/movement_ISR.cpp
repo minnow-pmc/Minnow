@@ -18,7 +18,9 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "movement.h"
+#include <avr/pgmspace.h>
+
+#include "movement_ISR.h"
 #include "CommandQueue.h"
 #include "QueueCommandStructs.h"
 #include "Minnow.h"
@@ -27,18 +29,19 @@
 
 // Some useful constants
 
+
 #define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
 
 // queue statics placed in this compilation unit to allow better optimization
-uint8_t *CommandQueue::queue_buffer;
-uint16_t CommandQueue::queue_buffer_length;
+uint8_t *CommandQueue::queue_buffer = 0;
+uint16_t CommandQueue::queue_buffer_length = 0;
   
-volatile uint8_t *CommandQueue::queue_head;
-volatile uint8_t *CommandQueue::queue_tail; // ISR will never change this value
+volatile uint8_t *CommandQueue::queue_head = 0;
+volatile uint8_t *CommandQueue::queue_tail = 0; // ISR will never change this value
 
-volatile uint8_t CommandQueue::in_progress_length;
-volatile uint16_t CommandQueue::current_queue_command_count;
+volatile uint8_t CommandQueue::in_progress_length = 0;
+volatile uint16_t CommandQueue::current_queue_command_count ;
 volatile uint16_t CommandQueue::total_attempted_queue_command_count;
 
 // Function declarations
@@ -49,24 +52,45 @@ FORCE_INLINE bool handleQueueCommand(const uint8_t* command, uint8_t command_len
 
 static uint32_t tmp_uint32;
 
-#ifdef QUEUE_DEBUG
-#define QUEUE_DEBUG_SHORT 0xF0
-#define QUEUE_DEBUG_MEDIUM 0xF1
-#define QUEUE_DEBUG_LONG 0xF2
-uint8_t queue_debug_sequence_number = 0;
-uint16_t queue_debug_enqueue_count = 0;
+#if QUEUE_TEST
+#define QUEUE_TEST_SHORT 0xF0
+#define QUEUE_TEST_MEDIUM 0xF1
+#define QUEUE_TEST_LONG 0xF2
+uint8_t queue_test_sequence_number = 0;
+uint16_t queue_test_enqueue_count = 0;
 #endif
 
 //
 // Routines
 //
 
-void mv_init() 
+void movement_ISR_init() 
 {
-  
+  // waveform generation = 0100 = CTC
+  TCCR1B &= ~(1<<WGM13);
+  TCCR1B |=  (1<<WGM12);
+  TCCR1A &= ~(1<<WGM11);
+  TCCR1A &= ~(1<<WGM10);
+
+  // output mode = 00 (disconnected)
+  TCCR1A &= ~(3<<COM1A0);
+  TCCR1A &= ~(3<<COM1B0);
+
+  // Set the timer pre-scaler
+  // Generally we use a divider of 8, resulting in a 2MHz timer
+  // frequency on a 16MHz MCU. If you are going to change this, be
+  // sure to regenerate speed_lookuptable.h with
+  // create_speed_lookuptable.py
+  TCCR1B = (TCCR1B & ~(0x07<<CS10)) | (2<<CS10);
+
+  OCR1A = 0x4000;
+  TCNT1 = 0;
+  ENABLE_STEPPER_DRIVER_INTERRUPT();
+
+  sei();
 }
 
-void mv_wake_up() 
+void movement_ISR_wake_up() 
 {
   //  TCNT1 = 0;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
@@ -100,9 +124,9 @@ void movement_ISR()
       {
         // nothing left to do
         CommandQueue::in_progress_length = 0;
-#ifdef QUEUE_DEBUG
+#if QUEUE_DEBUG
         if (CommandQueue::current_queue_command_count != 0)
-          ERRORPGMLN("queue count wrong 1");
+          ERRORLNPGM("queue count wrong 1");
 #endif      
         OCR1A = 2000; // == 1ms
         return;
@@ -119,9 +143,9 @@ void movement_ISR()
         if (CommandQueue::queue_tail > CommandQueue::queue_head)
         {
           // nothing left after skip marker (handled next time around the loop)
-#ifdef QUEUE_DEBUG
+#if QUEUE_DEBUG
           if (CommandQueue::queue_tail != CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
-          ERRORPGMLN("unexpected tail position");
+            ERRORLNPGM("unexpected tail position");
 #endif      
           CommandQueue::queue_head = CommandQueue::queue_tail; 
         }
@@ -153,7 +177,7 @@ void movement_ISR()
     DEBUGPGM(" cont=");
     DEBUGLN((int)continuing);
     DEBUGPGM("eqc=");
-    DEBUG(queue_debug_enqueue_count);
+    DEBUG(queue_test_enqueue_count);
     DEBUGPGM(" ccc=");
     DEBUG(CommandQueue::current_queue_command_count);
     DEBUGPGM(" tcc=");
@@ -178,9 +202,9 @@ void movement_ISR()
     // have we reached the end of the ring buffer
     if (CommandQueue::queue_head >= CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
     {
-#ifdef QUEUE_DEBUG
+#if QUEUE_DEBUG
       if (CommandQueue::queue_head > CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
-        ERRORPGMLN("queue ran off the end");
+        ERRORLNPGM("queue ran off the end");
 #endif      
       CommandQueue::queue_head = CommandQueue::queue_buffer;
     }
@@ -242,9 +266,9 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
         }
         volatile uint8_t *output_reg = device_info->device_reg;
         if (device_info->device_state == OUTPUT_SWITCH_STATE_LOW)
-          *output_reg = *output_reg & !device_info->device_bit; 
+          *output_reg &= ~device_info->device_bit; 
         else
-          *output_reg = *output_reg | device_info->device_bit;
+          *output_reg |= device_info->device_bit;
       }
       else
       {
@@ -268,33 +292,33 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
     Device_Heater::SetTargetTemperature(cmd->heater_number, cmd->target_temp);
     return true;
   }
-#ifdef QUEUE_DEBUG
-  case QUEUE_DEBUG_SHORT:
+#if QUEUE_TEST
+  case QUEUE_TEST_SHORT:
     if (command_length != 1)
     {
       ERRORPGM("Incorrect length in short queue test: ");
       ERRORLN((int)command_length);
     }
     return true;
-  case QUEUE_DEBUG_MEDIUM:
+  case QUEUE_TEST_MEDIUM:
     if (command_length != 2)
     {
       ERRORPGM("Incorrect length in medium queue test: ");
       ERRORLN((int)command_length);
     }
-    if (command[1] != queue_debug_sequence_number++)
-      ERRORPGMLN("Incorrect sequence number in medium queue test");
+    if (command[1] != queue_test_sequence_number++)
+      ERRORLNPGM("Incorrect sequence number in medium queue test");
     return true;
-  case QUEUE_DEBUG_LONG:
+  case QUEUE_TEST_LONG:
     if (command_length < 3)
     {
       ERRORPGM("Incorrect length in long queue test: ");
       ERRORLN((int)command_length);
     }
-    if (command[1] != queue_debug_sequence_number++)
-      ERRORPGMLN("Incorrect sequence number in long queue test");
+    if (command[1] != queue_test_sequence_number++)
+      ERRORLNPGM("Incorrect sequence number in long queue test");
     if (command[2] != command_length - 3)
-      ERRORPGMLN("Incorrect payload length in long queue test");
+      ERRORLNPGM("Incorrect payload length in long queue test");
     return true;
 #endif    
   default:
@@ -308,7 +332,7 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
   }
 }
 
-#ifdef QUEUE_DEBUG
+#if QUEUE_TEST
 void run_queue_test()
 {
   uint8_t buffer[50];
@@ -321,15 +345,15 @@ void run_queue_test()
   uint8_t *ptr;
   int i;
 
-  DEBUGPGMLN("Begin test");  
+  DEBUGLNPGM("Begin test");  
   
   for (i = 0; i < 1000; i++)
   {
     while ((ptr = CommandQueue::GetCommandInsertionPoint(1)) == 0)
       ;
-    *ptr = QUEUE_DEBUG_SHORT;
+    *ptr = QUEUE_TEST_SHORT;
     if (!CommandQueue::EnqueueCommand(1))
-      ERRORPGMLN("Failed to short enqueue");
+      ERRORLNPGM("Failed to short enqueue");
     
     if (i % 59 == 0)
     {
@@ -339,7 +363,7 @@ void run_queue_test()
       ptr[0] = QUEUE_COMMAND_STRUCTS_TYPE_DELAY;
       ptr[4] = 1 + (i % 13) ;
       if (!CommandQueue::EnqueueCommand(5))
-        ERRORPGMLN("Failed to short enqueue delay");
+        ERRORLNPGM("Failed to short enqueue delay");
     }
   }
 
@@ -370,10 +394,10 @@ void run_queue_test()
   {
     while ((ptr = CommandQueue::GetCommandInsertionPoint(2)) == 0)
       ;
-    *ptr++ = QUEUE_DEBUG_MEDIUM;
+    *ptr++ = QUEUE_TEST_MEDIUM;
     *ptr = sequence_num++;
     if (!CommandQueue::EnqueueCommand(2))
-      ERRORPGMLN("Failed to medium enqueue");
+      ERRORLNPGM("Failed to medium enqueue");
 
     if (i % 59 == 0)
     {
@@ -383,7 +407,7 @@ void run_queue_test()
       ptr[0] = QUEUE_COMMAND_STRUCTS_TYPE_DELAY;
       ptr[4] = 1 + (i % 13) ;
       if (!CommandQueue::EnqueueCommand(5))
-        ERRORPGMLN("Failed to short enqueue delay");
+        ERRORLNPGM("Failed to short enqueue delay");
     }
   }
   
@@ -414,11 +438,11 @@ void run_queue_test()
   {
     while ((ptr = CommandQueue::GetCommandInsertionPoint(3+(i%30))) == 0)
       ;
-    *ptr++ = QUEUE_DEBUG_LONG;
+    *ptr++ = QUEUE_TEST_LONG;
     *ptr++ = sequence_num++;
     *ptr++ = i%30;
     if (!CommandQueue::EnqueueCommand(3+(i%30)))
-      ERRORPGMLN("Failed to long enqueue");
+      ERRORLNPGM("Failed to long enqueue");
 
     if (i % 59 == 0)
     {
@@ -428,7 +452,7 @@ void run_queue_test()
       ptr[0] = QUEUE_COMMAND_STRUCTS_TYPE_DELAY;
       ptr[4] = 1 + (i % 13) ;
       if (!CommandQueue::EnqueueCommand(5))
-        ERRORPGMLN("Failed to short enqueue delay");
+        ERRORLNPGM("Failed to short enqueue delay");
     }
   }
     
@@ -455,4 +479,4 @@ void run_queue_test()
   DEBUGLN(total_command_count);
 #endif  
 }
-#endif
+#endif //if QUEUE_TEST

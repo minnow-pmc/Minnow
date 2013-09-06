@@ -63,6 +63,7 @@
 // Public Routines
 //
 
+void allocate_command_queue_memory();
 void emergency_stop();
 void die();
 
@@ -91,5 +92,55 @@ extern const char *stopped_reason;
   #define CRITICAL_SECTION_START  unsigned char _sreg = SREG; cli();
   #define CRITICAL_SECTION_END    SREG = _sreg;
 #endif //CRITICAL_SECTION_START
+
+// a macro to calculate a variable big enough to hold a bitmask of the specified size
+#define BITMASK(count) BITMASK_SIZE(count)
+#define BITMASK_SIZE(count) BITMASK_SIZE_##count
+#define BITMASK_SIZE_1 uint8_t
+#define BITMASK_SIZE_2 uint8_t
+#define BITMASK_SIZE_3 uint8_t
+#define BITMASK_SIZE_4 uint8_t
+#define BITMASK_SIZE_5 uint8_t
+#define BITMASK_SIZE_6 uint8_t
+#define BITMASK_SIZE_7 uint8_t
+#define BITMASK_SIZE_8 uint8_t
+#define BITMASK_SIZE_9  uint16_t
+#define BITMASK_SIZE_10 uint16_t
+#define BITMASK_SIZE_11 uint16_t
+#define BITMASK_SIZE_12 uint16_t
+#define BITMASK_SIZE_13 uint16_t
+#define BITMASK_SIZE_14 uint16_t
+#define BITMASK_SIZE_15 uint16_t
+#define BITMASK_SIZE_16 uint16_t
+#define BITMASK_SIZE_17 uint32_t
+#define BITMASK_SIZE_18 uint32_t
+#define BITMASK_SIZE_19 uint32_t
+#define BITMASK_SIZE_20 uint32_t
+#define BITMASK_SIZE_21 uint32_t
+#define BITMASK_SIZE_22 uint32_t
+#define BITMASK_SIZE_23 uint32_t
+#define BITMASK_SIZE_24 uint32_t
+#define BITMASK_SIZE_25 uint32_t
+#define BITMASK_SIZE_26 uint32_t
+#define BITMASK_SIZE_27 uint32_t
+#define BITMASK_SIZE_28 uint32_t
+#define BITMASK_SIZE_29 uint32_t
+#define BITMASK_SIZE_30 uint32_t
+#define BITMASK_SIZE_31 uint32_t
+#define BITMASK_SIZE_32 uint32_t
+
+// calculates the number of elements in a non-zero length array   
+#define NUM_ARRAY_ELEMENTS(array) (sizeof(array)/sizeof(array[0]))
+
+#define STRINGIFY_(n) #n
+#define STRINGIFY(n) STRINGIFY_(n)
+
+#define ARRAY(...) __VA_ARGS__ 
+   
+//
+// General Constants
+//
+
+#define APP_ERROR_TYPE_SUCCESS    0x0
 
 #endif

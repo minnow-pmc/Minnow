@@ -28,8 +28,9 @@
 #include "Device_InputSwitch.h"
 #include "Device_OutputSwitch.h"
 #include "Device_PwmOutput.h"
-#include "Device_Heater.h"
 #include "Device_Buzzer.h"
+#include "Device_Heater.h"
+#include "Device_TemperatureSensor.h"
 
 #include <avr/pgmspace.h>
 #include "language.h"
@@ -44,28 +45,32 @@ typedef struct _ConfigNodeInfo
   const char *name; // or 0 if this is an instance node
   const uint8_t *named_child_types; 
   uint8_t instance_child_type;
-  uint8_t num_children; // == number of child_attributes elements, or max instance id
+  uint8_t (*num_children)(); // stores either a functor (for instance node) or the raw count (for group nodes)
   bool (*child_in_use_functor)(uint8_t);
   uint8_t leaf_node_class;
   uint8_t leaf_operations; 
   uint8_t leaf_datatype; // the datatype is only needed for writable leaf nodes
 } ConfigNodeInfo;
 
+typedef bool (*in_use_functor_type)(uint8_t);
+typedef uint8_t (*num_children_functor_type)();
+
+
 // Initializer macro for named non-leaf nodes with named children
 #define GROUP_NODE(node_type) \
     { node_type, name_of_##node_type, children_of_##node_type, NODE_TYPE_INVALID, \
-      sizeof(children_of_##node_type), 0, LEAF_CLASS_INVALID, \
+      (num_children_functor_type)sizeof(children_of_##node_type), 0, LEAF_CLASS_INVALID, \
       LEAF_OPERATIONS_INVALID, LEAF_SET_DATATYPE_INVALID }
 
 // Initializer macro for unnamed non-leaf nodes with named children
 #define UNNAMED_GROUP_NODE(node_type) \
     { node_type, 0, children_of_##node_type, NODE_TYPE_INVALID, \
-      sizeof(children_of_##node_type), 0, LEAF_CLASS_INVALID, \
+      (num_children_functor_type)sizeof(children_of_##node_type), 0, LEAF_CLASS_INVALID, \
       LEAF_OPERATIONS_INVALID, LEAF_SET_DATATYPE_INVALID }
 
 // Initializer macro for named non-leaf nodes with instance children
-#define INSTANCE_CHILDREN_NODE(node_type, child_type, max_instance, is_in_use_functor) \
-    { node_type, name_of_##node_type, 0, child_type, max_instance, is_in_use_functor, \
+#define INSTANCE_CHILDREN_NODE(node_type, child_type, num_children_functor, is_in_use_functor) \
+    { node_type, name_of_##node_type, 0, child_type, num_children_functor, is_in_use_functor, \
       LEAF_CLASS_INVALID, LEAF_OPERATIONS_INVALID, LEAF_SET_DATATYPE_INVALID }
 
 // Initializer macro for leaf nodes
@@ -74,34 +79,42 @@ typedef struct _ConfigNodeInfo
       leaf_node_class, operations, data_type }
 
 // Configuration node names
-PROGMEM static const char pstr_PIN[] = CONFIG_STR_NAME;
-PROGMEM static const char pstr_NAME[] = CONFIG_STR_NAME;
+PROGMEM static const char pstr_PIN[] = CONFIG_STR(PIN);
+PROGMEM static const char pstr_NAME[] = CONFIG_STR(NAME);
+PROGMEM static const char pstr_TYPE[] = CONFIG_STR(TYPE);
+PROGMEM static const char pstr_USE_SOFT_PWM[] = CONFIG_STR(USE_SOFT_PWM);
 
 PROGMEM static const char name_of_NODE_TYPE_CONFIG_ROOT[] = "";
-PROGMEM static const char name_of_NODE_TYPE_GROUP_SYSTEM[] = CONFIG_STR_SYSTEM;
-PROGMEM static const char name_of_NODE_TYPE_GROUP_DEVICES[] = CONFIG_STR_DEVICES;
-PROGMEM static const char name_of_NODE_TYPE_GROUP_STATISTICS[] = CONFIG_STR_STATS;
-PROGMEM static const char name_of_NODE_TYPE_GROUP_DEBUG[] = CONFIG_STR_DEBUG;
+PROGMEM static const char name_of_NODE_TYPE_GROUP_SYSTEM[] = CONFIG_STR(SYSTEM);
+PROGMEM static const char name_of_NODE_TYPE_GROUP_DEVICES[] = CONFIG_STR(DEVICES);
+PROGMEM static const char name_of_NODE_TYPE_GROUP_STATISTICS[] = CONFIG_STR(STATS);
+PROGMEM static const char name_of_NODE_TYPE_GROUP_DEBUG[] = CONFIG_STR(DEBUG);
 
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME[] = CONFIG_STR_HARDWARE_NAME;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE[] = CONFIG_STR_HARDWARE_TYPE;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV[] = CONFIG_STR_HARDWARE_REV;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_IDENTITY[] = CONFIG_STR_BOARD_IDENTITY;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM[] = CONFIG_STR_BOARD_SERIAL_NUM;
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME[] = CONFIG_STR(HARDWARE_NAME);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE[] = CONFIG_STR(HARDWARE_TYPE);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV[] = CONFIG_STR(HARDWARE_REV);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_IDENTITY[] = CONFIG_STR(BOARD_IDENTITY);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM[] = CONFIG_STR(BOARD_SERIAL_NUM);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_INPUT_SWITCHES[] = CONFIG_STR(NUM_DIGITAL_INPUTS);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_OUTPUT_SWITCHES[] = CONFIG_STR(NUM_DIGITAL_OUTPUTS);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_PWM_OUTPUTS[] = CONFIG_STR(NUM_PWM_OUTPUTS);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_BUZZERS[] = CONFIG_STR(NUM_BUZZERS);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_HEATERS[] = CONFIG_STR(NUM_HEATERS);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_TEMP_SENSORS[] = CONFIG_STR(NUM_TEMP_SENSORS);
 
-PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_RX_PACKET_COUNT[] = CONFIG_STR_RX_COUNT;
-PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_RX_ERROR_COUNT[] = CONFIG_STR_RX_ERROR;
-PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_QUEUE_MEMORY[] = CONFIG_STR_QUEUE_MEMORY;
+PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_RX_PACKET_COUNT[] = CONFIG_STR(RX_COUNT);
+PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_RX_ERROR_COUNT[] = CONFIG_STR(RX_ERROR);
+PROGMEM static const char name_of_NODE_TYPE_STATS_LEAF_QUEUE_MEMORY[] = CONFIG_STR(QUEUE_MEMORY);
 
-PROGMEM static const char name_of_NODE_TYPE_DEBUG_LEAF_STACK_MEMORY[] = CONFIG_STR_STACK_MEMORY;
-PROGMEM static const char name_of_NODE_TYPE_DEBUG_LEAF_STACK_LOW_WATER_MARK[] = CONFIG_STR_STACK_LOW_WATER_MARK;
+PROGMEM static const char name_of_NODE_TYPE_DEBUG_LEAF_STACK_MEMORY[] = CONFIG_STR(STACK_MEMORY);
+PROGMEM static const char name_of_NODE_TYPE_DEBUG_LEAF_STACK_LOW_WATER_MARK[] = CONFIG_STR(STACK_LOW_WATER_MARK);
 
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_INPUT_SWITCHES[] = CONFIG_STR_INPUT_DIG;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_OUTPUT_SWITCHES[] = CONFIG_STR_OUTPUT_DIG;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_PWM_OUTPUTS[] = CONFIG_STR_OUTPUT_PWM;
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_BUZZERS[] = CONFIG_STR_BUZZER;
-
-PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN[] = CONFIG_STR_HEATER_HEATER_PIN;
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_INPUT_SWITCHES[] = CONFIG_STR(DIGITAL_INPUT);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_OUTPUT_SWITCHES[] = CONFIG_STR(DIGITAL_OUTPUT);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_PWM_OUTPUTS[] = CONFIG_STR(PWM_OUTPUT);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_BUZZERS[] = CONFIG_STR(BUZZER);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_TEMP_SENSORS[] = CONFIG_STR(TEMP_SENSOR);
+PROGMEM static const char name_of_NODE_TYPE_CONFIG_DEVICE_HEATERS[] = CONFIG_STR(HEATER);
 
 // ALIASES to generic attribute names
 #define name_of_NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_FRIENDLY_NAME pstr_NAME
@@ -110,9 +123,16 @@ PROGMEM static const char name_of_NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN[] = CO
 #define name_of_NODE_TYPE_CONFIG_LEAF_OUTPUT_SWITCH_PIN pstr_PIN
 #define name_of_NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_FRIENDLY_NAME pstr_NAME
 #define name_of_NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN pstr_PIN
+#define name_of_NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_USE_SOFT_PWM pstr_USE_SOFT_PWM
 #define name_of_NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME pstr_NAME
 #define name_of_NODE_TYPE_CONFIG_LEAF_BUZZER_PIN pstr_PIN
+#define name_of_NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM pstr_USE_SOFT_PWM
+#define name_of_NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_FRIENDLY_NAME pstr_NAME
+#define name_of_NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_PIN pstr_PIN
+#define name_of_NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_TYPE pstr_TYPE
 #define name_of_NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME pstr_NAME
+#define name_of_NODE_TYPE_CONFIG_LEAF_HEATER_PIN pstr_PIN
+#define name_of_NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM pstr_USE_SOFT_PWM
 
 
 // Arrays of named children
@@ -130,15 +150,22 @@ PROGMEM static const uint8_t children_of_NODE_TYPE_GROUP_SYSTEM[] =
   NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE,
   NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV,
   NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_IDENTITY,
-  NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_INPUT_SWITCHES,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_OUTPUT_SWITCHES,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_PWM_OUTPUTS,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_BUZZERS,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_HEATERS,
+  NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_TEMP_SENSORS
 };
 PROGMEM static const uint8_t children_of_NODE_TYPE_GROUP_DEVICES[] = 
 {
   NODE_TYPE_CONFIG_DEVICE_INPUT_SWITCHES,
   NODE_TYPE_CONFIG_DEVICE_OUTPUT_SWITCHES,
   NODE_TYPE_CONFIG_DEVICE_PWM_OUTPUTS,
-  NODE_TYPE_CONFIG_DEVICE_HEATERS,
-  NODE_TYPE_CONFIG_DEVICE_BUZZERS
+  NODE_TYPE_CONFIG_DEVICE_BUZZERS,
+  NODE_TYPE_CONFIG_DEVICE_TEMP_SENSORS,
+  NODE_TYPE_CONFIG_DEVICE_HEATERS
 };
 PROGMEM static const uint8_t children_of_NODE_TYPE_GROUP_STATISTICS[] = 
 {
@@ -164,17 +191,26 @@ PROGMEM static const uint8_t children_of_NODE_TYPE_CONFIG_DEVICE_INSTANCE_OUTPUT
 PROGMEM static const uint8_t children_of_NODE_TYPE_CONFIG_DEVICE_INSTANCE_PWM_OUTPUT[] = 
 {
   NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_FRIENDLY_NAME,
-  NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN
+  NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN,
+  NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_USE_SOFT_PWM
 };
 PROGMEM static const uint8_t children_of_NODE_TYPE_CONFIG_DEVICE_INSTANCE_BUZZER[] = 
 {
   NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME,
-  NODE_TYPE_CONFIG_LEAF_BUZZER_PIN
+  NODE_TYPE_CONFIG_LEAF_BUZZER_PIN,
+  NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM
+};
+PROGMEM static const uint8_t children_of_NODE_TYPE_CONFIG_DEVICE_INSTANCE_TEMP_SENSOR[] = 
+{
+  NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_FRIENDLY_NAME,
+  NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_PIN,
+  NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_TYPE
 };
 PROGMEM static const uint8_t children_of_NODE_TYPE_CONFIG_DEVICE_INSTANCE_HEATER[] = 
 {
   NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME,
-  NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN
+  NODE_TYPE_CONFIG_LEAF_HEATER_PIN,
+  NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM
 };
 //
 // Configuration Tree Definition
@@ -196,22 +232,29 @@ PROGMEM static const ConfigNodeInfo node_info_array[] =
   // Device Type Nodes
   INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_INPUT_SWITCHES, 
       NODE_TYPE_CONFIG_DEVICE_INSTANCE_INPUT_SWITCH, 
-      MAX_INPUT_SWITCHES, Device_InputSwitch::IsInUse), 
+      Device_InputSwitch::GetNumDevices, Device_InputSwitch::IsInUse), 
   INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_OUTPUT_SWITCHES,
       NODE_TYPE_CONFIG_DEVICE_INSTANCE_OUTPUT_SWITCH, 
-      MAX_OUTPUT_SWITCHES, Device_OutputSwitch::IsInUse), 
+      Device_OutputSwitch::GetNumDevices, Device_OutputSwitch::IsInUse), 
   INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_PWM_OUTPUTS,
       NODE_TYPE_CONFIG_DEVICE_INSTANCE_PWM_OUTPUT, 
-      MAX_PWM_OUTPUTS, Device_PwmOutput::IsInUse), 
+      Device_PwmOutput::GetNumDevices, Device_PwmOutput::IsInUse), 
   INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_BUZZERS,
       NODE_TYPE_CONFIG_DEVICE_INSTANCE_BUZZER, 
-      MAX_BUZZERS, Device_Buzzer::IsInUse), 
+      Device_Buzzer::GetNumDevices, Device_Buzzer::IsInUse), 
+  INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_TEMP_SENSORS,
+      NODE_TYPE_CONFIG_DEVICE_INSTANCE_TEMP_SENSOR, 
+      Device_TemperatureSensor::GetNumDevices, Device_TemperatureSensor::IsInUse), 
+  INSTANCE_CHILDREN_NODE(NODE_TYPE_CONFIG_DEVICE_HEATERS,
+      NODE_TYPE_CONFIG_DEVICE_INSTANCE_HEATER, 
+      Device_Heater::GetNumDevices, Device_Heater::IsInUse), 
     
   // Device Type Instance Nodes
   UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_INPUT_SWITCH),
   UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_OUTPUT_SWITCH),
   UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_PWM_OUTPUT),
   UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_BUZZER),
+  UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_TEMP_SENSOR),
   UNNAMED_GROUP_NODE(NODE_TYPE_CONFIG_DEVICE_INSTANCE_HEATER),
     
   // Device related leaf nodes
@@ -227,14 +270,26 @@ PROGMEM static const ConfigNodeInfo node_info_array[] =
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN,
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_USE_SOFT_PWM,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_BOOL),
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME,
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_BUZZER_PIN,
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_BOOL),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_FRIENDLY_NAME,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_PIN,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_TYPE,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME,
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
-  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_HEATER_HEATER_PIN,
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_HEATER_PIN,
       LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM,
+      LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_BOOL),
       
   // System config related leaf nodes
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME,
@@ -247,6 +302,18 @@ PROGMEM static const ConfigNodeInfo node_info_array[] =
     LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
   LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM,
     LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_STRING),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_INPUT_SWITCHES,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_OUTPUT_SWITCHES,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_PWM_OUTPUTS,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_BUZZERS,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_HEATERS,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
+  LEAF_NODE(NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_TEMP_SENSORS,
+    LEAF_CLASS_CONFIG, LEAF_OPERATIONS_READWRITABLE, LEAF_SET_DATATYPE_UINT8),
 
     // Statistics related leaf nodes
   LEAF_NODE(NODE_TYPE_STATS_LEAF_RX_PACKET_COUNT,
@@ -263,8 +330,6 @@ PROGMEM static const ConfigNodeInfo node_info_array[] =
     LEAF_CLASS_STATISTICS, LEAF_OPERATIONS_READABLE, LEAF_SET_DATATYPE_INVALID),
     
 };
-
-typedef bool (*in_use_functor_type)(uint8_t);
 
 //
 // Public Methods
@@ -438,8 +503,10 @@ ConfigurationTreeNode::InitializeNextChild(ConfigurationTreeNode &child) const
   if (node_info_index == INVALID_NODE_INFO_INDEX)
     return false;
   const ConfigNodeInfo *node_info = &node_info_array[node_info_index];
-  const uint8_t num_children = pgm_read_byte(&node_info->num_children);
   const uint8_t instance_child_type = pgm_read_byte(&node_info->instance_child_type);
+  const num_children_functor_type num_children_functor = (sizeof(num_children_functor_type) == 2) ?
+            (num_children_functor_type)pgm_read_word(&node_info->num_children) :
+            (num_children_functor_type)pgm_read_dword(&node_info->num_children);
     
   if (instance_child_type != NODE_TYPE_INVALID)
   {
@@ -450,6 +517,7 @@ ConfigurationTreeNode::InitializeNextChild(ConfigurationTreeNode &child) const
       child.instance_id = 0;
       return true;
     }
+    const uint8_t num_children = num_children_functor();
     if (instance_id < num_children - 1)
     {
       child.instance_id += 1;
@@ -467,6 +535,8 @@ ConfigurationTreeNode::InitializeNextChild(ConfigurationTreeNode &child) const
       child.instance_id = INVALID_INSTANCE_ID;
       return true;
     }
+    // the functor pointer is acually storing a raw value in this case
+    const uint8_t num_children = (uint8_t)(uint32_t)num_children_functor; 
     for (uint8_t i=0; i<num_children-1; i++)
     {
       const uint8_t named_child_type = (sizeof(node_info->named_child_types) == 2) ?

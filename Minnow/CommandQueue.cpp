@@ -21,13 +21,14 @@
 
 #include "QueueCommandStructs.h"
 #include "Minnow.h"
-#include "movement.h"
+#include "movement_ISR.h"
 
 // queue statics placed in the movement.cpp compilation unit to allow better ISR optimization
   
 void 
 CommandQueue::Init(uint8_t *buffer, uint16_t buffer_length)
 {
+  CRITICAL_SECTION_START
   queue_buffer = buffer;
   queue_buffer_length = buffer_length;
   
@@ -37,6 +38,7 @@ CommandQueue::Init(uint8_t *buffer, uint16_t buffer_length)
   
   current_queue_command_count = 0;
   total_attempted_queue_command_count = 0;
+  CRITICAL_SECTION_END
 }
   
 uint8_t *
@@ -111,36 +113,18 @@ CommandQueue::EnqueueCommand(uint8_t command_length)
     }
     current_queue_command_count += 1;
 
-#if 0
-    DEBUGPGM("EC: head=");
-    DEBUG((int)(CommandQueue::queue_head - queue_buffer));
-    DEBUGPGM(" tail=");
-    DEBUG((int)(CommandQueue::queue_tail - queue_buffer));
-    DEBUGPGM(" length=");
-    DEBUGLN((int)command_length);
-#endif    
-
-#ifdef QUEUE_DEBUG
-    extern uint16_t queue_debug_enqueue_count;
-    queue_debug_enqueue_count += 1;
+#if QUEUE_TEST
+    extern uint16_t queue_test_enqueue_count;
+    queue_test_enqueue_count += 1;
 #endif    
 
     if (in_progress_length == 0)
-      mv_wake_up();
+      movement_ISR_wake_up();
   }  
   CRITICAL_SECTION_END
   if (!success)
   {
-    int a = CommandQueue::queue_head - queue_buffer;
-    int b = CommandQueue::queue_tail - queue_buffer;
-    int c = command_length;
-    DEBUGPGM("BL: head=");
-    DEBUG(a);
-    DEBUGPGM(" tail=");
-    DEBUG(b);
-    DEBUGPGM(" len=");
-    DEBUGLN(c);
-    DEBUGPGMLN("Bad length for EnqueueCommand"); // shouldn't happen if GetCommandInsertionPoint was called correctly
+    DEBUGLNPGM("Bad length for EnqueueCommand"); // shouldn't happen if GetCommandInsertionPoint was called correctly
   }    
   return success;
 }

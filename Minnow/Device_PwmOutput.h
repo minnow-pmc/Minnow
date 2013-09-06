@@ -25,17 +25,22 @@
 #define DEVICE_PWMOUTPUT_H
 
 #include "Minnow.h"
+#include "SoftPwmState.h"
 
 class Device_PwmOutput
 {
 public:
 
-  static void Init();
-  static uint8_t GetNumDevices();
+  static uint8_t Init(uint8_t num_pwm_devices);
+  
+  FORCE_INLINE static uint8_t GetNumDevices()
+  {
+    return num_pwm_outputs;
+  }
   
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
-    return (device_number < MAX_PWM_OUTPUTS 
+    return (device_number < num_pwm_outputs 
       && pwm_output_pins[device_number] != 0xFF);
   }
 
@@ -44,17 +49,28 @@ public:
     return pwm_output_pins[device_number];
   }
   
-  static bool SetPin(uint8_t device_number, uint8_t pin);
+  // returns APP_ERROR_TYPE_SUCCESS or error code
+  static uint8_t SetPin(uint8_t device_number, uint8_t pin);
+  static uint8_t EnableSoftPwm(uint8_t device_number, bool enable);
 
-  // Not: this write method is not used for time-critical output pins
-  // such as stepper or heater pins or for enqueued commands
-  FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t state)
+  FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t power)
   {
-    analogWrite(pwm_output_pins[device_number], state >> 8);
+    if (soft_pwm_device_bitmask == 0 || (soft_pwm_device_bitmask & (1<<device_number)) == 0)
+      analogWrite(pwm_output_pins[device_number], power);
+    else
+      soft_pwm_state->SetPower(device_number, power);
   }
 
 private:
-  static uint8_t pwm_output_pins[MAX_PWM_OUTPUTS];
+  friend void updateSoftPwm();
+
+  static uint8_t num_pwm_outputs;
+  static uint8_t *pwm_output_pins;
+  
+  // additional state to support soft pwm 
+  static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 outputs
+  static SoftPwmState *soft_pwm_state; // allocated on first use
+  
 };
 
 #endif

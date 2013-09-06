@@ -69,12 +69,12 @@ public:
   uint8_t GetHardwareRevision() const;
   int8_t GetDeviceName(uint8_t device_type, uint8_t device_number, char *buffer, uint8_t buffer_len) const;
   
-  bool SetBoardIdentity(const char *buffer);
-  bool SetBoardSerialNumber(const char *buffer);
-  bool SetHardwareName(const char *buffer);
-  bool SetHardwareType(uint8_t type);
-  bool SetHardwareRevision(uint8_t rev);
-  bool SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer);
+  uint8_t SetBoardIdentity(const char *buffer);
+  uint8_t SetBoardSerialNumber(const char *buffer);
+  uint8_t SetHardwareName(const char *buffer);
+  uint8_t SetHardwareType(uint8_t type);
+  uint8_t SetHardwareRevision(uint8_t rev);
+  uint8_t SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer);
 
 };
 

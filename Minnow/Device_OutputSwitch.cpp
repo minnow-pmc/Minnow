@@ -22,40 +22,59 @@
 //
 
 #include "Device_OutputSwitch.h"
+#include "response.h"
 
-uint8_t Device_OutputSwitch::output_switch_pins[MAX_OUTPUT_SWITCHES];
-bool Device_OutputSwitch::output_switch_disabled[MAX_OUTPUT_SWITCHES];
+uint8_t Device_OutputSwitch::num_output_switches = 0;
+uint8_t *Device_OutputSwitch::output_switch_pins;
+bool *Device_OutputSwitch::output_switch_disabled;
 
 //
 // Methods
 //
 
-void Device_OutputSwitch::Init()
+uint8_t Device_OutputSwitch::Init(uint8_t num_devices)
 {
-  memset(output_switch_pins, 0xFF, sizeof(output_switch_pins));
-}
-
-uint8_t Device_OutputSwitch::GetNumDevices()
-{
-  for (int8_t i=MAX_OUTPUT_SWITCHES-1; i>=0; i--)
+  if (num_output_switches != 0)
   {
-    if (output_switch_pins[i] != 0xFF)
-      return i+1;
-  }    
-  return 0;
+    generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
+    return PARAM_APP_ERROR_TYPE_FAILED;
+  }
+  if (num_devices == 0)
+    return APP_ERROR_TYPE_SUCCESS;
+
+  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*output_switch_pins));
+  if (memory == 0)
+  {
+    generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
+    return PARAM_APP_ERROR_TYPE_FAILED;
+  }
+
+  output_switch_pins = memory;
+  
+  memset(output_switch_pins, 0xFF, num_devices * sizeof(*output_switch_pins));
+
+  num_output_switches = num_devices;
+  
+  return APP_ERROR_TYPE_SUCCESS;
 }
 
-
-bool Device_OutputSwitch::SetPin(uint8_t device_number, uint8_t pin)
+uint8_t Device_OutputSwitch::SetPin(uint8_t device_number, uint8_t pin)
 {
-  if (device_number >= MAX_OUTPUT_SWITCHES)
-    return false;
+  if (device_number >= num_output_switches)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+  
+  if (digitalPinToPort(pin) == NOT_A_PIN)
+  {
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
   
   output_switch_pins[device_number] = pin;
   output_switch_disabled[device_number] = true;
 
-  return true;
+  return APP_ERROR_TYPE_SUCCESS;
 }
+
 
 
     

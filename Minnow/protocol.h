@@ -158,25 +158,25 @@
 #define PARAM_RESUME_TYPE_CLEAR                           0x2
 
 // Request Information Order
-#define PARAM_REQUEST_INFO_FIRMWARE_NAME                  0
-#define PARAM_REQUEST_INFO_BOARD_SERIAL_NUMBER            1
-#define PARAM_REQUEST_INFO_BOARD_NAME                     2
-#define PARAM_REQUEST_INFO_GIVEN_NAME                     3
-#define PARAM_REQUEST_INFO_PROTO_VERSION_MAJOR            4
-#define PARAM_REQUEST_INFO_PROTO_VERSION_MINOR            5
-#define PARAM_REQUEST_INFO_SUPPORTED_EXTENSIONS           6
-#define PARAM_REQUEST_INFO_FIRMWARE_TYPE                  7
-#define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MAJOR         8
-#define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MINOR         9
-#define PARAM_REQUEST_INFO_HARDWARE_TYPE                  10
-#define PARAM_REQUEST_INFO_HARDWARE_REVISION              11
-#define PARAM_REQUEST_INFO_NUM_STEPPERS                   12
-#define PARAM_REQUEST_INFO_NUM_HEATERS                    13
-#define PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS                14
-#define PARAM_REQUEST_INFO_NUM_TEMP_SENSORS               15
-#define PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS              16
-#define PARAM_REQUEST_INFO_NUM_SWITCH_OUTPUTS             17
-#define PARAM_REQUEST_INFO_NUM_BUZZERS                    18
+#define PARAM_REQUEST_INFO_FIRMWARE_NAME                  0x0
+#define PARAM_REQUEST_INFO_BOARD_SERIAL_NUMBER            0x1
+#define PARAM_REQUEST_INFO_BOARD_NAME                     0x2
+#define PARAM_REQUEST_INFO_GIVEN_NAME                     0x3
+#define PARAM_REQUEST_INFO_PROTO_VERSION_MAJOR            0x4
+#define PARAM_REQUEST_INFO_PROTO_VERSION_MINOR            0x5
+#define PARAM_REQUEST_INFO_SUPPORTED_EXTENSIONS           0x6
+#define PARAM_REQUEST_INFO_FIRMWARE_TYPE                  0x7
+#define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MAJOR         0x8
+#define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MINOR         0x9
+#define PARAM_REQUEST_INFO_HARDWARE_TYPE                  0xa
+#define PARAM_REQUEST_INFO_HARDWARE_REVISION              0xb
+#define PARAM_REQUEST_INFO_NUM_STEPPERS                   0xc
+#define PARAM_REQUEST_INFO_NUM_HEATERS                    0xd
+#define PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS                0xe
+#define PARAM_REQUEST_INFO_NUM_TEMP_SENSORS               0xf
+#define PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS              0x10
+#define PARAM_REQUEST_INFO_NUM_SWITCH_OUTPUTS             0x11
+#define PARAM_REQUEST_INFO_NUM_BUZZERS                    0x12
 
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0
@@ -185,7 +185,7 @@
 //
 // Queue Command Types
 //
-#define QUEUE_COMMAND_ORDER_WRAPPER                       1  // TODO get right values here
+#define QUEUE_COMMAND_ORDER_WRAPPER                       1
 #define QUEUE_COMMAND_DELAY                               2
 #define QUEUE_COMMAND_LINEAR_MOVE                         3
 #define QUEUE_COMMAND_SET_ACTIVE_TOOLHEAD                 4

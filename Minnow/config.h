@@ -33,29 +33,40 @@
 // until it finds a match.
 #define AUTODETECT_BAUDRATES { 115200, 250000 }
 
-// Languages
-// 1  English
-// 2  German - Deutsch
-#define LANGUAGE_CHOICE 1
+// Languages (uncmment one of the following languages
+#define LANGUAGE_CHOICE ENGLISH
+//#define LANGUAGE_CHOICE DEUTSCH
+
+// Firmware Config Language (using English allows you to use standard configuration profiles)
+#define CONFIG_STRING_LANGUAGE_CHOICE ENGLISH
+//#define CONFIG_STRING_LANGUAGE_CHOICE DEUTSCH
 
 //
 // RAM sizes
 //
 
-#define STACK_SIZE                          500
+#define MIN_STACK_SIZE                          200   // code will ensure that the stack is at least this size
+#define MAX_STACK_SIZE                          400   // code will use all space in excess of this for the command queue
 
-#define MAX_RECV_BUF_LEN                    (PM_HEADER_SIZE + 265 + 1)
-#define MAX_RESPONSE_PARAM_LENGTH           128
+#define MAX_RECV_BUF_LEN                        (PM_HEADER_SIZE + 265 + 1)
+#define MAX_RESPONSE_PARAM_LENGTH               128
 
-// Maximum devices which can configured (determines memory allocated to store device configuration)
-#define MAX_INPUT_SWITCHES                  6
-#define MAX_OUTPUT_SWITCHES                 4
-#define MAX_PWM_OUTPUTS                     5
-#define MAX_HEATERS                         4
-#define MAX_BUZZERS                         1
+#define MIN_QUEUE_SIZE                          150   // If the firmware cannot allocate this much memory then it will fail
+                                                      // (otherwise all excess memory is allocated to the queue)
+
+
+//
+// Advanced Configuration Options
+//
 
 // Only enable the watchdog for reset if you Arduino bootloader supports disabling the watchdog
-//#define USE_WATCHDOG_FOR_RESET
+#define USE_WATCHDOG_FOR_RESET 0
+
+// Incrementing this by 1 will double the software PWM frequency,
+// affecting heaters, and the fan if FAN_SOFT_PWM is enabled.
+// However, control resolution will be halved for each increment;
+// at zero value, there are 128 effective control positions.
+#define SOFT_PWM_SCALE 0
 
 // Does the Arduino use an AT90USB USB Serial UART?
 #if defined (__AVR_AT90USB1287__) || defined (__AVR_AT90USB1286__) || defined (__AVR_AT90USB646__) || defined(__AVR_AT90USB647__)

@@ -18,12 +18,12 @@
  */
 
 //
-// Movement Interrupt Defines
+// Temperature & Soft PWM ISR interfaces & defines
 //
 
-#ifndef MOVEMENT_H
-#define MOVEMENT_H
+#ifndef TEMPERATURE_ISR_H
+#define TEMPERATURE_ISR_H
 
-void mv_wake_up();
+void temperature_ISR_init();
 
 #endif
