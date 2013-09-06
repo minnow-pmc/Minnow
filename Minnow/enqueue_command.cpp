@@ -43,6 +43,11 @@ void enqueue_command()
   uint8_t *ptr = parameter_value;
   uint8_t index = 0;
 
+  if (CommandQueue::GetQueueBufferLength() == 0)
+  {
+    allocate_command_queue_memory();
+  }
+  
   generate_response_start(RSP_ORDER_SPECIFIC_ERROR, QUEUE_ERROR_MSG_OFFSET);
   
   while (ptr < parameter_value + parameter_length)
@@ -51,10 +56,10 @@ void enqueue_command()
     // 2 is currently minimum length of defined command blocks
     if (length < 2 || ptr + length < parameter_value + parameter_length)
     {
-      generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+      generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
       generate_response_msg_addbyte((parameter_value + parameter_length) - (ptr + length));
       generate_response_msg_add(", ");
-      generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
+      generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
       generate_response_msg_addbyte(parameter_length + length); 
       send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_MALFORMED_BLOCK, index);
       return;
@@ -81,7 +86,7 @@ void enqueue_command()
         retval = enqueue_set_heater_target_temperature_command(ptr, length-2);
         break;
       default:
-        generate_response_msg_addPGM(PSTR(ERR_MSG_QUEUE_ORDER_NOT_PERMITTED));
+        generate_response_msg_addPGM(PMSG(ERR_MSG_QUEUE_ORDER_NOT_PERMITTED));
         char code[4];
         utoa(*(ptr-1), code, 10);
         generate_response_msg_add(code);
@@ -136,10 +141,10 @@ uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length
 {
   if (parameter_length != sizeof(uint16_t))
   {
-    generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
     generate_response_msg_addbyte(parameter_length);
     generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
+    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
     generate_response_msg_addbyte(2);
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
   }
@@ -164,10 +169,10 @@ uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_
 
   if ((number_of_switches * 3) != parameter_length)
   {
-    generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
     generate_response_msg_addbyte(parameter_length);
     generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
+    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
     generate_response_msg_addbyte(3*(number_of_switches+1));
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
   }
@@ -223,10 +228,10 @@ uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t p
 {
   if (parameter_length < 4)
   {
-    generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
     generate_response_msg_addbyte(parameter_length);
     generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
+    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
     generate_response_msg_addbyte(4);
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
   }
@@ -275,7 +280,7 @@ uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, 
 #if 0 // TODO
   if (parameter_length < 3)
   {
-    generate_response_msg_addPGM(PSTR(ERR_MSG_INSUFFICENT_BYTES));
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES)));
     generate_response_msg_addbyte(parameter_length);
     generate_response_msg_add(", ");
     generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
