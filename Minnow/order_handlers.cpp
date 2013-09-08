@@ -251,7 +251,7 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_NUM_STEPPERS:
-    generate_response_data_addbyte(0);
+    generate_response_data_addbyte(0); //TODO
     break;
     
   case PARAM_REQUEST_INFO_NUM_HEATERS:
@@ -263,7 +263,7 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_NUM_TEMP_SENSORS:
-    generate_response_data_addbyte(0);
+    generate_response_data_addbyte(Device_TemperatureSensor::GetNumDevices());
     break;
     
   case PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS:
@@ -353,7 +353,18 @@ void handle_request_temperature_reading_order()
       generate_response_data_addbyte(lowByte(temp));
       break;
     }
-    case PM_DEVICE_TYPE_TEMP_SENSOR: // TODO: implement separate temperature sensors
+    case PM_DEVICE_TYPE_TEMP_SENSOR: 
+    {
+      if (!Device_TemperatureSensor::IsInUse(device_number))
+      {
+        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        return;
+      }
+      int16_t temp = Device_TemperatureSensor::ReadCurrentTemperature(device_number);
+      generate_response_data_addbyte(highByte(temp));
+      generate_response_data_addbyte(lowByte(temp));
+      break;
+    }
     default:
       send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
       return;
@@ -602,16 +613,25 @@ void handle_write_firmware_configuration_value_order()
  
 void handle_clear_command_queue_order()
 {
+  generate_response_start(RSP_APPLICATION_ERROR, 1);
+  
   if (CommandQueue::GetQueueBufferLength() == 0)
-    allocate_command_queue_memory();
+  {  
+    if (!allocate_command_queue_memory())
+    {
+      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
+      generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
+      generate_response_send(); 
+      return;
+    }
+  }
 
   CommandQueue::FlushQueuedCommands();
   
   uint16_t remaining_slots;
-  bool is_in_progress;
   uint16_t current_command_count;
   uint16_t total_command_count;
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   
   generate_response_start(RSP_OK);
   generate_response_data_add(remaining_slots);

@@ -32,8 +32,10 @@ public:
 
 #define TEMP_SENSOR_TYPE_INVALID     0
 
-// The last temperature sensor type which uses the internal ADC mechanism
-#define LAST_ADC_TEMP_SENSOR_TYPE 1
+// see thermistortables.h for available thermistor types.
+
+#define LAST_THERMISTOR_SENSOR_TYPE 99 // all temperature sensor types above this are not thermistors
+
 
   static uint8_t Init(uint8_t num_temperature_sensors);
   
@@ -45,7 +47,8 @@ public:
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
     return (device_number < num_temperature_sensors 
-      && temperature_sensor_pins[device_number] != 0xFF);
+      && temperature_sensor_pins[device_number] != 0xFF
+      && temperature_sensor_types[device_number] != TEMP_SENSOR_TYPE_INVALID);
   }
 
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)

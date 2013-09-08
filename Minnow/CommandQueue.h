@@ -50,7 +50,7 @@ public:
   static void FlushQueuedCommands();
   
   static bool IsCommandExecuting() { return in_progress_length != 0; } // don't need critical section for single byte read
-  static void GetQueueInfo(uint16_t &remaining_slots, bool& is_in_progress, uint16_t &current_command_count, uint16_t &total_executed_queue_command_count);
+  static void GetQueueInfo(uint16_t &remaining_slots, uint16_t &current_command_count, uint16_t &total_executed_queue_command_count);
   
   static uint16_t GetQueueBufferLength() { return queue_buffer_length; }
 

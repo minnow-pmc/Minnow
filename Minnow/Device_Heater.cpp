@@ -67,7 +67,7 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
   memset(heater_temp_sensors, 0xFF, num_devices * sizeof(*heater_temp_sensors));
   memset(heater_control_modes, HEATER_CONTROL_MODE_INVALID, num_devices * sizeof(*heater_control_modes));
 
-  for (int8_t i=0; i<num_heaters; i++)
+  for (int8_t i=0; i<num_devices; i++)
   {
     heater_max_temps[i] = PM_TEMPERATURE_INVALID;
     heater_target_temps[i] = PM_TEMPERATURE_INVALID;

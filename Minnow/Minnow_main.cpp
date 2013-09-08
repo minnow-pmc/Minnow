@@ -144,7 +144,7 @@ uint16_t countStackLowWatermark()
 // is enqueued. Normally this is done after all other memory allocations have
 // occurred as the queue will take up all remaining RAM above configured thresholds.
 //
-void allocate_command_queue_memory()
+bool allocate_command_queue_memory()
 {
   uint16_t memory_size = 0; 
   uint8_t *memory; 
@@ -160,25 +160,45 @@ void allocate_command_queue_memory()
   
   if (memory_size == 0 || (memory = (uint8_t *)malloc(memory_size)) == 0)
   {
-    ERRORPGM_P(PMSG(ERR_MSG_INSUFFICIENT_QUEUE_MEMORY));
-    ERRORLN((int)MIN_QUEUE_SIZE);
-    // to do enter error state
-    return;
+    return false;
   }
   CommandQueue::Init(memory, memory_size);
+  return true;
 }
 
 void applyDebugConfiguration()
 {
 #if APPLY_DEBUG_CONFIGURATION
 
-#ifdef DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST
-  DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST;
-#endif  
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "4");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "2");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "2");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "3");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.pin", "13");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.pin", "15");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.pin", "9");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "6");
+  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory");
+  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark");
+  DEBUG_READ_FIRMWARE_CONFIGURATION("stats.queue_memory");
 
-#ifdef DEBUG_STATIC_COMMAND_LIST
-  DEBUG_STATIC_COMMAND_LIST;
-#endif
+  DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS }) );
+  DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_REQUEST_INFORMATION, "\x11" );
+  DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
+  DEBUG_COMMAND_ARRAY("Request Num Temp Sensors", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_TEMP_SENSORS }) );
+  DEBUG_COMMAND_STR("Flish Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" );
+  DEBUG_COMMAND_STR("Read Queue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" );
+  DEBUG_COMMAND_STR("Read Stack Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_memory" );
+  
+  delay(1000);
+  Device_TemperatureSensor::UpdateTemperatureSensors();
+  
+  DEBUG_COMMAND_ARRAY("Read Temp Sensor 0", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 0 }) );
+  DEBUG_COMMAND_ARRAY("Read Temp Sensor 1", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 1 }) );
+  DEBUG_COMMAND_ARRAY("Read Temp Sensor 2", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 2 }) );
 
 #endif
 }

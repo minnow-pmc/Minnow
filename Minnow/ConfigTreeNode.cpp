@@ -517,8 +517,7 @@ ConfigurationTreeNode::InitializeNextChild(ConfigurationTreeNode &child) const
       child.instance_id = 0;
       return true;
     }
-    const uint8_t num_children = num_children_functor();
-    if (instance_id < num_children - 1)
+    if (child.instance_id < num_children_functor() - 1)
     {
       child.instance_id += 1;
       return true;

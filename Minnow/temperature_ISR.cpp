@@ -35,6 +35,8 @@
 #include "Device_Heater.h"
 #include "Device_Buzzer.h"
 #include "Device_PwmOutput.h"
+
+#include "thermistortables.h"
  
 volatile bool temp_meas_ready = false;
 
@@ -139,15 +141,17 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     if (sensor < num_sensors)
     {
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type < LAST_ADC_TEMP_SENSOR_TYPE)
+      if (type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         if ((temp_index & 1) == 0)
         {
           // prepare temperature reading
           const uint8_t pin = Device_TemperatureSensor::temperature_sensor_pins[sensor];
+#ifdef MUX5
           if (pin > 7)
             ADCSRB = 1<<MUX5;
           else
+#endif          
             ADCSRB = 0;
           ADMUX = ((1 << REFS0) | (pin & 0x07));
           ADCSRA |= 1<<ADSC; // Start conversion
@@ -172,14 +176,14 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
   }
   else
   {
-    // if there are more than 4 sensors then we both read and prepare on each interrupt cycle (but for different sensors)
+    // if there are more than 4 sensors then we both read and prepare on each interrupt cycle (but for consecutive sensors)
     
     // first, retrieve previous measurement
     if (temp_index <= num_sensors && (temp_index != 0 || num_sensors >= 8))
     {
       const uint8_t sensor = (temp_index != 0) ? temp_index - 1 : num_sensors - 1;
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type < LAST_ADC_TEMP_SENSOR_TYPE)
+      if (type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         Device_TemperatureSensor::temperature_sensor_isr_raw_values[sensor] += ADC;
       }
@@ -193,12 +197,14 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     {
       // sensor == temp_index in this mode
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[temp_index];
-      if (type < LAST_ADC_TEMP_SENSOR_TYPE)
+      if (type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         const uint8_t pin = Device_TemperatureSensor::temperature_sensor_pins[temp_index];
+#ifdef MUX5
         if (pin > 7)
           ADCSRB = 1<<MUX5;
         else
+#endif        
           ADCSRB = 0;
         ADMUX = ((1 << REFS0) | (pin & 0x07));
         ADCSRA |= 1<<ADSC; // Start conversion
@@ -216,8 +222,9 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     }
   }
 
-  // For 8 or fewer temperature sensors we update raw temperature readings every 8ms * 16 = 128ms
-  if(temp_count >= 16) 
+  // We oversample 16 times, so with 8 or fewer temperature sensors we update raw temperature readings every 8ms * 16 = 128ms
+    
+  if(temp_count >= OVERSAMPLENR) 
   {
     //Only update the raw values if they have been read. Else we could be updating them during reading.
     if (!temp_meas_ready) 

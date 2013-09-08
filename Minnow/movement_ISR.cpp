@@ -25,6 +25,8 @@
 #include "QueueCommandStructs.h"
 #include "Minnow.h"
 #include "Device_OutputSwitch.h"
+#include "Device_PwmOutput.h"
+#include "Device_Buzzer.h"
 #include "Device_Heater.h"
 
 // Some useful constants
@@ -47,8 +49,13 @@ volatile uint16_t CommandQueue::total_attempted_queue_command_count;
 // Function declarations
 FORCE_INLINE void movement_ISR(); // needs to be non-static due to friend usage elsewhere
 FORCE_INLINE bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool continuing); // needs to be non-static due to friend usage elsewhere
+FORCE_INLINE bool handleLinearMove(const LinearMoveCommand *command, bool continuing);    
 
 // Temporary variables used to store command state between ISR invocations
+
+uint32_t microseconds_move_remaining;
+bool is_checkpoint_last;
+
 
 static uint32_t tmp_uint32;
 
@@ -222,6 +229,10 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
   // start command processing
   switch (*command)
   {
+  case QUEUE_COMMAND_STRUCTS_TYPE_LINEAR_MOVE:
+  {
+    return handleLinearMove((const LinearMoveCommand *)command, continuing);    
+  }
   case QUEUE_COMMAND_STRUCTS_TYPE_DELAY:
   {
     const DelayQueueCommand * const cmd = (const DelayQueueCommand*)command;
@@ -283,13 +294,24 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
   case QUEUE_COMMAND_STRUCTS_TYPE_SET_PWM_OUTPUT_STATE:
   {
     const SetPwmOutputStateQueueCommand * const cmd = (const SetPwmOutputStateQueueCommand*)command;
-    analogWrite(cmd->pin, cmd->value);
+    Device_PwmOutput::WriteState(cmd->device_number, cmd->value);
+    return true;
+  }
+  case QUEUE_COMMAND_STRUCTS_TYPE_SET_BUZZER_STATE:
+  {
+    const SetBuzzerStateQueueCommand * const cmd = (const SetBuzzerStateQueueCommand*)command;
+    Device_Buzzer::WriteState(cmd->device_number, cmd->value);
     return true;
   }
   case QUEUE_COMMAND_STRUCTS_TYPE_SET_HEATER_TARGET_TEMP:
   {
     const SetHeaterTargetTempCommand * const cmd = (const SetHeaterTargetTempCommand*)command;
     Device_Heater::SetTargetTemperature(cmd->heater_number, cmd->target_temp);
+    return true;
+  }
+  case QUEUE_COMMAND_STRUCTS_TYPE_SET_ACTIVE_TOOLHEAD:
+  {
+    // do nothing for now.
     return true;
   }
 #if QUEUE_TEST
@@ -332,6 +354,106 @@ bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool con
   }
 }
 
+bool handleLinearMove(const LinearMoveCommand *cmd, bool continuing)
+{
+#if 0
+  static uint8_t move_phase;
+  static uint8_t num_axis;
+  static AxisMoveInfo *last_axis_info;
+  static AxisMoveInfo axis_info;
+  
+  if (!continuing)
+  {
+    num_axis = cmd->num_axis;
+    OCR1A = cmd->step_time1;
+    move_phase = 1;
+    step_events_completed = 0;
+    total_step_events = cmd-?
+    step_loops =
+    start_axis_info = &cmd->axis_info[0];
+    last_axis_info = &cmd->axis_info[num_axis-1];
+
+    write_directions();
+  }
+
+  check_endstops();
+  
+  for(int8_t i=0; i < step_loops; i++) // Take multiple steps per interrupt (For high speed moves)
+  {
+    write_steps();
+  
+    if (++steps_events_completed >= max_step_events)
+    {
+       // update remaining time
+       microseconds_move_remaining -= 
+       return true;
+    }
+  }
+
+  if (steps_events_completed >= step_events_phase2)
+  {
+  }
+  else if (steps_events_completed >= step_events_phase1)
+  {
+  }
+  return false;
+  
+  recalculate_speed();
+  
+}  
+  
+void write_directions()
+{
+    axis_info = start_axis_info;
+    do
+    {
+      write_direction(axis_info);
+    }
+    while ((axis_info++ < last_axis_info);   
+}     
+void check_endstops()
+{
+    axis_info = start_axis_info;
+    do
+    {
+      write_direction(axis_info);
+    }
+    while ((axis_info++ < last_axis_info);   
+} 
+void write_steps()
+{
+    axis_info = start_axis_info;
+    do
+    {
+      write_step(axis_info);
+    }
+    while ((axis_info++ < last_axis_info);   
+}  
+
+typedef struct _AxisMoveInfo
+{
+  StepperInfo *stepper_info;
+  bool direction;
+  uint16_t step_count1;
+  uint16_t step_count2;
+  uint16_t step_count3;
+} AxisMoveInfo;
+     
+typedef struct _LinearMoveCommand
+{
+  uint8_t command_type; // QUEUE_COMMAND_STRUCTS_TYPE_LINEAR_MOVE
+  uint16_t starting_speed;
+  uint16_t nominal_speed;
+  uint16_t end_speed;
+  uint16_t nominal_time;
+  uint8_t primary_axis;
+  uint8_t number_of_axes;
+  AxisMoveInfo axis_info[1]; // actual length of array is number_of_axes
+} LinearMoveCommand;    
+  for 
+#endif
+}
+
 #if QUEUE_TEST
 void run_queue_test()
 {
@@ -339,7 +461,6 @@ void run_queue_test()
   CommandQueue::Init(buffer, sizeof(buffer));
   
   uint16_t remaining_slots;
-  bool is_in_progress;
   uint16_t current_command_count;
   uint16_t total_command_count;
   uint8_t *ptr;
@@ -367,11 +488,9 @@ void run_queue_test()
     }
   }
 
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info1a: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG(current_command_count);
   DEBUGPGM(" tcc=");
@@ -379,11 +498,9 @@ void run_queue_test()
 
   delay(1000);
 
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info1b: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG(current_command_count);
   DEBUGPGM(" tcc=");
@@ -411,11 +528,9 @@ void run_queue_test()
     }
   }
   
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info2a: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG(current_command_count);
   DEBUGPGM(" tcc=");
@@ -423,11 +538,9 @@ void run_queue_test()
 
   delay(1000);
 
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info2b: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG(current_command_count);
   DEBUGPGM(" tcc=");
@@ -456,11 +569,9 @@ void run_queue_test()
     }
   }
     
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info3a: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG(current_command_count);
   DEBUGPGM(" tcc=");
@@ -468,11 +579,9 @@ void run_queue_test()
 
   delay(1000);
 
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info3b: slots=");
   DEBUG(remaining_slots);
-  DEBUGPGM(" ip=");
-  DEBUG((int)is_in_progress);
   DEBUGPGM(" ccc=");
   DEBUG((int)current_command_count);
   DEBUGPGM(" tcc=");

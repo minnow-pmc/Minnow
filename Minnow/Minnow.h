@@ -63,7 +63,7 @@
 // Public Routines
 //
 
-void allocate_command_queue_memory();
+bool allocate_command_queue_memory();
 void emergency_stop();
 void die();
 

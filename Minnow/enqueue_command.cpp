@@ -45,8 +45,15 @@ void enqueue_command()
 
   if (CommandQueue::GetQueueBufferLength() == 0)
   {
-    allocate_command_queue_memory();
-  }
+    if (!allocate_command_queue_memory())
+    {
+      generate_response_start(RSP_APPLICATION_ERROR, 1);
+      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
+      generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
+      generate_response_send(); 
+      return;
+    }
+  }  
   
   generate_response_start(RSP_ORDER_SPECIFIC_ERROR, QUEUE_ERROR_MSG_OFFSET);
   
@@ -108,10 +115,9 @@ void enqueue_command()
   }
   
   uint16_t remaining_slots;
-  bool is_in_progress;
   uint16_t current_command_count;
   uint16_t total_command_count;
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   
   generate_response_start(RSP_OK);
   generate_response_data_add(remaining_slots);
@@ -123,10 +129,9 @@ void enqueue_command()
 void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t error_code)
 {
   uint16_t remaining_slots;
-  bool is_in_progress;
   uint16_t current_command_count;
   uint16_t total_command_count;
-  CommandQueue::GetQueueInfo(remaining_slots, is_in_progress, current_command_count, total_command_count);
+  CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
  
   generate_response_data_addbyte(error_type);
   generate_response_data_addbyte(block_index);
@@ -240,11 +245,7 @@ uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t p
   
   if (insertion_point == 0)
     return ENQUEUE_ERROR_QUEUE_FULL;
-  
-  SetPwmOutputStateQueueCommand *cmd = (SetPwmOutputStateQueueCommand *)insertion_point;
-    
-  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_OUTPUT_SWITCH_STATE;
-    
+     
   const uint8_t device_number = parameter_value[1];
   
   switch(parameter_value[0])
@@ -254,25 +255,28 @@ uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t p
     if (!Device_PwmOutput::IsInUse(device_number))
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
-    cmd->pin = Device_OutputSwitch::GetPin(device_number);
+    SetPwmOutputStateQueueCommand *cmd = (SetPwmOutputStateQueueCommand *)insertion_point;
+    cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_PWM_OUTPUT_STATE;
+    cmd->device_number = device_number;
     cmd->value = parameter_value[2]; // the LSB is ignored
-    break;
+    CommandQueue::EnqueueCommand(sizeof(SetPwmOutputStateQueueCommand));
+    return ENQUEUE_SUCCESS;
   }    
   case PM_DEVICE_TYPE_BUZZER:
   {
     if (!Device_Buzzer::IsInUse(device_number))
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
-    cmd->pin = Device_Buzzer::GetPin(device_number);
+    SetBuzzerStateQueueCommand *cmd = (SetBuzzerStateQueueCommand *)insertion_point;
+    cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_BUZZER_STATE;
+    cmd->device_number = device_number;
     cmd->value = parameter_value[2]; // the LSB is ignored
-    break;
+    CommandQueue::EnqueueCommand(sizeof(SetPwmOutputStateQueueCommand));
+    return ENQUEUE_SUCCESS;
   }    
   default:
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE;
   }  
-
-  CommandQueue::EnqueueCommand(sizeof(SetPwmOutputStateQueueCommand));
-  return ENQUEUE_SUCCESS;
 }
 
 uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, uint8_t parameter_length)

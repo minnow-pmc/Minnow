@@ -146,12 +146,12 @@ CommandQueue::FlushQueuedCommands()
   CRITICAL_SECTION_END
 }
   
-void CommandQueue::GetQueueInfo(uint16_t &remaining_slots, bool &is_in_progress, 
-                                uint16_t &current_command_count, uint16_t &total_executed_queue_command_count)
+void CommandQueue::GetQueueInfo(uint16_t &remaining_slots, 
+                                uint16_t &current_command_count, 
+                                uint16_t &total_executed_queue_command_count)
 {
   CRITICAL_SECTION_START
   current_command_count = current_queue_command_count;
-  is_in_progress = in_progress_length != 0;
   total_executed_queue_command_count = total_attempted_queue_command_count;
   const uint8_t * const cached_queue_head = (const uint8_t *)queue_head; 
   CRITICAL_SECTION_END

@@ -569,12 +569,11 @@ uint8_t setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
     return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
   }    
   
-  if (!retval)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-  }
+  if (retval == APP_ERROR_TYPE_SUCCESS)
   return APP_ERROR_TYPE_SUCCESS;
+
+  generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+  return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
 }
 
 bool read_number(long &number, const char *value)

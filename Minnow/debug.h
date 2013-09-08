@@ -319,7 +319,7 @@ private:
 //
 
 #define APPLY_DEBUG_CONFIGURATION 1
-#if APPLY_DEBUG_CONFIGURATION
+
 
 // Macro used in DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST to write a firmware configuration value.
 #define DEBUG_WRITE_FIRMWARE_CONFIGURATION(name,value) \
@@ -379,29 +379,5 @@ do { \
   memcpy_P(parameter_value, parameterPstr, parameter_length); \
   process_command(); \
 } while (0)
-
-//
-// Static Configuration to set at start up
-//
-
-#define DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST \
-   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "6"); \
-   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "2"); \
-   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "2"); \
-   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1"); \
-   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "4"); \
-   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory"); \
-   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark"); \
-   DEBUG_READ_FIRMWARE_CONFIGURATION("stats.queue_memory"); 
-   
-#define DEBUG_STATIC_COMMAND_LIST \
-   DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS }) ); \
-   DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_REQUEST_INFORMATION, "\x11" ); \
-   DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) ); \
-   DEBUG_COMMAND_STR("Flish Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" ); \
-   DEBUG_COMMAND_STR("Read Quue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" ); \
-   
-#endif //if APPLY_DEBUG_CONFIGURATION  
-
 
 #endif //DEBUG_H
