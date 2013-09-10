@@ -23,14 +23,14 @@
 bool SoftPwmState::Init(uint8_t _num_devices)
 {
   uint8_t *memory = (uint8_t*)malloc(_num_devices * 
-    (sizeof(*pwm_power) + sizeof(*output_bit) + sizeof(*pwm_power) + sizeof(*pwm_count)));
+    (sizeof(*output_reg) + sizeof(*output_bit) + sizeof(*pwm_power) + sizeof(*pwm_count)));
   if (memory == 0)
     return false;
 
   pwm_power = memory;
-  output_bit = pwm_power + _num_devices;
-  pwm_count = output_bit + _num_devices;
-  output_reg = (uint8_t **)(pwm_count + _num_devices);
+  pwm_count = pwm_power + _num_devices;
+  output_bit = pwm_count + _num_devices;
+  output_reg = (uint8_t **)(output_bit + _num_devices);
      
   memset(pwm_power, 0, _num_devices * sizeof(*pwm_power));
   memset(output_bit, 0, _num_devices * sizeof(*output_bit));
@@ -48,7 +48,7 @@ bool SoftPwmState::EnableSoftPwm(uint8_t device_number, uint8_t pin, bool enable
   if (enable)
   {
     uint8_t port = digitalPinToPort(pin);
-    if (port != NOT_A_PIN)
+    if (port == NOT_A_PIN)
       return false;
     output_reg[device_number] = (uint8_t *)portOutputRegister(port);
     output_bit[device_number] = digitalPinToBitMask(pin);

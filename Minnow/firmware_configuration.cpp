@@ -38,14 +38,14 @@
 #include "Device_Heater.h"
 #include "Device_TemperatureSensor.h"
 
-static void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id);
-static bool read_number(long &number, const char *value);
-static bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, uint8_t value);
-static bool set_int16_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, int16_t value);
-static bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id, uint8_t instance_id, bool value);
-static bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, const char *value);
-static uint8_t setPin(uint8_t node_type, uint8_t device_number, uint8_t pin);
+FORCE_INLINE static void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id);
+FORCE_INLINE static bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, uint8_t value);
+FORCE_INLINE static bool set_int16_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, int16_t value);
+FORCE_INLINE static bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id, uint8_t instance_id, bool value);
+FORCE_INLINE static bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, const char *value);
+FORCE_INLINE static bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin);
 
+static bool read_number(long &number, const char *value);
 
 void handle_firmware_configuration_traversal(const char *name)
 {
@@ -54,22 +54,19 @@ void handle_firmware_configuration_traversal(const char *name)
   ConfigurationTreeNode *node;
   if (name[0] == '\0')
   {
-    node = tree.FindFirstLeafNode(tree.GetRootNode(), true);
+    node = tree.FindFirstLeafNode(tree.GetRootNode());
   }
   else
   {
     node = tree.FindNode(name);
     if (node == 0)
     {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE);
-      generate_response_msg_addPGM(PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND));
-      generate_response_msg_add(name);
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                        PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND), name);
       return;
     }
     // currently only return nodes for devices which are in use
-    node = tree.FindNextLeafNode(tree.GetRootNode(), true);
+    node = tree.FindNextLeafNode(tree.GetRootNode());
   }
   
   if (node == 0)
@@ -89,17 +86,14 @@ void handle_firmware_configuration_traversal(const char *name)
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
   int8_t retval;
-  bool inUse;
 
-  if ((retval = tree.GetFullName(node, inUse, response_data_buf, response_data_buf_len)) > 0)
+  if ((retval = tree.GetFullName(node, response_data_buf, response_data_buf_len)) > 0)
   {
     generate_response_data_addlen(retval);
   }
   else
   {
-    generate_response_start(RSP_APPLICATION_ERROR, 1);
-    generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-    generate_response_send();
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR, 0);
     return;
   }      
   generate_response_send();
@@ -111,30 +105,24 @@ void handle_firmware_configuration_request(const char *name, const char* value)
   
   if (*name == '\0')
   {
-    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT, 0);
     return; 
   }
 
   ConfigurationTreeNode *node = tree.FindNode(name);
   if (node == 0)
   {
-    generate_response_start(RSP_APPLICATION_ERROR, 1);
-    generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE);
     // TODO: improve on this error message
-    generate_response_msg_addPGM(PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND));
-    generate_response_msg_add(name);
-    generate_response_send();
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND), name);
     return;
   }
 
   if (!node->IsLeafNode())
   {
-    generate_response_start(RSP_APPLICATION_ERROR, 1);
-    generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE);
     // TODO: improve on this error message
-    generate_response_msg_addPGM(PMSG(ERR_MSG_CONFIG_NODE_NOT_COMPLETE));
-    generate_response_msg_add(name);
-    generate_response_send();
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_COMPLETE), name);
     return;
   }
 
@@ -142,33 +130,23 @@ void handle_firmware_configuration_request(const char *name, const char* value)
   {
     if ((node->GetLeafOperations() & LEAF_OPERATIONS_READABLE) == 0)
     {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE);
-      generate_response_msg_addPGM(PMSG(ERR_MSG_CONFIG_NODE_NOT_READABLE));
-      generate_response_send();
-      return;
-    }
-    if (!node->IsInUse())
-    {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER);
-      generate_response_msg_addPGM(PMSG(ERR_MSG_DEVICE_NOT_IN_USE));
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_READABLE));
       return;
     }
     generate_value(node->GetNodeType(), tree.GetParentNode(node)->GetInstanceId(), node->GetInstanceId());
   }
   else
   {
-    if ((node->GetLeafOperations() & LEAF_OPERATIONS_WRITABLE) == 0)
+    if ((node->GetLeafOperations() & LEAF_OPERATIONS_WRITEABLE) == 0)
     {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE);
-      generate_response_msg_addPGM(PMSG(ERR_MSG_CONFIG_NODE_NOT_WRITABLE));
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_WRITEABLE));
       return;
     }
     
+    generate_response_start(RSP_APPLICATION_ERROR, 1);
+
     // ensure value has correct format and then attempt to set
     switch (node->GetLeafSetDataType())
     {
@@ -178,10 +156,8 @@ void handle_firmware_configuration_request(const char *name, const char* value)
       if (!read_number(number, value) 
         || number < 0 || number > UINT8_MAX)
       {
-        generate_response_start(RSP_APPLICATION_ERROR, 1);
-        generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
-        generate_response_msg_addPGM(PMSG(ERR_MSG_EXPECTED_UINT8_VALUE));
-        generate_response_send();
+        send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                                PMSG(ERR_MSG_EXPECTED_UINT8_VALUE));
         return;
       }
 
@@ -198,10 +174,8 @@ void handle_firmware_configuration_request(const char *name, const char* value)
       long number;
       if (!read_number(number, value))
       {
-        generate_response_start(RSP_APPLICATION_ERROR, 1);
-        generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
-        generate_response_msg_addPGM(PMSG(ERR_MSG_EXPECTED_INT16_VALUE));
-        generate_response_send();
+        send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                                PMSG(ERR_MSG_EXPECTED_INT16_VALUE));
         return;
       }
 
@@ -226,10 +200,8 @@ void handle_firmware_configuration_request(const char *name, const char* value)
       }
       else
       {
-        generate_response_start(RSP_APPLICATION_ERROR, 1);
-        generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
-        generate_response_msg_addPGM(PMSG(ERR_MSG_EXPECTED_BOOL_VALUE));
-        generate_response_send();
+        send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                                PMSG(ERR_MSG_EXPECTED_BOOL_VALUE));
         return;
       }
       
@@ -252,11 +224,8 @@ void handle_firmware_configuration_request(const char *name, const char* value)
     }
     
     default:
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-      generate_response_msg_add(__LINE__);
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                              PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
       return;
     }
 
@@ -358,11 +327,8 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
 
     case LEAF_SET_DATATYPE_INVALID:
     default:
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-      generate_response_msg_add(__LINE__);
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+              PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
       return;
     }  
 
@@ -372,8 +338,6 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
  
 bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, uint8_t value)
 { 
-  generate_response_start(RSP_APPLICATION_ERROR, 1);
-  
   uint8_t retval;
   switch (node_type)
   {
@@ -383,8 +347,7 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_BUZZER_PIN:
   case NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_PIN:
   case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
-    retval = setPin(node_type, parent_instance_id, value);
-    break;
+    return setPin(node_type, parent_instance_id, value);
 
   case NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_TYPE:
     retval = Device_TemperatureSensor::SetType(parent_instance_id, value);
@@ -417,10 +380,9 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
     break;
       
   default: 
-    generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-    generate_response_msg_add(__LINE__);
-    retval = PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
-    break;
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
   }
   
   if (retval == APP_ERROR_TYPE_SUCCESS)
@@ -439,10 +401,9 @@ bool set_int16_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   {
 
   default: 
-    generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-    generate_response_msg_add(__LINE__);
-    retval = PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
-    break;
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
   }
   
   if (retval == APP_ERROR_TYPE_SUCCESS)
@@ -470,10 +431,9 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     break;
 
   default: 
-    generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-    generate_response_msg_add(__LINE__);
-    retval = PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
-    break;
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
   }
   
   if (retval == APP_ERROR_TYPE_SUCCESS)
@@ -487,6 +447,9 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
 bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, const char *value)
 { 
   uint8_t retval;
+
+  generate_response_start(RSP_APPLICATION_ERROR, 1);
+  
   switch (node_type)
   {
   case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_FRIENDLY_NAME:
@@ -519,10 +482,9 @@ bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t in
     break;
     
   default: 
-    generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-    generate_response_msg_add(__LINE__);
-    retval = PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
-    break;
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
   }
   
   if (retval == APP_ERROR_TYPE_SUCCESS)
@@ -533,7 +495,7 @@ bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t in
   return false;
 }
 
-uint8_t setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
+bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
 {
   uint8_t retval = false;
   
@@ -564,16 +526,18 @@ uint8_t setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
     break;
 
   default: 
-    generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST));
-    generate_response_msg_add(__LINE__);
-    return PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR;
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
   }    
   
   if (retval == APP_ERROR_TYPE_SUCCESS)
-  return APP_ERROR_TYPE_SUCCESS;
+    return true;
 
+  generate_response_data_addbyte(retval);
   generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-  return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  generate_response_send();
+  return false;
 }
 
 bool read_number(long &number, const char *value)

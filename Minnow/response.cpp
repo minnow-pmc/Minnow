@@ -260,7 +260,6 @@ void generate_response_send()
     PSERIAL.write(reply_buf[i]);
   PSERIAL.write(crc8(&reply_header[PM_ORDER_CODE_OFFSET], 
                         (PM_HEADER_SIZE-PM_ORDER_CODE_OFFSET)+param_length));
-  PSERIAL.flush();                          
   reply_started = false;
   reply_sent = true;
 }
@@ -277,22 +276,56 @@ void send_OK_response()
 
 void send_insufficient_bytes_error_response(uint8_t expected_num_bytes)
 {
+  send_insufficient_bytes_error_response(expected_num_bytes, parameter_length);
+}
+
+void send_insufficient_bytes_error_response(uint8_t expected_num_bytes, uint8_t actual_bytes)
+{
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
   generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-  generate_response_msg_addbyte(parameter_length);
+  generate_response_msg_add(actual_bytes); // TODO print as ascii
   generate_response_msg_add(", ");
   generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-  generate_response_msg_addbyte(expected_num_bytes);
+  generate_response_msg_addbyte(expected_num_bytes); // TODO print as ascii
   generate_response_send();
 }
 
-void send_app_error_response(uint8_t error_type, uint8_t parameter_offset)
+void send_app_error_at_offset_response(uint8_t error_type, uint8_t parameter_offset)
 {
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(error_type);
   generate_response_msg_addPGM(PMSG(ERR_MSG_GENERIC_APP_AT_OFFSET));
-  generate_response_msg_addbyte(parameter_offset);
+  generate_response_msg_add(parameter_offset); // TODO print as ascii
+  generate_response_send();
+}
+
+void send_app_error_response(uint8_t error_type, const char *msg_pstr)
+{
+  generate_response_start(RSP_APPLICATION_ERROR, 1);
+  generate_response_data_addbyte(error_type);
+  if (msg_pstr != 0)
+    generate_response_msg_addPGM(msg_pstr);
+  generate_response_send();
+}
+
+void send_app_error_response(uint8_t error_type, const char *msg_pstr, uint16_t msg_num_value)
+{
+  generate_response_start(RSP_APPLICATION_ERROR, 1);
+  generate_response_data_addbyte(error_type);
+  if (msg_pstr != 0)
+    generate_response_msg_addPGM(msg_pstr);
+  generate_response_msg_add(msg_num_value);    
+  generate_response_send();
+}
+
+void send_app_error_response(uint8_t error_type, const char *msg_pstr, const char *msg_str_value)
+{
+  generate_response_start(RSP_APPLICATION_ERROR, 1);
+  generate_response_data_addbyte(error_type);
+  if (msg_pstr != 0)
+    generate_response_msg_addPGM(msg_pstr);
+  generate_response_msg_add(msg_str_value);    
   generate_response_send();
 }
 

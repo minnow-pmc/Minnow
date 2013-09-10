@@ -37,7 +37,7 @@ ConfigurationTree::FindNode(const char *name)
   ConfigurationTreeNode *node = &node_array[0];
   while (true)
   {
-    ConfigurationTreeNode *child = GetFirstChild(node, false);
+    ConfigurationTreeNode *child = GetFirstChild(node);
     while (child != 0)
     {
       int8_t child_name_length = child->CompareName(name);
@@ -60,7 +60,7 @@ ConfigurationTree::FindNode(const char *name)
           break;
         }
       }
-      child = GetNextChild(node, false);
+      child = GetNextChild(node);
     }
     if (child == 0)
       return 0;
@@ -69,17 +69,17 @@ ConfigurationTree::FindNode(const char *name)
 }
 
 ConfigurationTreeNode *
-ConfigurationTree::FindFirstLeafNode(const ConfigurationTreeNode *search_root_node, bool inUseOnly)
+ConfigurationTree::FindFirstLeafNode(const ConfigurationTreeNode *search_root_node)
 {
   if ((uint8_t*)search_root_node >= (uint8_t*)node_array + sizeof(node_array) - sizeof(ConfigurationTreeNode))
     return 0;
   ConfigurationTreeNode *child = (ConfigurationTreeNode *)search_root_node + 1;;
   child->Clear(); 
-  return FindNextLeafNode(search_root_node, inUseOnly);
+  return FindNextLeafNode(search_root_node);
 }
 
 ConfigurationTreeNode *
-ConfigurationTree::FindNextLeafNode(const ConfigurationTreeNode *search_root_node, bool inUseOnly)
+ConfigurationTree::FindNextLeafNode(const ConfigurationTreeNode *search_root_node)
 {
   // return previous previous position
   ConfigurationTreeNode *node = (ConfigurationTreeNode *)search_root_node;
@@ -98,7 +98,7 @@ ConfigurationTree::FindNextLeafNode(const ConfigurationTreeNode *search_root_nod
     if (!(firstNode && node->IsLeafNode()))
     {
       // traverse down tree to find first leaf node
-      while ((child = GetFirstChild(node, inUseOnly)) != 0)
+      while ((child = GetFirstChild(node)) != 0)
       {
         firstNode = false;
         node = child;
@@ -116,7 +116,7 @@ ConfigurationTree::FindNextLeafNode(const ConfigurationTreeNode *search_root_nod
         return 0;
       node = GetParentNode(node);
     }
-    while ((child = GetNextChild(node, inUseOnly)) == 0);
+    while ((child = GetNextChild(node)) == 0);
     node = child;
   }
 }
@@ -131,17 +131,14 @@ ConfigurationTree::GetParentNode(const ConfigurationTreeNode *node) const
  return ((ConfigurationTreeNode *)node) - 1;
 }
 
-int8_t ConfigurationTree::GetFullName(const ConfigurationTreeNode *target_node, bool &inUse, char *buffer, uint8_t length)
+int8_t ConfigurationTree::GetFullName(const ConfigurationTreeNode *target_node, char *buffer, uint8_t length)
 {
   const ConfigurationTreeNode *node = GetCurrentChild(GetRootNode());
   uint8_t used = 0;
 
-  inUse = true;
-  
   while (node != 0)
   {
     used += node->GetName(&buffer[used], length - used);
-    inUse &= node->IsInUse();
     if (used < length && node != target_node)
       buffer[used++] = '.';
     else if (used >= length)
@@ -161,7 +158,7 @@ int8_t ConfigurationTree::GetFullName(const ConfigurationTreeNode *target_node, 
 //
 
 ConfigurationTreeNode *
-ConfigurationTree::GetFirstChild(const ConfigurationTreeNode *node, bool inUseOnly)
+ConfigurationTree::GetFirstChild(const ConfigurationTreeNode *node)
 {
   if ((uint8_t*)node >= (uint8_t*)node_array + sizeof(node_array) - sizeof(ConfigurationTreeNode))
     return 0;
@@ -170,15 +167,13 @@ ConfigurationTree::GetFirstChild(const ConfigurationTreeNode *node, bool inUseOn
   child->Clear();
   while (node->InitializeNextChild(*child))
   {
-    if (inUseOnly && !child->IsInUse())
-      continue;
     return child;
   }
   return 0;
 }
 
 ConfigurationTreeNode *
-ConfigurationTree::GetNextChild(const ConfigurationTreeNode *node, bool inUseOnly)
+ConfigurationTree::GetNextChild(const ConfigurationTreeNode *node)
 {
   if ((uint8_t*)node >= (uint8_t*)node_array + sizeof(node_array) - sizeof(ConfigurationTreeNode))
     return 0;
@@ -186,8 +181,6 @@ ConfigurationTree::GetNextChild(const ConfigurationTreeNode *node, bool inUseOnl
   ConfigurationTreeNode *child = (ConfigurationTreeNode *)node + 1;
   while (node->InitializeNextChild(*child))
   {
-    if (inUseOnly && !child->IsInUse())
-      continue;
     return child;
   }
   return 0;

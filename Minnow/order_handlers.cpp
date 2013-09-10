@@ -140,9 +140,7 @@ void process_command()
     handle_clear_command_queue_order();
     break;
   default:
-    generate_response_start(RSP_APPLICATION_ERROR);
-    generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER);
-    generate_response_send();
+    send_app_error_response(PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER, 0);
     break;
   }
 }
@@ -328,7 +326,7 @@ void handle_request_temperature_reading_order()
   }
   if ((parameter_length & 1) == 1)
   {
-    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT, 0);
     return; 
   }
 
@@ -345,7 +343,7 @@ void handle_request_temperature_reading_order()
     {
       if (!Device_Heater::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
       int16_t temp = Device_Heater::ReadCurrentTemperature(device_number);
@@ -357,7 +355,7 @@ void handle_request_temperature_reading_order()
     {
       if (!Device_TemperatureSensor::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
       int16_t temp = Device_TemperatureSensor::ReadCurrentTemperature(device_number);
@@ -366,7 +364,7 @@ void handle_request_temperature_reading_order()
       break;
     }
     default:
-      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
       return;
     }
   }  
@@ -412,7 +410,7 @@ void handle_configure_heater_order()
 void handle_set_heater_target_temperature_order()
 {
   const uint8_t heater_number = parameter_value[0];
-  const int16_t temp = (parameter_value[1] << 8) & parameter_value[2];
+  const int16_t temp = (parameter_value[1] << 8) | parameter_value[2];
 
   if (parameter_length < 3)
   {
@@ -449,7 +447,7 @@ void handle_get_input_switch_state_order()
   }
   if ((parameter_length & 1) == 1)
   {
-    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT, 0);
     return; 
   }
 
@@ -466,14 +464,14 @@ void handle_get_input_switch_state_order()
     {
       if (!Device_InputSwitch::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
       generate_response_data_addbyte(Device_InputSwitch::ReadState(device_number));
       break;
     }
     default:
-      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
       return;
     }
   }  
@@ -495,7 +493,7 @@ void handle_set_output_switch_state_order()
   {
     if (i + 3 > parameter_length)
     {
-      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
       return; 
     }
     
@@ -508,13 +506,13 @@ void handle_set_output_switch_state_order()
     {
       if (!Device_OutputSwitch::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
       break;
     }
     default:
-      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
       return;
     }
   }  
@@ -553,13 +551,13 @@ void handle_set_pwm_output_state_order()
   {
     if (i + 4 > parameter_length)
     {
-      send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
       return; 
     }
     
     device_type = parameter_value[i];
     device_number = parameter_value[i+1];
-    device_state = (parameter_value[i+2]<<8) & parameter_value[i+3];
+    device_state = (parameter_value[i+2]<<8) | parameter_value[i+3];
     
     switch(device_type)
     {
@@ -567,24 +565,24 @@ void handle_set_pwm_output_state_order()
     {
       if (!Device_PwmOutput::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      Device_PwmOutput::WriteState(device_number, device_state);
+      Device_PwmOutput::WriteState(device_number, device_state >> 8);
       break;
     }
     case PM_DEVICE_TYPE_BUZZER:
     {
       if (!Device_Buzzer::IsInUse(device_number))
       {
-        send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
+        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      Device_Buzzer::WriteState(device_number, device_state);
+      Device_Buzzer::WriteState(device_number, device_state >> 8);
       break;
     }
     default:
-      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
       return;
     }
   }  
@@ -619,9 +617,8 @@ void handle_clear_command_queue_order()
   {  
     if (!allocate_command_queue_memory())
     {
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
-      generate_response_send(); 
+      send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR, 
+                              PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
       return;
     }
   }

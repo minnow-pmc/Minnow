@@ -2,6 +2,7 @@
 #define LANGUAGE_H
 
 #include "config.h"
+#include <avr/pgmspace.h>
 
 // NOTE: IF YOU CHANGE THIS FILE / MERGE THIS FILE WITH CHANGES
 //
@@ -18,7 +19,8 @@
 #endif
 
 #define MSG(str) MSG_INTERNAL(LANGUAGE_CHOICE,str)
-#define PMSG(str) PSTR(MSG_INTERNAL(LANGUAGE_CHOICE,str)) 
+#define PMSG(str) pmsg_##str
+
 #define CONFIG_STR(str) CONFIG_STR_INTERNAL(CONFIG_STRING_LANGUAGE_CHOICE,str)
 
 // Two levels of indirection are required to get this to expand properly.
@@ -26,6 +28,14 @@
 #define MSG_INTERNAL2(lang,str) str##_##lang
 #define CONFIG_STR_INTERNAL(lang,str) CONFIG_STR_INTERNAL2(lang,str)
 #define CONFIG_STR_INTERNAL2(lang,str) CONFIG_STR_##str##_##lang
+
+// This prevents multiple definition of the same string.
+#ifndef LANGUAGE_CPP
+#define PMSG_VARIABLE(str) extern PROGMEM const char pmsg_##str []
+#else
+#define PMSG_VARIABLE(str) extern PROGMEM const char pmsg_##str [] = MSG(str)
+#endif 
+
 //
 // If you are adding new strings to this file, please define all other languages
 // to be equal to the english language define initially (until someone translates
@@ -80,8 +90,8 @@
 #define ERR_MSG_EXPECTED_BOOL_VALUE_ENGLISH "Expected a boolean value (0,1,true,false)."
 #define ERR_MSG_EXPECTED_BOOL_VALUE_DEUTSCH "Erwartet war ein boolescher Wert (0,1,true,false)."
 
-#define ERR_MSG_CONFIG_NODE_NOT_WRITABLE_ENGLISH "Firmware configuration value is not a writable element"
-#define ERR_MSG_CONFIG_NODE_NOT_WRITABLE_DEUTSCH "Firmware Konfigurations Wert ist nicht schreibbar."
+#define ERR_MSG_CONFIG_NODE_NOT_WRITEABLE_ENGLISH "Firmware configuration value is not a writable element"
+#define ERR_MSG_CONFIG_NODE_NOT_WRITEABLE_DEUTSCH "Firmware Konfigurations Wert ist nicht schreibbar."
 
 #define ERR_MSG_CONFIG_NODE_NOT_READABLE_ENGLISH "Firmware configuration value is not a readable element"
 #define ERR_MSG_CONFIG_NODE_NOT_READABLE_DEUTSCH "Firmware Konfigurations Wert kann nicht gelesen werden."
@@ -104,6 +114,31 @@
 
 #define MSG_EXPECTING_ENGLISH "Expecting: "
 #define MSG_EXPECTING_DEUTSCH "Erwartung: "
+
+//
+// Declaration/Definition for PROGMEM string in selected language
+//
+PMSG_VARIABLE(ERR_MSG_INSUFFICENT_BYTES);
+PMSG_VARIABLE(ERR_MSG_GENERIC_APP_AT_OFFSET);
+PMSG_VARIABLE(ERR_MSG_CONFIG_NODE_NOT_FOUND);
+PMSG_VARIABLE(ERR_MSG_CONFIG_NODE_NOT_COMPLETE);
+PMSG_VARIABLE(MSG_ERR_EEPROM_NOT_ENABLED);
+PMSG_VARIABLE(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST);
+PMSG_VARIABLE(MSG_ERR_NO_RESPONSE_GENERATED);
+PMSG_VARIABLE(MSG_ERR_NO_RESPONSE_TO_SEND);
+PMSG_VARIABLE(ERR_MSG_DEVICE_NOT_IN_USE);
+PMSG_VARIABLE(ERR_MSG_INVALID_PIN_NUMBER);
+PMSG_VARIABLE(ERR_MSG_EXPECTED_UINT8_VALUE);
+PMSG_VARIABLE(ERR_MSG_EXPECTED_INT16_VALUE);
+PMSG_VARIABLE(ERR_MSG_EXPECTED_BOOL_VALUE);
+PMSG_VARIABLE(ERR_MSG_CONFIG_NODE_NOT_WRITEABLE);
+PMSG_VARIABLE(ERR_MSG_CONFIG_NODE_NOT_READABLE);
+PMSG_VARIABLE(ERR_MSG_QUEUE_ORDER_NOT_PERMITTED);
+PMSG_VARIABLE(MSG_ERR_UNKNOWN_VALUE);
+PMSG_VARIABLE(MSG_ERR_ALREADY_INITIALIZED);
+PMSG_VARIABLE(MSG_ERR_INSUFFICIENT_MEMORY);
+
+PMSG_VARIABLE(MSG_EXPECTING);
 
 /////////////////////////////////////////////////////
 // Config String Library

@@ -138,7 +138,7 @@ uint8_t Device_Heater::EnableSoftPwm(uint8_t device_number, bool enable)
   {
     soft_pwm_state = (SoftPwmState *)malloc(sizeof(SoftPwmState));
     if (soft_pwm_state == 0 
-        || soft_pwm_state->Init(min(num_heaters,sizeof(soft_pwm_device_bitmask)*8)))
+        || !soft_pwm_state->Init(min(num_heaters,sizeof(soft_pwm_device_bitmask)*8)))
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
       return PARAM_APP_ERROR_TYPE_FAILED;
@@ -147,9 +147,11 @@ uint8_t Device_Heater::EnableSoftPwm(uint8_t device_number, bool enable)
   
   if (soft_pwm_state != 0)
   {
-    uint8_t retval = soft_pwm_state->EnableSoftPwm(device_number, heater_pins[device_number], true);
-    if (retval != APP_ERROR_TYPE_SUCCESS)
-      return retval;
+    if (!soft_pwm_state->EnableSoftPwm(device_number, heater_pins[device_number], enable))
+    {
+      generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+      return PARAM_APP_ERROR_TYPE_FAILED;
+    }
   }
     
   if (enable)

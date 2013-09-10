@@ -42,19 +42,19 @@ public:
   ConfigurationTree();
 
   ConfigurationTreeNode *FindNode(const char *name);
-  ConfigurationTreeNode *FindFirstLeafNode(const ConfigurationTreeNode *search_root_node, bool inUseOnly);
-  ConfigurationTreeNode *FindNextLeafNode(const ConfigurationTreeNode *search_root_node, bool inUseOnly);
+  ConfigurationTreeNode *FindFirstLeafNode(const ConfigurationTreeNode *search_root_node);
+  ConfigurationTreeNode *FindNextLeafNode(const ConfigurationTreeNode *search_root_node);
 
   ConfigurationTreeNode *GetRootNode() { return &node_array[0]; };
 
   ConfigurationTreeNode *GetParentNode(const ConfigurationTreeNode *node) const;
 
-  int8_t GetFullName(const ConfigurationTreeNode *node, bool &inUse, char *buffer, uint8_t length);
+  int8_t GetFullName(const ConfigurationTreeNode *node, char *buffer, uint8_t length);
   
 private:
 
-  ConfigurationTreeNode *GetFirstChild(const ConfigurationTreeNode *node, bool inUseOnly);
-  ConfigurationTreeNode *GetNextChild(const ConfigurationTreeNode *node, bool inUseOnly);
+  ConfigurationTreeNode *GetFirstChild(const ConfigurationTreeNode *node);
+  ConfigurationTreeNode *GetNextChild(const ConfigurationTreeNode *node);
   ConfigurationTreeNode *GetCurrentChild(const ConfigurationTreeNode *node);
 
   ConfigurationTreeNode node_array[MAX_CONFIGURATION_TREE_DEPTH+1]; // extra node accounts for root node

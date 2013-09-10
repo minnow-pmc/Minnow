@@ -21,7 +21,7 @@
  This firmware is a PaceMaker protocol implementation based on Marlin
  temperature and movement control code. (https://github.com/ErikZalm/Marlin)
  
- Github location: https://github.com/minnow-3dp/Minnow
+ Github location: https://github.com/minnow-pmc/Minnow
  
  */
 
@@ -59,7 +59,7 @@ extern uint8_t reply_control_byte;
 //=============================private variables=============================
 //===========================================================================
 
-static uint8_t recv_buf_len = 0;
+static uint16_t recv_buf_len = 0;
 static uint8_t recv_buf[MAX_RECV_BUF_LEN];
 static PROGMEM const uint32_t autodetect_baudrates[] = AUTODETECT_BAUDRATES;
 static uint8_t autodetect_baudrates_index = 0;
@@ -88,7 +88,7 @@ const char *stopped_reason = 0;
 
 uint8_t reset_cause = 0; // cache of MCUSR register written by bootloader
 
-uint16_t last_rcvd_time; // time a byte was last received
+uint16_t first_rcvd_time; // time a byte was last received
 
 extern "C" {
   extern unsigned int __bss_end;
@@ -170,26 +170,53 @@ void applyDebugConfiguration()
 {
 #if APPLY_DEBUG_CONFIGURATION
 
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "4");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "2");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "2");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "3");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.0.pin", "3");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.1.pin", "14");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.2.pin", "18");
+
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "3");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.0.pin", "5");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.1.pin", "6");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.2.pin", "11");
+  
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.pin", "4");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.use_soft_pwm", "1");
+  
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "3");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.pin", "33");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.use_soft_pwm", "0");
+  
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "4");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.pin", "13");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "7");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.pin", "15");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "7");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.pin", "9");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "6");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "1");
+  
   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory");
   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark");
   DEBUG_READ_FIRMWARE_CONFIGURATION("stats.queue_memory");
 
   DEBUG_COMMAND_ARRAY("Request Num Input Switches", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS }) );
+  DEBUG_COMMAND_ARRAY("Request Input Switch 0", ORDER_GET_INPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 0 }) );
+  DEBUG_COMMAND_ARRAY("Request Input Switch 1", ORDER_GET_INPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 1 }) );
+  DEBUG_COMMAND_ARRAY("Request Input Switch 2", ORDER_GET_INPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 2 }) );
+  
   DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_REQUEST_INFORMATION, "\x11" );
+  DEBUG_COMMAND_ARRAY("Set Output Switch 0 (P5)", ORDER_SET_OUTPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_OUTPUT, 0, 0 }) );
+  DEBUG_COMMAND_ARRAY("Set Output Switch 1 (P6)", ORDER_SET_OUTPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_OUTPUT, 1, 1 }) );
+
+  DEBUG_COMMAND_ARRAY("Request Num Pwm Outputs", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS }) ); 
+  DEBUG_COMMAND_ARRAY("Set Pwm Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_PWM_OUTPUT, 0, 64, 0 }) );
+  
   DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
+  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
+  
   DEBUG_COMMAND_ARRAY("Request Num Temp Sensors", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_TEMP_SENSORS }) );
-  DEBUG_COMMAND_STR("Flish Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" );
+  DEBUG_COMMAND_STR("Flush Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" );
   DEBUG_COMMAND_STR("Read Queue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" );
   DEBUG_COMMAND_STR("Read Stack Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_memory" );
   
@@ -218,7 +245,7 @@ void setup()
 
   // initialize PaceMaker serial port to first value
   PSERIAL.begin(pgm_read_dword(&autodetect_baudrates[0]));
-  if (sizeof(autodetect_baudrates)/sizeof(autodetect_baudrates[0]) < 2)
+  if (sizeof(autodetect_baudrates)/sizeof(autodetect_baudrates[0])  )
     autodetect_baudrates_index = 0xFF; // no need to autodetect
 
 #if DEBUG_ENABLED  
@@ -235,7 +262,7 @@ FORCE_INLINE static bool get_command()
 {
   char serial_char;
   
-  if (millis() - last_rcvd_time > MAX_FRAME_COMPLETION_DELAY_MS)
+  if (recv_buf_len > 0 && millis() - first_rcvd_time > MAX_FRAME_COMPLETION_DELAY_MS)
   {
     // timeout waiting for frame completion
     if (recv_buf_len >= PM_HEADER_SIZE)
@@ -248,65 +275,77 @@ FORCE_INLINE static bool get_command()
     recv_buf_len = 0;
   }
   
-  while(PSERIAL.available() > 0 && recv_buf_len < sizeof(recv_buf)) 
+  while(PSERIAL.available() > 0) 
   {
     serial_char = PSERIAL.read();
 
-    // ignore non-sync characters at the start
-    if (recv_buf_len == 0 && serial_char != SYNC_BYTE_ORDER_VALUE)
+    DEBUG("ch"); //RM
+    DEBUGLN(serial_char); //RM
+
+    if (recv_buf_len == 0)
+    {
+      // ignore non-sync characters at the start
+      if (serial_char != SYNC_BYTE_ORDER_VALUE)
         continue;
-  
+      first_rcvd_time = millis();
+    }
+
     // still need more bytes?
-    if (recv_buf_len < PM_HEADER_SIZE - 1
+    else if (recv_buf_len < PM_HEADER_SIZE
         || recv_buf_len - PM_HEADER_SIZE < recv_buf[PM_LENGTH_BYTE_OFFSET])
     {
+      if (recv_buf_len == sizeof(recv_buf)) // should only occur due to reduced buffer size
+      {
+        generate_response_start(RSP_FRAME_RECEIPT_ERROR);
+        generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME);
+        generate_response_send();
+        recv_buf_len = 0;
+        return false;
+      }
       recv_buf[recv_buf_len++] = serial_char;
       continue;
     }
 
     // we have enough bytes - check the crc
-    if (serial_char != crc8(&recv_buf[PM_ORDER_CODE_OFFSET],recv_buf_len-2))
+    else if (serial_char != crc8(&recv_buf[PM_ORDER_CODE_OFFSET],recv_buf_len-2))
     {
 #if !DEBUG_DONT_CHECK_CRC8_VALUE    
       generate_response_start(RSP_FRAME_RECEIPT_ERROR);
       generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_CHECK_CODE);
       generate_response_send();
       recv_buf_len = 0;
-#endif 
       recv_errors += 1;
+      continue;
+#endif 
     }
           
     recv_buf[recv_buf_len] = '\0'; // null-terminate buffer
     recv_count += 1;
     return true;
   }
-
-  if (recv_buf_len == sizeof(recv_buf)) // should only occur due to reduced buffer size
-  {
-    generate_response_start(RSP_FRAME_RECEIPT_ERROR);
-    generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME);
-    generate_response_send();
-    recv_buf_len = 0;
-  }
-  
-  last_rcvd_time = millis();
   return false;
 }
 
 void loop()
 {
   // quickly scan through baudrates until we receive a valid packet within timeout packet period
+#if 0 // the baud rate change still isn't working for some reason.
   if (autodetect_baudrates_index != 0xFF)
   {
-    if (millis() - last_rcvd_time > MAX_FRAME_COMPLETION_DELAY_MS * 1.5)
+    if (millis() - first_rcvd_time > MAX_FRAME_COMPLETION_DELAY_MS * 1.5) // make sure its not a multiple of 100ms
     {
+      PSERIAL.end();
+      PSERIAL.flush();
       autodetect_baudrates_index += 1;
-      if (autodetect_baudrates_index >= sizeof(autodetect_baudrates)/sizeof(autodetect_baudrates[0]))
+      if (autodetect_baudrates_index >= NUM_ARRAY_ELEMENTS(autodetect_baudrates))
         autodetect_baudrates_index = 0;
+      PSERIAL.begin(pgm_read_dword(&autodetect_baudrates[autodetect_baudrates_index]));
+      recv_buf_len = 0;
+      first_rcvd_time = millis();
     }
-    PSERIAL.begin(autodetect_baudrates[autodetect_baudrates_index]);
   }
-
+#endif
+  
   if (get_command())
   {
     autodetect_baudrates_index = 0xFF;
@@ -334,21 +373,19 @@ void loop()
         generate_response_msg_addPGM(PMSG(MSG_ERR_NO_RESPONSE_TO_SEND));
         generate_response_send();
       }
-      return;
     }
-  
-    reply_sent = false;
-     
-    process_command();
-    
-    if (!reply_sent)
+    else
     {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_NO_RESPONSE_GENERATED));
-      generate_response_send();
+      reply_sent = false;
+       
+      process_command();
+      
+      if (!reply_sent)
+      {
+        send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+             PMSG(MSG_ERR_NO_RESPONSE_GENERATED));
+      }
     }
-    
     recv_buf_len = 0;
   }
 

@@ -107,15 +107,16 @@ FORCE_INLINE void updateSoftPwm()
     {
       if ((device_bitmask & 1) != 0)
       {
+        volatile uint8_t *output_reg = state->output_reg[i];
         if(pwm_count == 0)
         {
           if ((state->pwm_count[i] = state->pwm_power[i]) > 0)
-            *state->output_reg[i] |= state->output_bit[i];
+            *output_reg |= state->output_bit[i];
         }
         else
         {
           if (state->pwm_count[i] <= pwm_count)
-            *state->output_reg[i] &= ~state->output_bit[i];
+            *output_reg &= ~state->output_bit[i];
         }
       }
       device_bitmask >>= 1;
@@ -141,7 +142,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     if (sensor < num_sensors)
     {
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type < LAST_THERMISTOR_SENSOR_TYPE)
+      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         if ((temp_index & 1) == 0)
         {
@@ -183,7 +184,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     {
       const uint8_t sensor = (temp_index != 0) ? temp_index - 1 : num_sensors - 1;
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type < LAST_THERMISTOR_SENSOR_TYPE)
+      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         Device_TemperatureSensor::temperature_sensor_isr_raw_values[sensor] += ADC;
       }
@@ -197,7 +198,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     {
       // sensor == temp_index in this mode
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[temp_index];
-      if (type < LAST_THERMISTOR_SENSOR_TYPE)
+      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
       {
         const uint8_t pin = Device_TemperatureSensor::temperature_sensor_pins[temp_index];
 #ifdef MUX5

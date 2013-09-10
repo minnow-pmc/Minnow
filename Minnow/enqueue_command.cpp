@@ -28,12 +28,14 @@
 #include "Device_PwmOutput.h"
 #include "Device_Buzzer.h"
 
-FORCE_INLINE static void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t reply_error_code = 0xFF);
+static void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t reply_error_code = 0xFF);
+static uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes);
 
 FORCE_INLINE static uint8_t enqueue_delay_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
 FORCE_INLINE static uint8_t enqueue_set_output_switch_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
 FORCE_INLINE static uint8_t enqueue_set_pwm_output_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
 FORCE_INLINE static uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
+
 
 //
 // Top level enqueue command handler
@@ -47,10 +49,8 @@ void enqueue_command()
   {
     if (!allocate_command_queue_memory())
     {
-      generate_response_start(RSP_APPLICATION_ERROR, 1);
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
-      generate_response_send(); 
+      send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR, 
+                              PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
       return;
     }
   }  
@@ -141,18 +141,21 @@ void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t error_c
   generate_response_data_addbyte(error_code);
   generate_response_send();
 } 
+
+uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes)
+{
+  generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
+  generate_response_msg_addbyte(rcvd_num_bytes);
+  generate_response_msg_add(", ");
+  generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
+  generate_response_msg_addbyte(expected_num_bytes);
+  return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
+}
  
 uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length)
 {
   if (parameter_length != sizeof(uint16_t))
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-    generate_response_msg_addbyte(parameter_length);
-    generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-    generate_response_msg_addbyte(2);
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
-  }
+    return generate_enqueue_insufficient_bytes_error(sizeof(uint16_t), parameter_length);
 
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(DelayQueueCommand));
   
@@ -173,14 +176,7 @@ uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_
   const uint8_t number_of_switches = parameter_length/3;
 
   if ((number_of_switches * 3) != parameter_length)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-    generate_response_msg_addbyte(parameter_length);
-    generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-    generate_response_msg_addbyte(3*(number_of_switches+1));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
-  }
+    return generate_enqueue_insufficient_bytes_error(3*(number_of_switches+1), parameter_length);
   
   const uint8_t length = sizeof(SetOutputSwitchStateQueueCommand) + 
                             ((number_of_switches - 1) * sizeof(DeviceBitState));
@@ -232,14 +228,7 @@ uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_
 uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t parameter_length)
 {
   if (parameter_length < 4)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-    generate_response_msg_addbyte(parameter_length);
-    generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-    generate_response_msg_addbyte(4);
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
-  }
+    return generate_enqueue_insufficient_bytes_error(4, parameter_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetPwmOutputStateQueueCommand));
   
@@ -283,14 +272,7 @@ uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, 
 {
 #if 0 // TODO
   if (parameter_length < 3)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES)));
-    generate_response_msg_addbyte(parameter_length);
-    generate_response_msg_add(", ");
-    generate_response_msg_addPGM(PSTR(MSG_EXPECTING));
-    generate_response_msg_addbyte(3);
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
-  }
+    return generate_enqueue_insufficient_bytes_error(3, parameter_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetHeaterTargetTempCommand));
   
@@ -321,3 +303,4 @@ uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, 
 #endif  
   return ENQUEUE_SUCCESS;
 }
+

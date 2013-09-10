@@ -58,7 +58,6 @@ void DebugSerial::flush()
     PSERIAL.write(debug_header, sizeof(debug_header));
     PSERIAL.write(debug_buf, debug_buf_len);
     PSERIAL.write(crc8(&debug_header[1], PM_HEADER_SIZE + debug_buf_len - 1));
-    PSERIAL.flush();
     debug_buf_len = 0;
   }
 #elif USE_SERIAL_PORT_FOR_DEBUG

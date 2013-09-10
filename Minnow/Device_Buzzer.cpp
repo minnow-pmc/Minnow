@@ -69,7 +69,7 @@ uint8_t Device_Buzzer::SetPin(uint8_t device_number, uint8_t pin)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   }
 
-  if (digitalPinToTimer(pin) == NOT_ON_TIMER)
+  if (digitalPinToTimer(pin) == NOT_ON_TIMER && digitalPinToPort(pin) == NOT_A_PIN)
   {
     generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
@@ -95,7 +95,7 @@ uint8_t Device_Buzzer::EnableSoftPwm(uint8_t device_number, bool enable)
   {
     soft_pwm_state = (SoftPwmState *)malloc(sizeof(SoftPwmState));
     if (soft_pwm_state == 0 
-        || soft_pwm_state->Init(min(num_buzzers,sizeof(soft_pwm_device_bitmask)*8)))
+        || !soft_pwm_state->Init(min(num_buzzers,sizeof(soft_pwm_device_bitmask)*8)))
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
       return PARAM_APP_ERROR_TYPE_FAILED;
@@ -104,9 +104,11 @@ uint8_t Device_Buzzer::EnableSoftPwm(uint8_t device_number, bool enable)
   
   if (soft_pwm_state != 0)
   {
-    uint8_t retval = soft_pwm_state->EnableSoftPwm(device_number, buzzer_pins[device_number], enable);
-    if (retval != APP_ERROR_TYPE_SUCCESS)
-      return retval;
+    if (!soft_pwm_state->EnableSoftPwm(device_number, buzzer_pins[device_number], enable))
+    {
+      generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+      return PARAM_APP_ERROR_TYPE_FAILED;
+    }
   }
   
   if (enable)

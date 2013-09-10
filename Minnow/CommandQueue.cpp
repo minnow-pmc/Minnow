@@ -140,7 +140,8 @@ CommandQueue::FlushQueuedCommands()
   }
   else
   {
-    queue_head = 0;
+    queue_head = queue_buffer;
+    queue_tail = queue_buffer;
     current_queue_command_count = 0;
   }
   CRITICAL_SECTION_END

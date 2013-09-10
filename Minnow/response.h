@@ -86,7 +86,11 @@ void generate_response_send();
 
 void send_OK_response();
 void send_insufficient_bytes_error_response(uint8_t expected_num_bytes);
-void send_app_error_response(uint8_t error_type, uint8_t parameter_offset);
+void send_insufficient_bytes_error_response(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes);
+void send_app_error_at_offset_response(uint8_t error_type, uint8_t parameter_offset);
+void send_app_error_response(uint8_t error_type, const char *msg_pstr);
+void send_app_error_response(uint8_t error_type, const char *msg_pstr, uint16_t msg_num_value);
+void send_app_error_response(uint8_t error_type, const char *msg_pstr, const char *msg_str_value);
 void send_failed_response(const char* reason);
 void send_stopped_response();
 

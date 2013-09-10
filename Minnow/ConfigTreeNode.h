@@ -120,9 +120,9 @@ public:
 
 #define LEAF_OPERATIONS_INVALID       0
 #define LEAF_OPERATIONS_READABLE      1
-#define LEAF_OPERATIONS_WRITABLE      2
+#define LEAF_OPERATIONS_WRITEABLE      2
 
-#define LEAF_OPERATIONS_READWRITABLE  (LEAF_OPERATIONS_READABLE | LEAF_OPERATIONS_WRITABLE)
+#define LEAF_OPERATIONS_READWRITEABLE  (LEAF_OPERATIONS_READABLE | LEAF_OPERATIONS_WRITEABLE)
 
 // Data types of leaf nodes
 
@@ -143,7 +143,6 @@ public:
   bool IsValid() const { return (node_info_index != INVALID_NODE_INFO_INDEX); };
   bool IsInstanceNode() const { return (instance_id != INVALID_INSTANCE_ID); };
   bool IsLeafNode() const { return GetLeafClass() != LEAF_CLASS_INVALID; };
-  bool IsInUse() const;
 
   uint8_t GetLeafClass() const;
   uint8_t GetLeafOperations() const;

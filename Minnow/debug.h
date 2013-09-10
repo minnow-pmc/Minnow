@@ -27,17 +27,23 @@
 // TODO More work is needed on handling of debug and errors!!! Not finished. 
 //
 
-#define QUEUE_DEBUG 1
-#define QUEUE_TEST 0
-
 
 //
 // Switches to make development testing easier
 //
-#define DEBUG_DONT_CHECK_CRC8_VALUE   1
+#define DEBUG_DONT_CHECK_CRC8_VALUE   0
 #define DEBUG_NOT_STOPPED_INITIALLY   1
 
-#define TRACE_RESPONSE 1
+#define APPLY_DEBUG_CONFIGURATION     0
+
+#define TRACE_RESPONSE                0
+
+#define QUEUE_DEBUG                   1
+
+// Some unit test support
+
+#define QUEUE_TEST                    0
+
 
 ///////////////////////////////
 // Debug tracing config
@@ -269,7 +275,7 @@ class DebugSerial
     // PROGMEM methods
     //
     
-    FORCE_INLINE void printPGM(bool error, const char *str)
+    void printPGM(bool error, const char *str)
     {
       char ch=pgm_read_byte(str);
       while(ch)
@@ -317,9 +323,6 @@ private:
 //
 // Macros to apply configuration at boot time (useful for testing without host-based configuration) 
 //
-
-#define APPLY_DEBUG_CONFIGURATION 1
-
 
 // Macro used in DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST to write a firmware configuration value.
 #define DEBUG_WRITE_FIRMWARE_CONFIGURATION(name,value) \
