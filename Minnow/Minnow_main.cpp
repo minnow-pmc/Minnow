@@ -88,7 +88,7 @@ const char *stopped_reason = 0;
 
 uint8_t reset_cause = 0; // cache of MCUSR register written by bootloader
 
-uint16_t first_rcvd_time; // time a byte was last received
+uint32_t first_rcvd_time; // time a byte was first received in frame
 
 extern "C" {
   extern unsigned int __bss_end;
