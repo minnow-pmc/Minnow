@@ -88,7 +88,7 @@ const char *stopped_reason = 0;
 
 uint8_t reset_cause = 0; // cache of MCUSR register written by bootloader
 
-uint32_t first_rcvd_time; // time a byte was first received in frame
+uint32_t first_rcvd_time; // time a byte was first received in the frame
 
 extern "C" {
   extern unsigned int __bss_end;
@@ -274,20 +274,21 @@ FORCE_INLINE static bool get_command()
     }
     recv_buf_len = 0;
   }
-  
+
   while(PSERIAL.available() > 0) 
   {
     serial_char = PSERIAL.read();
 
-    DEBUG("ch"); //RM
-    DEBUGLN(serial_char); //RM
-
     if (recv_buf_len == 0)
     {
       // ignore non-sync characters at the start
-      if (serial_char != SYNC_BYTE_ORDER_VALUE)
-        continue;
-      first_rcvd_time = millis();
+      if (serial_char == SYNC_BYTE_ORDER_VALUE)
+      {
+        first_rcvd_time = millis();
+        recv_buf[0] = SYNC_BYTE_ORDER_VALUE;
+        recv_buf_len = 1;
+      }
+      continue;
     }
 
     // still need more bytes?
@@ -307,18 +308,19 @@ FORCE_INLINE static bool get_command()
     }
 
     // we have enough bytes - check the crc
-    else if (serial_char != crc8(&recv_buf[PM_ORDER_CODE_OFFSET],recv_buf_len-2))
+    else if (serial_char != crc8(&recv_buf[PM_ORDER_CODE_OFFSET],recv_buf_len-1))
     {
-#if !DEBUG_DONT_CHECK_CRC8_VALUE    
+#if !DEBUG_DONT_CHECK_CRC8_VALUE 
       generate_response_start(RSP_FRAME_RECEIPT_ERROR);
       generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_CHECK_CODE);
       generate_response_send();
       recv_buf_len = 0;
       recv_errors += 1;
       continue;
-#endif 
+#endif      
     }
-          
+    
+    // we have a packet  
     recv_buf[recv_buf_len] = '\0'; // null-terminate buffer
     recv_count += 1;
     return true;
@@ -328,7 +330,7 @@ FORCE_INLINE static bool get_command()
 
 void loop()
 {
-  // quickly scan through baudrates until we receive a valid packet within timeout packet period
+  // quickly scan through baudrates until we receive a valid packet within timeout period
 #if 0 // the baud rate change still isn't working for some reason.
   if (autodetect_baudrates_index != 0xFF)
   {
@@ -352,7 +354,23 @@ void loop()
     order_code = recv_buf[PM_ORDER_CODE_OFFSET];
     control_byte = recv_buf[PM_CONTROL_BYTE_OFFSET];
     parameter_length = recv_buf[PM_LENGTH_BYTE_OFFSET];
-  
+
+#if TRACE_ORDER
+    DEBUGPGM("\nOrder(");  
+    DEBUG_F(order_code, HEX);  
+    DEBUGPGM(", len=");  
+    DEBUG_F(parameter_length, DEC);  
+    DEBUGPGM(", cb=");  
+    DEBUG_F(control_byte, HEX);  
+    DEBUGPGM("):");  
+    for (i = 0; i < param_length; i++)
+    {
+      DEBUG(' '); 
+      DEBUG_F(reply_buf[i], HEX);  
+    }
+    DEBUG_EOL();
+#endif    
+    
     // does this match the sequence number of the last reply 
     if ((control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK) == 
             (reply_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK) 
