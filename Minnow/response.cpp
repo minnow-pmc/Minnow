@@ -1,6 +1,5 @@
 /*
  Minnow Pacemaker client firmware.
-    
  Copyright (C) 2013 Robert Fairlie-Cuninghame
 
  This program is free software: you can redistribute it and/or modify
@@ -36,8 +35,8 @@
 //=============================private variables=============================
 //===========================================================================
 
-static uint8_t reply_header[PM_HEADER_SIZE] = { SYNC_BYTE_RESPONSE_VALUE };
-static uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH]; // must follow directly after header
+static uint8_t reply_header[PM_HEADER_SIZE];
+static uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH]; // must follow directly after reply_header
 
 //===========================================================================
 //=============================public variables=============================
@@ -65,6 +64,17 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
   reply_msg_len = 0;
   
   // TODO improve error checking of msg (and handling when expected_length_excluding_msg == 0xFF)
+}
+
+void generate_response_transport_error_start(uint8_t transport_error, uint8_t control_byte)
+{
+  reply_started = true;
+  reply_header[PM_ORDER_CODE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
+  reply_header[PM_CONTROL_BYTE_OFFSET] = (control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
+  reply_buf[0] = transport_error;
+  reply_expected_length_excluding_msg = 1;
+  reply_data_len = 1;
+  reply_msg_len = 0;
 }
 
 void generate_response_data_addbyte(uint8_t value)
@@ -254,7 +264,8 @@ void generate_response_send()
   DEBUG_EOL();
 #endif  
   
-  for (i = 0; i < PM_HEADER_SIZE; i++)
+  PSERIAL.write(SYNC_BYTE_RESPONSE_VALUE);
+  for (i = 1; i < PM_HEADER_SIZE; i++)
     PSERIAL.write(reply_header[i]);
   for (i = 0; i < param_length; i++)
     PSERIAL.write(reply_buf[i]);

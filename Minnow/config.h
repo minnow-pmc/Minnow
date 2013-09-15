@@ -32,6 +32,7 @@
 // On startup, the firmware will cycle through the following baudrates 
 // until it finds a match.
 #define AUTODETECT_BAUDRATES { 115200, 250000 }
+//#define AUTODETECT_BAUDRATES { 115200 }
 
 // Languages (uncmment one of the following languages
 #define LANGUAGE_CHOICE ENGLISH

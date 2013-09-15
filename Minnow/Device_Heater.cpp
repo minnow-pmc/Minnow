@@ -85,8 +85,7 @@ uint8_t Device_Heater::SetHeaterPin(uint8_t device_number, uint8_t pin)
   if (device_number >= num_heaters)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
-  // this should pass regardless of whether we are using digitally or for PWM
-  if (digitalPinToPort(pin) == NOT_A_PIN)
+  if (digitalPinToTimer(pin) == NOT_ON_TIMER && digitalPinToPort(pin) == NOT_A_PIN)
   {
     generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;

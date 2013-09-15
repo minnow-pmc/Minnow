@@ -267,8 +267,8 @@ FORCE_INLINE static bool get_command()
     // timeout waiting for frame completion
     if (recv_buf_len >= PM_HEADER_SIZE)
     {    
-      generate_response_start(RSP_FRAME_RECEIPT_ERROR);
-      generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME);
+      generate_response_transport_error_start(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME, 
+          recv_buf[PM_CONTROL_BYTE_OFFSET]);
       generate_response_send();
       recv_errors += 1;
     }
@@ -297,8 +297,8 @@ FORCE_INLINE static bool get_command()
     {
       if (recv_buf_len == sizeof(recv_buf)) // should only occur due to reduced buffer size
       {
-        generate_response_start(RSP_FRAME_RECEIPT_ERROR);
-        generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME);
+        generate_response_transport_error_start(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_FRAME, 
+            recv_buf[PM_CONTROL_BYTE_OFFSET]);
         generate_response_send();
         recv_buf_len = 0;
         return false;
@@ -311,8 +311,8 @@ FORCE_INLINE static bool get_command()
     else if (serial_char != crc8(&recv_buf[PM_ORDER_CODE_OFFSET],recv_buf_len-1))
     {
 #if !DEBUG_DONT_CHECK_CRC8_VALUE 
-      generate_response_start(RSP_FRAME_RECEIPT_ERROR);
-      generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_CHECK_CODE);
+      generate_response_transport_error_start(PARAM_FRAME_RECEIPT_ERROR_TYPE_BAD_CHECK_CODE, 
+          recv_buf[PM_CONTROL_BYTE_OFFSET]);
       generate_response_send();
       recv_buf_len = 0;
       recv_errors += 1;
@@ -363,10 +363,10 @@ void loop()
     DEBUGPGM(", cb=");  
     DEBUG_F(control_byte, HEX);  
     DEBUGPGM("):");  
-    for (i = 0; i < param_length; i++)
+    for (uint8_t i = 0; i < parameter_length; i++)
     {
       DEBUG(' '); 
-      DEBUG_F(reply_buf[i], HEX);  
+      DEBUG_F(recv_buf[i], HEX);  
     }
     DEBUG_EOL();
 #endif    
@@ -386,8 +386,8 @@ void loop()
       else
       {
         // this is an unexpected error case (matching sequence number but nothing to send)
-        generate_response_start(RSP_FRAME_RECEIPT_ERROR);
-        generate_response_data_addbyte(PARAM_FRAME_RECEIPT_ERROR_TYPE_UNABLE_TO_ACCEPT);
+        generate_response_transport_error_start(PARAM_FRAME_RECEIPT_ERROR_TYPE_UNABLE_TO_ACCEPT, 
+            control_byte);
         generate_response_msg_addPGM(PMSG(MSG_ERR_NO_RESPONSE_TO_SEND));
         generate_response_send();
       }

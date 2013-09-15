@@ -36,6 +36,7 @@
 // A value of 0xFF for expected_length_excluding_msg indicates that no message is expected
 //
 void generate_response_start(uint8_t response_code, uint8_t expected_length_excluding_msg = 0xFF);
+void generate_response_transport_error_start(uint8_t transport_error, uint8_t control_byte);
 
 //
 // These method append data to the reponse Parameter.
