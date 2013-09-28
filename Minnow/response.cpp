@@ -1,5 +1,6 @@
 /*
  Minnow Pacemaker client firmware.
+    
  Copyright (C) 2013 Robert Fairlie-Cuninghame
 
  This program is free software: you can redistribute it and/or modify
@@ -66,11 +67,11 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
   // TODO improve error checking of msg (and handling when expected_length_excluding_msg == 0xFF)
 }
 
-void generate_response_transport_error_start(uint8_t transport_error, uint8_t control_byte)
+void generate_response_transport_error_start(uint8_t transport_error, uint8_t local_control_byte)
 {
   reply_started = true;
   reply_header[PM_ORDER_CODE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
-  reply_header[PM_CONTROL_BYTE_OFFSET] = (control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
+  reply_header[PM_CONTROL_BYTE_OFFSET] = (local_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_buf[0] = transport_error;
   reply_expected_length_excluding_msg = 1;
   reply_data_len = 1;
@@ -255,6 +256,10 @@ void generate_response_send()
   DEBUG_F(reply_header[PM_ORDER_CODE_OFFSET], HEX);  
   DEBUGPGM(", len=");  
   DEBUG_F(param_length, DEC);  
+  DEBUGPGM(", cb=");  
+  DEBUG_F(control_byte, DEC);  
+  DEBUGPGM(", rcb=");  
+  DEBUG_F(reply_control_byte, DEC);  
   DEBUGPGM("):");  
   for (i = 0; i < param_length; i++)
   {

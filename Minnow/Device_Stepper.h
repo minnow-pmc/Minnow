@@ -1,83 +1,138 @@
-//
-// Input Switch Device Type File
-//
+/*
+  Minnow Pacemaker client firmware.
+  Copyright (c) 2006 Nicholas Zambetti.  All right reserved.
 
-#ifndef DEVICE_STEPPERS_H
-#define DEVICE_STEPPERS_H
+  This library is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
 
-// TODO - Convert to class as per other device types.
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
 
-#include "config.h"
-
-//
-// Configuration Functions
-//
-
-void stepper_device_init();
-
-bool set_stepper_enable_pin(uint8_t device_number, uint8_t pin);
-bool set_stepper_enable_level(uint8_t device_number, bool enable_on_level);
-bool set_stepper_direction_pin(uint8_t device_number, uint8_t pin);
-bool set_stepper_direction_invert(uint8_t device_number, bool invert);
-bool set_stepper_step_pin(uint8_t device_number, uint8_t pin);
-bool set_stepper_step_invert(uint8_t device_number, bool invert);
-bool set_stepper_vref_digipot_pin(uint8_t device_number, uint8_t pin);
-bool set_stepper_vref_digipot_value(uint8_t device_number, uint8_t value);
-bool set_stepper_ms1_pin(uint8_t device_number, uint8_t pin);
-bool set_stepper_ms1_value(uint8_t device_number, bool value);
-bool set_stepper_ms2_pin(uint8_t device_number, uint8_t value);
-bool set_stepper_ms2_value(uint8_t device_number, bool value);
-bool set_stepper_ms3_pin(uint8_t device_number, uint8_t value);
-bool set_stepper_ms3_value(uint8_t device_number, bool value);
-bool set_stepper_fault_pin(uint8_t device_number, uint8_t value);
-
-bool validate_stepper_config(uint8_t device_number, bool invert);
+  You should have received a copy of the GNU Lesser General Public
+  License along with this library; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  
+*/
 
 //
-// Fast accessor macros
+// Stepper and Endstop 
 //
 
-#define GET_NUM_STEPPER_DEVICES() (num_stepper_devices)
-#define IS_STEPPER_DEVICE_USED(device_number) (stepper_enable_pins[device_number] != 0xFF)
+#ifndef DEVICE_STEPPER_H
+#define DEVICE_STEPPER_H
 
-#define GET_STEPPER_ENABLE_PIN(device_number) (stepper_enable_pins[device_number])
-#define GET_STEPPER_ENABLE_LEVEL(device_number) (stepper_enable_on_levels[device_number])
-#define GET_STEPPER_DIRECTION_PIN(device_number) (stepper_direction_pins[device_number])
-#define GET_STEPPER_DIRECTION_INVERT(device_number) (stepper_direction_invert[device_number])
-#define GET_STEPPER_STEP_PIN(device_number) (stepper_step_pins[device_number])
-#define GET_STEPPER_STEP_INVERT(device_number) (stepper_step_invert[device_number])
-#define GET_STEPPER_VREF_DIGIPOT_PIN(device_number) (stepper_vref_digipot_pins[device_number])
-#define GET_STEPPER_VREF_DIGIPOT_VALUE(device_number) (stepper_vref_digipot_values[device_number])
-#define GET_STEPPER_MS1_PIN(device_number) (stepper_ms1_pins[device_number])
-#define GET_STEPPER_MS1_VALUE(device_number) (stepper_ms1_values[device_number])
-#define GET_STEPPER_MS2_PIN(device_number) (stepper_ms2_pins[device_number])
-#define GET_STEPPER_MS2_VALUE(device_number) (stepper_ms2_values[device_number])
-#define GET_STEPPER_MS3_PIN(device_number) (stepper_ms3_pins[device_number])
-#define GET_STEPPER_MS3_VALUE(device_number) (stepper_ms3_values[device_number])
-#define GET_STEPPER_FAULT_PIN(device_number) (stepper_fault_pins[device_number])
+#include "AxisInfo.h"
 
-//
-// Internal Implementation Detail 
-//
+// This class represents just the control information associate with the stepper 
+// motor device - not to the associated movement infomation which is primary
+// aggregated in AxisInfo.
+class Device_Stepper
+{
+public:
 
-extern uint8_t num_stepper_devices; // number of configured output switches
+  static uint8_t Init(uint8_t num_stepper_devices);
+  
+  FORCE_INLINE static uint8_t GetNumDevices()
+  {
+    return num_steppers;
+  }
+  
+  FORCE_INLINE static bool IsInUse(uint8_t device_number)
+  {
+    return (device_number < num_steppers 
+      && stepper_info_array[device_number].enable_pin != 0xFF);
+  }
 
-extern char stepper_friendly_names[MAX_STEPPERS][MAX_DEVICE_FRIENDLY_NAME_LENGTH+1];
-extern uint8_t stepper_enable_pins[MAX_STEPPERS];
-extern bool stepper_enable_on_levels[MAX_STEPPERS];
-extern uint8_t stepper_direction_pins[MAX_STEPPERS];
-extern bool stepper_direction_invert[MAX_STEPPERS];
-extern uint8_t stepper_step_pins[MAX_STEPPERS];
-extern bool stepper_step_invert[MAX_STEPPERS];
-extern uint8_t stepper_vref_digipot_pins[MAX_STEPPERS];
-extern uint8_t stepper_vref_digipot_values[MAX_STEPPERS];
-extern uint8_t stepper_ms1_pins[MAX_STEPPERS];
-extern bool stepper_ms1_values[MAX_STEPPERS];
-extern uint8_t stepper_ms2_pins[MAX_STEPPERS];
-extern bool stepper_ms2_values[MAX_STEPPERS];
-extern uint8_t stepper_ms3_pins[MAX_STEPPERS];
-extern bool stepper_ms3_values[MAX_STEPPERS];
-extern uint8_t stepper_fault_pins[MAX_STEPPERS];
+  FORCE_INLINE static bool ValidateConfig(uint8_t device_number)
+  {
+    if (device_number >= num_steppers)
+      return false;
+    StepperInfoInternal *stepper_info = &stepper_info_array[device_number];
+    return (stepper_info->enable_pin != 0xFF 
+        && stepper_info->direction_pin != 0xFF
+        && stepper_info->step_pin != 0xFF);
+  }
+
+  FORCE_INLINE static uint8_t GetEnablePin(uint8_t device_number)
+  {
+    return stepper_info_array[device_number].enable_pin;
+  }
+  FORCE_INLINE static bool GetEnableInvert(uint8_t device_number)
+  {
+    return AxisInfo::GetStepperEnableInvert(device_number);
+  }
+  
+  FORCE_INLINE static uint8_t GetDirectionPin(uint8_t device_number)
+  {
+    return stepper_info_array[device_number].direction_pin;
+  }
+  FORCE_INLINE static bool GetDirectionInvert(uint8_t device_number)
+  {
+    return AxisInfo::GetStepperDirectionInvert(device_number);
+  }
+  
+  FORCE_INLINE static uint8_t GetStepPin(uint8_t device_number)
+  {
+    return stepper_info_array[device_number].step_pin;
+  }
+  FORCE_INLINE static bool GetStepInvert(uint8_t device_number)
+  {
+    return AxisInfo::GetStepperStepInvert(device_number);
+  }
+  
+  FORCE_INLINE static void WriteEnableState(uint8_t device_number, bool enable)
+  {
+    // defer to AxisInfo
+    AxisInfo::WriteStepperEnableState(device_number, enable);
+  }
+  
+  // returns APP_ERROR_TYPE_SUCCESS or error code
+  static uint8_t SetEnablePin(uint8_t device_number, uint8_t pin);
+  static uint8_t SetDirectionPin(uint8_t device_number, uint8_t pin);
+  static uint8_t SetStepPin(uint8_t device_number, uint8_t pin);
+
+  FORCE_INLINE static uint8_t SetEnableInvert(uint8_t device_number, bool value)
+  {
+    return AxisInfo::SetStepperEnableInvert(device_number, value);
+  }
+  FORCE_INLINE static uint8_t SetDirectionInvert(uint8_t device_number, bool value)
+  {
+    return AxisInfo::SetStepperDirectionInvert(device_number, value);
+  }
+  FORCE_INLINE static uint8_t SetStepInvert(uint8_t device_number, bool value)
+  {
+    return AxisInfo::SetStepperStepInvert(device_number, value);
+  }
+
+  // TODO add get and sets for advanced state
+private:
+
+  struct StepperInfoInternal
+  {
+    uint8_t enable_pin;
+    uint8_t direction_pin;
+    uint8_t step_pin;
+  };
+
+  struct StepperAdvancedInfoInternal
+  {
+    uint8_t vref_digipot_pin;
+    uint8_t vref_digitpot_value;
+    uint8_t ms1_pin;
+    uint8_t ms2_pin;
+    uint8_t ms3_pin;
+    uint8_t ms_value; // bitmask
+    uint8_t fault_pin;  
+  };
+  
+  static uint8_t num_steppers;
+  static StepperInfoInternal *stepper_info_array;
+  static StepperAdvancedInfoInternal *stepper_advanced_info_array;
+};
 
 #endif
 

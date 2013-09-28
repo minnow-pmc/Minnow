@@ -139,14 +139,25 @@
 #define ORDER_SET_PWM_OUTPUT_STATE             0x09
 #define ORDER_WRITE_FIRMWARE_CONFIG_VALUE      0x0a
 #define ORDER_READ_FIRMWARE_CONFIG_VALUE       0x0b
+#define ORDER_TRAVERSE_FIRMWARE_CONFIG         0x18
+#define ORDER_GET_FIRMWARE_CONFIG_PROPERTIES   0x1a
 #define ORDER_EMERGENCY_STOP                   0x0c
-#define ORDER_TRAVERSE_FIRMWARE_CONFIG         0x0d
 
 #define ORDER_RESET                            0x7f
+
+// Stepper Control
+#define ORDER_ACTIVATE_STEPPER_CONTROL         0x0d
+#define ORDER_ENABLE_DISABLE_STEPPERS          0x0e
+#define ORDER_CONFIGURE_ENDSTOPS               0x0f
+#define ORDER_ENABLE_DISABLE_ENDSTOPS          0x10
 
 // Queued Command Extension
 #define ORDER_QUEUE_COMMAND_BLOCKS             0x12
 #define ORDER_CLEAR_COMMAND_QUEUE              0x17
+
+// Movement Orders
+#define ORDER_CONFIGURE_AXIS_MOVEMENT_RATES    0x13
+#define ORDER_CONFIGURE_UNDERRUN_PARAMS        0x19
 
 //
 // Order Parameter Values

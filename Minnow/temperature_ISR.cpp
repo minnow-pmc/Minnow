@@ -171,7 +171,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     // we loop through sensors every 8ms
     if (++temp_index > 8)
     {
-      temp_count++;
+      temp_count += 1;
       temp_index = 0;
     }
   }

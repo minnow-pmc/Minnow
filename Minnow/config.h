@@ -55,6 +55,7 @@
 #define MIN_QUEUE_SIZE                          150   // If the firmware cannot allocate this much memory then it will fail
                                                       // (otherwise all excess memory is allocated to the queue)
 
+                                                      
 
 //
 // Advanced Configuration Options
@@ -73,5 +74,7 @@
 #if defined (__AVR_AT90USB1287__) || defined (__AVR_AT90USB1286__) || defined (__AVR_AT90USB646__) || defined(__AVR_AT90USB647__)
   #define AT90USB
 #endif  
+
+#define MAX_STEP_FREQUENCY 40000 // Max step frequency (5000 pps / half step)
 
 #endif

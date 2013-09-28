@@ -24,6 +24,8 @@
 #include "Device_Buzzer.h"
 #include "response.h"
 
+extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
+
 uint8_t Device_Buzzer::num_buzzers = 0;
 uint8_t *Device_Buzzer::buzzer_pins;
 
@@ -69,11 +71,9 @@ uint8_t Device_Buzzer::SetPin(uint8_t device_number, uint8_t pin)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   }
 
-  if (digitalPinToTimer(pin) == NOT_ON_TIMER && digitalPinToPort(pin) == NOT_A_PIN)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-  }
+  uint8_t retval = checkAnalogOrDigitalPin(pin);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
   
   buzzer_pins[device_number] = pin;
   pinMode(pin, OUTPUT);

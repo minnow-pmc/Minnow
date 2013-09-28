@@ -21,13 +21,11 @@
 #include "Device_TemperatureSensor.h"
 #include "response.h"
 
+extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
+
 uint8_t Device_Heater::num_heaters = 0;
 
-uint8_t *Device_Heater::heater_pins;
-uint8_t *Device_Heater::heater_temp_sensors;
-uint8_t *Device_Heater::heater_control_modes;
-int16_t *Device_Heater::heater_max_temps;
-
+Device_Heater::HeaterInfo *Device_Heater::heater_info_array;
 int16_t *Device_Heater::heater_target_temps;
 
 uint8_t Device_Heater::soft_pwm_device_bitmask;
@@ -49,27 +47,23 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
     return APP_ERROR_TYPE_SUCCESS;
 
   uint8_t *memory = (uint8_t*)malloc(num_devices * 
-    (sizeof(*heater_pins) + sizeof(*heater_temp_sensors) + sizeof(*heater_control_modes)
-      + sizeof(*heater_max_temps) + sizeof(*heater_target_temps)));
+    (sizeof(HeaterInfo) + sizeof(*heater_target_temps)));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
 
-  heater_pins = memory;
-  heater_temp_sensors = heater_pins + num_devices;
-  heater_control_modes = heater_temp_sensors + num_devices;
-  heater_max_temps = (int16_t *)(heater_control_modes + num_devices);
-  heater_target_temps = heater_max_temps + num_devices;
+  heater_info_array = (HeaterInfo *) memory;
+  heater_target_temps = (int16_t *)heater_info_array + num_devices;
      
-  memset(heater_pins, 0xFF, num_devices * sizeof(*heater_pins));
-  memset(heater_temp_sensors, 0xFF, num_devices * sizeof(*heater_temp_sensors));
-  memset(heater_control_modes, HEATER_CONTROL_MODE_INVALID, num_devices * sizeof(*heater_control_modes));
-
   for (int8_t i=0; i<num_devices; i++)
   {
-    heater_max_temps[i] = PM_TEMPERATURE_INVALID;
+    heater_info_array[i].device_number = i;
+    heater_info_array[i].heater_pin = 0xFF;
+    heater_info_array[i].temp_sensor = 0xFF;
+    heater_info_array[i].control_mode = HEATER_CONTROL_MODE_INVALID;
+    heater_info_array[i].max_temp = PM_TEMPERATURE_INVALID;
     heater_target_temps[i] = PM_TEMPERATURE_INVALID;
   }
 
@@ -80,18 +74,16 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t Device_Heater::SetHeaterPin(uint8_t device_number, uint8_t pin)
+uint8_t Device_Heater::SetHeaterPin(uint8_t device_number, uint8_t heater_pin)
 {
   if (device_number >= num_heaters)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
-  if (digitalPinToTimer(pin) == NOT_ON_TIMER && digitalPinToPort(pin) == NOT_A_PIN)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-  }
+  uint8_t retval = checkAnalogOrDigitalPin(heater_pin);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
   
-  heater_pins[device_number] = pin;
+  heater_info_array[device_number].heater_pin = heater_pin;
 
   return APP_ERROR_TYPE_SUCCESS;
 }
@@ -104,7 +96,7 @@ uint8_t Device_Heater::SetTempSensor(uint8_t heater_device_number, uint8_t senso
   if (sensor_device_number >= Device_TemperatureSensor::GetNumDevices())
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
 
-  heater_temp_sensors[heater_device_number] = sensor_device_number;
+  heater_info_array[heater_device_number].temp_sensor = sensor_device_number;
 
   return APP_ERROR_TYPE_SUCCESS;
 }
@@ -117,8 +109,23 @@ uint8_t Device_Heater::SetControlMode(uint8_t device_number, uint8_t mode)
   if (mode != HEATER_CONTROL_MODE_PID && mode != HEATER_CONTROL_MODE_BANG_BANG)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
 
-  heater_control_modes[device_number] = mode;
+  if (mode == HEATER_CONTROL_MODE_BANG_BANG)
+  {
+    // set defaults
+    heater_info_array[device_number].control_info.bangbang.hysteresis = 0;
+  }
+    
+  heater_info_array[device_number].control_mode = mode;
 
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t Device_Heater::SetPowerOnLevel(uint8_t device_number, uint8_t level)
+{
+  if (device_number >= num_heaters)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+  heater_info_array[device_number].power_on_level = level;
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -127,7 +134,7 @@ uint8_t Device_Heater::EnableSoftPwm(uint8_t device_number, bool enable)
   if (device_number >= num_heaters || device_number >= sizeof(soft_pwm_device_bitmask)*8)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
-  if (heater_pins[device_number] == 0xFF)
+  if (heater_info_array[device_number].heater_pin == 0xFF)
   {
     generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
     return PARAM_APP_ERROR_TYPE_FAILED;
@@ -146,7 +153,7 @@ uint8_t Device_Heater::EnableSoftPwm(uint8_t device_number, bool enable)
   
   if (soft_pwm_state != 0)
   {
-    if (!soft_pwm_state->EnableSoftPwm(device_number, heater_pins[device_number], enable))
+    if (!soft_pwm_state->EnableSoftPwm(device_number, heater_info_array[device_number].heater_pin, enable))
     {
       generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
       return PARAM_APP_ERROR_TYPE_FAILED;
@@ -169,22 +176,34 @@ uint8_t Device_Heater::SetMaxTemperature(uint8_t device_number, int16_t temp)
   if (temp <= 0)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   
-  heater_max_temps[device_number] = temp;
+  heater_info_array[device_number].max_temp = temp;
 
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t Device_Heater::SetBangBangHysteresis(uint8_t device_number, uint8_t temp_range)
+{
+  if (device_number >= num_heaters)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+  if (heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_BANG_BANG)
+    return PARAM_APP_ERROR_TYPE_INCORRECT_MODE;
+    
+  heater_info_array[device_number].control_info.bangbang.hysteresis = temp_range;
   return APP_ERROR_TYPE_SUCCESS;
 }
 
 uint8_t Device_Heater::ValidateTargetTemperature(uint8_t device_number, int16_t temp)
 {
   if (device_number >= num_heaters
-      || heater_pins[device_number] == 0xFF
-      || Device_TemperatureSensor::ValidateConfig(device_number) == APP_ERROR_TYPE_SUCCESS
-      || heater_max_temps[device_number] == PM_TEMPERATURE_INVALID
-      || (heater_control_modes[device_number] != HEATER_CONTROL_MODE_PID
-            && heater_control_modes[device_number] != HEATER_CONTROL_MODE_BANG_BANG))
+      || heater_info_array[device_number].heater_pin == 0xFF
+      || Device_TemperatureSensor::ValidateConfig(heater_info_array[device_number].temp_sensor) != APP_ERROR_TYPE_SUCCESS
+      || heater_info_array[device_number].max_temp == PM_TEMPERATURE_INVALID
+      || (heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_PID
+            && heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_BANG_BANG))
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
     
-  if (temp > heater_max_temps[device_number] || temp < 0)
+  if (temp > heater_info_array[device_number].max_temp || temp < 0)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
     
   return APP_ERROR_TYPE_SUCCESS;
@@ -192,9 +211,44 @@ uint8_t Device_Heater::ValidateTargetTemperature(uint8_t device_number, int16_t 
 
 void Device_Heater::UpdateHeaters()
 {
-  
-  
-
+  HeaterInfo *heater_info = heater_info_array;
+  for (uint8_t i=0; i<num_heaters; i++)
+  {
+    int16_t target_temp = heater_target_temps[i];
+    if (target_temp != PM_TEMPERATURE_INVALID)
+    {
+      // Check if temperature is within the correct range
+      int16_t current_temp = Device_TemperatureSensor::ReadCurrentTemperature(heater_info->temp_sensor);
+      if (current_temp > heater_info->max_temp)
+      {
+        // TODO handle heater error.
+        if (current_temp == PM_TEMPERATURE_INVALID)
+          ERROR("Heater Read Error: ");
+        else
+          ERROR("Heater overtemp Error: ");
+        ERRORLN((int)i);
+        target_temp = PM_TEMPERATURE_INVALID;
+        SetHeaterPower(heater_info, 0);
+        continue;
+      }
+      if (heater_info->control_mode == HEATER_CONTROL_MODE_BANG_BANG)
+      {
+        if (current_temp > target_temp + heater_info->control_info.bangbang.hysteresis)
+        {
+          SetHeaterPower(heater_info, 0);
+        }
+        else if (current_temp < target_temp - heater_info->control_info.bangbang.hysteresis)
+        {
+          SetHeaterPower(heater_info, heater_info->power_on_level);
+        }
+      }
+      else
+      {
+        // PID TODO
+      }
+    }
+    heater_info += 1;
+  }
 }
 
 
@@ -512,13 +566,13 @@ int getHeaterPower(int heater) {
     #endif
   #endif 
 
-void setExtruderAutoFanState(int pin, bool state)
+void setExtruderAutoFanState(int heater_pin, bool state)
 {
   unsigned char newFanSpeed = (state != 0) ? EXTRUDER_AUTO_FAN_SPEED : 0;
   // this idiom allows both digital and PWM fan outputs (see M42 handling).
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, newFanSpeed);
-  analogWrite(pin, newFanSpeed);
+  pinMode(heater_pin, OUTPUT);
+  digitalWrite(heater_pin, newFanSpeed);
+  analogWrite(heater_pin, newFanSpeed);
 }
 
 void checkExtruderAutoFans()

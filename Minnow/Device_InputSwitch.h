@@ -40,28 +40,38 @@ public:
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
     return (device_number < num_input_switches 
-      && input_switch_pins[device_number] != 0xFF);
+      && input_switch_info[device_number].pin != 0xFF);
   }
 
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)
   {
-    return input_switch_pins[device_number];
+    return input_switch_info[device_number].pin;
   }
   
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
 
-  // Note: this read method is not used for time-critical input pins
-  // such as stepper or heater pins or for enqueued commands
-  FORCE_INLINE static uint8_t ReadState(uint8_t device_number)
+  FORCE_INLINE static bool ReadState(uint8_t device_number)
   {
-    return digitalRead(input_switch_pins[device_number]);
+    const InputSwitchInfoInternal *info = &input_switch_info[device_number];
+    return (*info->switch_register & info->switch_bit) != 0;
   }
 
 private:
+
+  // Ideally we keep the sizeof this struct as a power of 2 
+  // so that accessing it doesn't require multiplication.
+  struct InputSwitchInfoInternal
+  {
+    uint8_t pin;
+    volatile uint8_t *switch_register;
+    uint8_t switch_bit;
+  };
+  
   static uint8_t num_input_switches;
-  static uint8_t *input_switch_pins;
+  static InputSwitchInfoInternal *input_switch_info;
 };
+
 
 #endif
 

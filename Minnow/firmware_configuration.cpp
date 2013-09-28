@@ -36,6 +36,7 @@
 #include "Device_PwmOutput.h"
 #include "Device_Buzzer.h"
 #include "Device_Heater.h"
+#include "Device_Stepper.h"
 #include "Device_TemperatureSensor.h"
 
 FORCE_INLINE static void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id);
@@ -347,6 +348,9 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_BUZZER_PIN:
   case NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_PIN:
   case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_ENABLE_PIN:
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_DIRECTION_PIN:
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_PIN:
     return setPin(node_type, parent_instance_id, value);
 
   case NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_TYPE:
@@ -378,6 +382,19 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_HEATERS:
     retval = Device_Heater::Init(value);
     break;
+  case NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_STEPPERS:
+    retval = Device_Stepper::Init(value);
+    break;
+      
+  case NODE_TYPE_CONFIG_LEAF_HEATER_TEMP_SENSOR:
+    retval = Device_Heater::SetTempSensor(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_BANG_BANG_HYSTERESIS:
+    retval = Device_Heater::SetBangBangHysteresis(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_POWER_ON_LEVEL:
+    retval = Device_Heater::SetPowerOnLevel(parent_instance_id, value);
+    break;
       
   default: 
     send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
@@ -399,6 +416,9 @@ bool set_int16_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
 
   switch (node_type)
   {
+  case NODE_TYPE_CONFIG_LEAF_HEATER_MAX_TEMP:
+    retval = Device_Heater::SetMaxTemperature(parent_instance_id, value);
+    break;
 
   default: 
     send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
@@ -428,6 +448,23 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM:
     retval = Device_Heater::EnableSoftPwm(parent_instance_id, value);
+    break;
+
+  case NODE_TYPE_CONFIG_LEAF_HEATER_USE_BANG_BANG:
+    retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_BANG_BANG);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_USE_PID:
+    retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_PID);
+    break;
+    
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_ENABLE_INVERT:
+    retval = Device_Stepper::SetEnableInvert(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_DIRECTION_INVERT:
+    retval = Device_Stepper::SetDirectionInvert(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_INVERT:
+    retval = Device_Stepper::SetStepInvert(parent_instance_id, value);
     break;
 
   default: 
@@ -525,6 +562,18 @@ bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
     retval = Device_Heater::SetHeaterPin(device_number, pin);
     break;
 
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_ENABLE_PIN:
+    retval = Device_Stepper::SetEnablePin(device_number, pin);
+    break;
+
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_DIRECTION_PIN:
+    retval = Device_Stepper::SetDirectionPin(device_number, pin);
+    break;
+
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_PIN:
+    retval = Device_Stepper::SetStepPin(device_number, pin);
+    break;
+
   default: 
     send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
          PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
@@ -540,6 +589,10 @@ bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin)
   return false;
 }
 
+//
+// Utility Functions
+//
+
 bool read_number(long &number, const char *value)
 {
   char *end;
@@ -547,4 +600,24 @@ bool read_number(long &number, const char *value)
   if (end == value || *end != '\0')
     return false;
   return true;
+}
+
+uint8_t checkDigitalPin(uint8_t pin)
+{
+  if (digitalPinToPort(pin) == NOT_A_PIN)
+  {
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t checkAnalogOrDigitalPin(uint8_t pin)
+{
+  if (digitalPinToTimer(pin) == NOT_ON_TIMER && digitalPinToPort(pin) == NOT_A_PIN)
+  {
+    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+  return APP_ERROR_TYPE_SUCCESS;
 }

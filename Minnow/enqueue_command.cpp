@@ -27,6 +27,10 @@
 #include "Device_OutputSwitch.h"
 #include "Device_PwmOutput.h"
 #include "Device_Buzzer.h"
+#include "Device_Heater.h"
+#include "Device_InputSwitch.h"
+#include "AxisInfo.h"
+
 
 static void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t reply_error_code = 0xFF);
 static uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes);
@@ -35,7 +39,11 @@ FORCE_INLINE static uint8_t enqueue_delay_command(const uint8_t *pacemaker_comma
 FORCE_INLINE static uint8_t enqueue_set_output_switch_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
 FORCE_INLINE static uint8_t enqueue_set_pwm_output_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
 FORCE_INLINE static uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
+FORCE_INLINE static uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
+FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
+uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length);
 
+uint16_t last_enqueued_final_speed;
 
 //
 // Top level enqueue command handler
@@ -152,7 +160,7 @@ uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, ui
   return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
 }
  
-uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length)
 {
   if (parameter_length != sizeof(uint16_t))
     return generate_enqueue_insufficient_bytes_error(sizeof(uint16_t), parameter_length);
@@ -171,7 +179,7 @@ uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length
   return ENQUEUE_SUCCESS;
 }
 
-uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_t parameter_length)
 {
   const uint8_t number_of_switches = parameter_length/3;
 
@@ -190,7 +198,7 @@ uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_OUTPUT_SWITCH_STATE;
   cmd->num_bits = number_of_switches;
   
-  uint8_t device_type, device_number, device_state;
+  uint8_t device_number, device_state;
 
   for (uint8_t i = 0; i < parameter_length; i+=3)
   {
@@ -225,7 +233,7 @@ uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_
   return ENQUEUE_SUCCESS;
 }
 
-uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t parameter_length)
 {
   if (parameter_length < 4)
     return generate_enqueue_insufficient_bytes_error(4, parameter_length);
@@ -268,9 +276,8 @@ uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t p
   }  
 }
 
-uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, uint8_t parameter_length)
 {
-#if 0 // TODO
   if (parameter_length < 3)
     return generate_enqueue_insufficient_bytes_error(3, parameter_length);
   
@@ -279,28 +286,327 @@ uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, 
   if (insertion_point == 0)
     return ENQUEUE_ERROR_QUEUE_FULL;
   
-  const int16_t target_temp = (parameter_value[1] << 8) | parameter_value[2];
+  uint8_t heater_number = parameter_value[0];
+  int16_t target_temp = (parameter_value[1] << 8) | parameter_value[2];
   
-  if (!Device_Heater::IsValidConfig(parameter_value[0])
-  xxx
-      return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
-  if (!Device_Heater::ValidateTargetTemperatureRange
-  
-  
-  (target_temp)
-  {
-  xxx
-      return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
-  }
+  uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, target_temp);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
 
   SetHeaterTargetTempCommand *cmd = (SetHeaterTargetTempCommand *)insertion_point;
-    
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_HEATER_TARGET_TEMP;
   cmd->heater_number = parameter_value[0];
   cmd->target_temp = target_temp;
 
   CommandQueue::EnqueueCommand(sizeof(SetHeaterTargetTempCommand));
-#endif  
+  return ENQUEUE_SUCCESS;
+}
+
+FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length)
+{
+  if (parameter_length != 0 && parameter_length != 2)
+    return generate_enqueue_insufficient_bytes_error(2, parameter_length);
+  
+  uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetStepperEnableStateQueueCommand));
+  
+  if (insertion_point == 0)
+    return ENQUEUE_ERROR_QUEUE_FULL;
+  
+  SetStepperEnableStateQueueCommand *cmd = (SetStepperEnableStateQueueCommand *)insertion_point;
+    
+  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_STEPPER_ENABLE_STATE;
+  if (parameter_length == 0)
+  {
+    cmd->stepper_number = 0xFF;
+    cmd->stepper_state = 0;
+  }
+  else
+  {
+    if (!AxisInfo::IsInUse(pacemaker_command[0]))
+      return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+    cmd->stepper_number = pacemaker_command[0];
+    cmd->stepper_state = 0;
+  }
+
+  CommandQueue::EnqueueCommand(sizeof(SetStepperEnableStateQueueCommand));
+  return ENQUEUE_SUCCESS;
+}
+
+FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length)
+{
+  if ((parameter_length & 1) != 0)
+    return generate_enqueue_insufficient_bytes_error(parameter_length+1, parameter_length);
+  
+  uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetEndstopEnableStateQueueCommand));
+  
+  SetEndstopEnableStateQueueCommand *cmd = (SetEndstopEnableStateQueueCommand *)insertion_point;
+    
+  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_OUTPUT_SWITCH_STATE;
+  cmd->endstops_to_change = 0;
+  cmd->endstop_enable_state = 0;
+  
+  uint8_t device_number, device_state;
+
+  for (uint8_t i=0; i < parameter_length; i+=2)
+  {
+    device_number = parameter_value[i];
+    device_state = parameter_value[i+1];
+    
+    if (!Device_InputSwitch::IsInUse(device_number) || device_number >= MAX_ENDSTOPS)
+      return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+    cmd->endstops_to_change |= (1 << i);
+    if (device_state)
+      cmd->endstop_enable_state |= (1 << i);
+  }
+  
+  CommandQueue::EnqueueCommand(sizeof(SetEndstopEnableStateQueueCommand));
+  return ENQUEUE_SUCCESS;
+}
+
+// Not inlined to reduce stack usage
+uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length)
+{
+  if (parameter_length < 8)
+    return generate_enqueue_insufficient_bytes_error(8, parameter_length);
+    
+  uint16_t axes_selected;
+  uint16_t directions;
+  bool use_long_counts;
+  bool use_long_axis_mask = parameter[0] & 0x80;
+  
+  if (use_long_axis_mask)
+  {
+    if (parameter_length < 10)
+      return generate_enqueue_insufficient_bytes_error(10, parameter_length);
+    axes_selected = ((parameter[0] & ~0x80) << 8) | parameter[1];
+    directions = ((parameter[2] & ~0x80) << 8) | parameter[3];
+    use_long_counts = parameter[2] & 0x80;
+    parameter += 4;
+  }
+  else
+  {
+    axes_selected = parameter[0];
+    directions = parameter[1] & ~0x80;
+    use_long_counts = parameter[1] & 0x80;
+    parameter += 2;
+  }
+  
+  uint8_t primary_axis = *parameter & 0x0F;
+  uint8_t nominal_speed_fraction = *parameter++;
+  uint8_t final_speed_fraction = *parameter++;
+  uint8_t accel_count_fraction = *parameter++;
+  uint8_t decel_count_fraction = *parameter++;
+  
+  uint8_t num_axes = 0;
+  uint8_t tmp_axes = axes_selected;
+  uint8_t axis_number = 0;
+  uint8_t index = 0;
+  bool primary_axis_used = false;
+  while (tmp_axes != 0)
+  {
+    if ((tmp_axes & 1) != 0)
+    {
+      if (!AxisInfo::IsInUse(axis_number))
+      {
+        generate_response_msg_addPGM(PSTR("Invalid axis included")); // TODO: Language-ify
+        return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+      }
+      num_axes += 1;
+
+      if (index == primary_axis)
+        primary_axis_used = true;
+        
+      index += 1;
+    }
+    tmp_axes >>= 1;
+    axis_number += 1;
+  }
+
+  if (num_axes == 0)
+  {
+    generate_response_msg_addPGM(PSTR("No axis selected")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+  
+  if (!primary_axis_used)
+  {
+    generate_response_msg_addPGM(PSTR("Invalid primary axis specified")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+  
+  if (nominal_speed_fraction < final_speed_fraction)
+  {
+    generate_response_msg_addPGM(PSTR("Nominal < Final Speed")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+
+  uint16_t nominal_speed = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction) / 255;  
+  uint16_t initial_speed= last_enqueued_final_speed;
+
+  if (nominal_speed < initial_speed)
+  {
+    generate_response_msg_addPGM(PSTR("Nominal < Initial Speed")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+
+  if (nominal_speed_fraction == 0)
+  {
+    generate_response_msg_addPGM(PSTR("Nominal Speed is zero")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+
+  if (accel_count_fraction > decel_count_fraction)
+  {
+    generate_response_msg_addPGM(PSTR("Overlapping accel/decel portions")); // TODO: Language-ify
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+  }
+  
+  uint8_t expected_input_length = 8 + ((use_long_axis_mask) ? 2 : 0) + ((use_long_counts) ? 2*num_axes : num_axes);
+  if (parameter_length < expected_input_length)
+  {
+    return generate_enqueue_insufficient_bytes_error(expected_input_length, parameter_length);
+  }
+
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_length)
+{
+  // validation code is separated so that it makes it easier to split 
+  // the expansion to a secondary queue.
+  uint8_t retval = validate_linear_move(parameter, parameter_length);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
+    
+  uint16_t axes_selected;
+  uint16_t directions;
+  bool use_long_counts;
+  bool use_long_axis_mask = parameter[0] & 0x80;
+  
+  if (use_long_axis_mask)
+  {
+    axes_selected = ((parameter[0] & ~0x80) << 8) | parameter[1];
+    directions = ((parameter[2] & ~0x80) << 8) | parameter[3];
+    use_long_counts = parameter[2] & 0x80;
+    parameter += 4;
+  }
+  else
+  {
+    axes_selected = parameter[0];
+    directions = parameter[1] & ~0x80;
+    use_long_counts = parameter[1] & 0x80;
+    parameter += 2;
+  }
+  
+  uint8_t primary_axis = *parameter & 0x0F;
+  bool homing_bit = *parameter++ & 0x10;
+  uint8_t nominal_speed_fraction = *parameter++;
+  uint8_t final_speed_fraction = *parameter++;
+  uint8_t accel_count_fraction = *parameter++;
+  uint8_t decel_count_fraction = *parameter++;
+  
+  uint8_t num_axes = 0;
+  uint8_t tmp_axes = axes_selected;
+  while (tmp_axes != 0)
+  {
+    if ((tmp_axes & 1) != 0)
+      num_axes += 1;
+    tmp_axes >>= 1;
+  }
+
+  uint8_t expected_output_length = sizeof(LinearMoveCommand) + ((num_axes-1)*sizeof(AxisMoveInfo));
+  
+  uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(expected_output_length);
+  if (insertion_point == 0)
+    return ENQUEUE_ERROR_QUEUE_FULL;
+
+  LinearMoveCommand *cmd = (LinearMoveCommand *)insertion_point;
+  
+  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_LINEAR_MOVE;
+  cmd->num_axes = num_axes;
+
+  uint16_t max_steps = 0;
+  uint8_t axis_number = 0;
+  uint8_t index = 0;
+  tmp_axes = axes_selected;
+
+  cmd->directions = 0;
+  cmd->endstops_of_interest = 0;
+  while (tmp_axes != 0)
+  {
+    if ((tmp_axes & 1) != 0)
+    {
+      AxisMoveInfo *axis_move_info = &cmd->axis_move_info[index];
+      if (use_long_counts)
+        axis_move_info->step_count = (parameter[2*index] << 8) | parameter[(2*index)+1];
+      else
+        axis_move_info->step_count = parameter[index];
+
+      if (max_steps < axis_move_info->step_count)
+        max_steps = axis_move_info->step_count;
+
+      if (axis_number == primary_axis)
+        cmd->primary_axis = index;
+        
+      axis_move_info->axis_info = &AxisInfo::axis_info_array[axis_number];
+        
+      if (directions & (1 << axis_number))
+      {
+        cmd->directions |= (1 << index);
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMinEndstops(axis_number);
+      }
+      else
+      {
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMaxEndstops(axis_number);
+      }
+        
+      index += 1;
+    }
+    tmp_axes >>= 1;
+    axis_number += 1;
+  }
+
+  cmd->total_steps = max_steps;
+  cmd->steps_phase_2 = (uint32_t)(max_steps * (255 - accel_count_fraction)) / 255;
+  cmd->steps_phase_3 = (uint32_t)(max_steps * (255 - decel_count_fraction)) / 255;
+  cmd->nominal_rate = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction) / 255;
+  cmd->final_rate = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * final_speed_fraction) / 255;
+
+  uint16_t initial_speed = last_enqueued_final_speed;
+  
+  // a = (v^2 - u^2) / (2*distance)
+  if (cmd->steps_phase_2 != max_steps)
+    cmd->acceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (initial_speed * initial_speed)) / (2 * (max_steps - cmd->steps_phase_2));
+  else
+    cmd->acceleration_rate = 0;
+  
+  if (cmd->steps_phase_3 != 0)
+    cmd->deceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (cmd->final_rate * cmd->final_rate)) / (2 * cmd->steps_phase_3);
+  else
+    cmd->deceleration_rate = 0;
+  
+  // t = (v - u) / a  and  t = d / v
+  uint32_t nominal_block_time = 0;
+  if (cmd->acceleration_rate != 0)
+    nominal_block_time += (cmd->nominal_rate - initial_speed) * 10000UL / cmd->acceleration_rate;
+  if (cmd->steps_phase_2 != cmd->steps_phase_3)
+    nominal_block_time += (cmd->steps_phase_2 - cmd->steps_phase_3) * 10000UL / cmd->nominal_rate;
+  if (cmd->deceleration_rate != 0)
+    nominal_block_time += (cmd->nominal_rate - cmd->final_rate) * 10000UL / cmd->deceleration_rate;
+  cmd->nominal_block_time = max(nominal_block_time,0xFFFF);
+  
+  cmd->homing_bit = homing_bit;
+  
+  uint16_t underrun_rate = min(cmd->nominal_rate,AxisInfo::GetUnderrunRate(primary_axis));
+  
+  // d = (v^2 - u^2) / (2*a)
+  if (underrun_rate > cmd->final_rate)
+    cmd->steps_to_final_speed_from_underrun_rate = ((uint32_t)(underrun_rate*underrun_rate) - (uint32_t)(cmd->final_rate*cmd->final_rate)) / (2 * AxisInfo::GetUnderrunAccelRate(primary_axis));
+  else
+    cmd->steps_to_final_speed_from_underrun_rate = 0;
+ 
+  CommandQueue::EnqueueCommand(expected_output_length);
   return ENQUEUE_SUCCESS;
 }
 

@@ -24,6 +24,8 @@
 #include "Device_OutputSwitch.h"
 #include "response.h"
 
+extern uint8_t checkDigitalPin(uint8_t pin);
+
 uint8_t Device_OutputSwitch::num_output_switches = 0;
 uint8_t *Device_OutputSwitch::output_switch_pins;
 bool *Device_OutputSwitch::output_switch_disabled;
@@ -63,11 +65,9 @@ uint8_t Device_OutputSwitch::SetPin(uint8_t device_number, uint8_t pin)
   if (device_number >= num_output_switches)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
-  if (digitalPinToPort(pin) == NOT_A_PIN)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-  }
+  uint8_t retval = checkDigitalPin(pin);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
   
   output_switch_pins[device_number] = pin;
   output_switch_disabled[device_number] = true;

@@ -75,7 +75,7 @@ public:
 
 private:
 
-  friend bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool continuing);
+  friend bool handle_queue_command();
 
   static uint8_t num_output_switches;
   static uint8_t *output_switch_pins;

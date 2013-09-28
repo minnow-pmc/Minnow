@@ -53,6 +53,7 @@
 extern bool reply_sent;
 extern bool reply_started;
 extern uint8_t reply_control_byte;
+extern volatile bool temp_meas_ready;
 
 
 //===========================================================================
@@ -182,19 +183,48 @@ void applyDebugConfiguration()
   
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "1");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.pin", "4");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.use_soft_pwm", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.use_soft_pwm", "0");
   
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.pin", "33");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.use_soft_pwm", "0");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.use_soft_pwm", "1");
   
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "4");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "1");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.pin", "13");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "7");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.pin", "15");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "7");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.pin", "9");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "1");
+//  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.pin", "15");
+//  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "7");
+//  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.pin", "9");
+//  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "1");
+
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_steppers", "4");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.enable_pin", "38");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.direction_pin", "55");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.direction_invert", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.step_pin", "54");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.enable_invert", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.enable_pin", "56");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.direction_pin", "61");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.direction_invert", "0");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.step_pin", "60");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.enable_invert", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.enable_pin", "62");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.direction_pin", "48");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.direction_invert", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.step_pin", "46");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.enable_invert", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.enable_pin", "24");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.direction_pin", "28");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.step_pin", "26");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.enable_invert", "1");
+
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_heaters", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pin", "10");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.max_temp", "3000");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.use_bang_bang", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.power_on_level", "255");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.bang_bang_hysteresis", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.temp_sensor", "0");
   
   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory");
   DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark");
@@ -215,8 +245,25 @@ void applyDebugConfiguration()
   DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
   DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
   
+  DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
+//  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
+  
   DEBUG_COMMAND_ARRAY("Request Num Temp Sensors", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_TEMP_SENSORS }) );
+
+  DEBUG_COMMAND_ARRAY("Configure Endstops 0", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 0, 0, 0, 0  }) );
+  DEBUG_COMMAND_ARRAY("Configure Endstops 1", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 1, 1, 0, 0, 2, 0, 0 }) );
+
+  DEBUG_COMMAND_ARRAY("Configure Axis Rates", ORDER_CONFIGURE_AXIS_MOVEMENT_RATES, ARRAY({ (28000/255), (28000%255), \
+      (28000/255), (28000%255), (11200/255), (11200%255), (56700/255), (56700%255) }) );
+
+  DEBUG_COMMAND_ARRAY("Activate Stepper Control", ORDER_ACTIVATE_STEPPER_CONTROL, ARRAY({ 1 }) );
+
+  DEBUG_COMMAND_ARRAY("Set Stepper Enable (Empty)", ORDER_ENABLE_DISABLE_STEPPERS, ARRAY({  }) );
+
+  DEBUG_COMMAND_ARRAY("Set Stepper Enable", ORDER_ENABLE_DISABLE_STEPPERS, ARRAY({ 0, 1, 1, 0 }) );
+  
   DEBUG_COMMAND_STR("Flush Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" );
+  
   DEBUG_COMMAND_STR("Read Queue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" );
   DEBUG_COMMAND_STR("Read Stack Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_memory" );
   
@@ -408,8 +455,11 @@ void loop()
   }
 
   // Idle loop activities
-  Device_TemperatureSensor::UpdateTemperatureSensors();
-  Device_Heater::UpdateHeaters();
+  if (temp_meas_ready)
+  {
+    Device_TemperatureSensor::UpdateTemperatureSensors();
+    Device_Heater::UpdateHeaters();
+  }
 }
 
 void emergency_stop()

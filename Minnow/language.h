@@ -1,3 +1,23 @@
+/*
+  Minnow Pacemaker client firmware.
+  Copyright (c) 2006 Nicholas Zambetti.  All right reserved.
+
+  This library is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
+
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public
+  License along with this library; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  
+*/
+
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
@@ -184,6 +204,9 @@ PMSG_VARIABLE(MSG_EXPECTING);
 #define CONFIG_STR_HEATER_ENGLISH                 "heater"
 #define CONFIG_STR_HEATER_DEUTSCH                 "heizelement"
 
+#define CONFIG_STR_STEPPER_ENGLISH                "stepper"
+#define CONFIG_STR_STEPPER_DEUTSCH                "stepper"
+
 #define CONFIG_STR_TEMP_SENSOR_ENGLISH            "temp_sensor"
 #define CONFIG_STR_TEMP_SENSOR_DEUTSCH            CONFIG_STR_TEMP_SENSOR_ENGLISH
 
@@ -200,11 +223,14 @@ PMSG_VARIABLE(MSG_EXPECTING);
 #define CONFIG_STR_NUM_BUZZERS_ENGLISH            "num_buzzers"
 #define CONFIG_STR_NUM_BUZZERS_DEUTSCH            CONFIG_STR_NUM_BUZZERS_ENGLISH
 
+#define CONFIG_STR_NUM_TEMP_SENSORS_ENGLISH       "num_temp_sensors"
+#define CONFIG_STR_NUM_TEMP_SENSORS_DEUTSCH       CONFIG_STR_NUM_HEATERS_ENGLISH
+
 #define CONFIG_STR_NUM_HEATERS_ENGLISH            "num_heaters"
 #define CONFIG_STR_NUM_HEATERS_DEUTSCH            CONFIG_STR_NUM_HEATERS_ENGLISH
 
-#define CONFIG_STR_NUM_TEMP_SENSORS_ENGLISH       "num_temp_sensors"
-#define CONFIG_STR_NUM_TEMP_SENSORS_DEUTSCH       CONFIG_STR_NUM_HEATERS_ENGLISH
+#define CONFIG_STR_NUM_STEPPERS_ENGLISH           "num_steppers"
+#define CONFIG_STR_NUM_STEPPERS_DEUTSCH           CONFIG_STR_NUM_STEPPERS_ENGLISH
 
 // Specific attribute names
 #define CONFIG_STR_HARDWARE_NAME_ENGLISH          "hardware_name"
@@ -240,6 +266,37 @@ PMSG_VARIABLE(MSG_EXPECTING);
 #define CONFIG_STR_USE_SOFT_PWM_ENGLISH           "use_soft_pwm"
 #define CONFIG_STR_USE_SOFT_PWM_DEUTSCH           CONFIG_STR_USE_SOFT_PWM_ENGLISH
 
+#define CONFIG_STR_POWER_ON_LEVEL_ENGLISH         "power_on_level"
+#define CONFIG_STR_POWER_ON_LEVEL_DEUTSCH         CONFIG_STR_POWER_ON_LEVEL_ENGLISH
 
+#define CONFIG_STR_USE_BANG_BANG_ENGLISH          "use_bang_bang"
+#define CONFIG_STR_USE_BANG_BANG_DEUTSCH          CONFIG_STR_USE_BANG_BANG_ENGLISH
+
+#define CONFIG_STR_USE_PID_ENGLISH                "use_pid"
+#define CONFIG_STR_USE_PID_DEUTSCH                CONFIG_STR_USE_PID_ENGLISH
+
+#define CONFIG_STR_MAX_TEMP_ENGLISH               "max_temp"
+#define CONFIG_STR_MAX_TEMP_DEUTSCH               CONFIG_STR_MAX_TEMP_ENGLISH
+
+#define CONFIG_STR_BANG_BANG_HYSTERESIS_ENGLISH   "bang_bang_hysteresis"
+#define CONFIG_STR_BANG_BANG_HYSTERESIS_DEUTSCH   CONFIG_STR_BANG_BANG_HYSTERESIS_ENGLISH
+
+#define CONFIG_STR_ENABLE_PIN_ENGLISH             "enable_pin"
+#define CONFIG_STR_ENABLE_PIN_DEUTSCH             CONFIG_STR_ENABLE_PIN_ENGLISH
+
+#define CONFIG_STR_ENABLE_INVERT_ENGLISH          "enable_invert"
+#define CONFIG_STR_ENABLE_INVERT_DEUTSCH          CONFIG_STR_ENABLE_INVERT_ENGLISH
+
+#define CONFIG_STR_DIRECTION_PIN_ENGLISH          "direction_pin"
+#define CONFIG_STR_DIRECTION_PIN_DEUTSCH          CONFIG_STR_DIRECTION_PIN_ENGLISH
+
+#define CONFIG_STR_DIRECTION_INVERT_ENGLISH       "direction_invert"
+#define CONFIG_STR_DIRECTION_INVERT_DEUTSCH       CONFIG_STR_DIRECTION_INVERT_ENGLISH
+
+#define CONFIG_STR_STEP_PIN_ENGLISH               "step_pin"
+#define CONFIG_STR_STEP_PIN_DEUTSCH               CONFIG_STR_STEP_PIN_ENGLISH
+
+#define CONFIG_STR_STEP_INVERT_ENGLISH            "step_invert"
+#define CONFIG_STR_STEP_INVERT_DEUTSCH            CONFIG_STR_STEP_INVERT_ENGLISH
 
 #endif // ifndef LANGUAGE_H

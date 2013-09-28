@@ -24,8 +24,10 @@
 #include "Device_InputSwitch.h"
 #include "response.h"
 
+extern uint8_t checkDigitalPin(uint8_t pin);
+
 uint8_t Device_InputSwitch::num_input_switches = 0;
-uint8_t *Device_InputSwitch::input_switch_pins;
+Device_InputSwitch::InputSwitchInfoInternal *Device_InputSwitch::input_switch_info;
 
 //
 // Methods
@@ -41,16 +43,17 @@ uint8_t Device_InputSwitch::Init(uint8_t num_devices)
   if (num_devices == 0)
     return APP_ERROR_TYPE_SUCCESS;
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*input_switch_pins));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(InputSwitchInfoInternal));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
 
-  input_switch_pins = memory;
+  input_switch_info = (InputSwitchInfoInternal *)memory;
   
-  memset(input_switch_pins, 0xFF, num_devices * sizeof(*input_switch_pins));
+  for (uint8_t i=0; i < num_devices; i++)
+    input_switch_info[i].pin = 0xFF;
 
   num_input_switches = num_devices;
   return APP_ERROR_TYPE_SUCCESS;
@@ -61,13 +64,13 @@ uint8_t Device_InputSwitch::SetPin(uint8_t device_number, uint8_t pin)
   if (device_number >= num_input_switches)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
-  if (digitalPinToPort(pin) == NOT_A_PIN)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-  }
+  uint8_t retval = checkDigitalPin(pin);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
   
-  input_switch_pins[device_number] = pin;
+  input_switch_info[device_number].pin = pin;
+  input_switch_info[device_number].switch_register = portOutputRegister(digitalPinToPort(pin));
+  input_switch_info[device_number].switch_bit = digitalPinToBitMask(pin);
 
   pinMode(pin, INPUT);
 

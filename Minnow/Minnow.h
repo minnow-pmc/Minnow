@@ -95,7 +95,8 @@ extern const char *stopped_reason;
 
 // a macro to calculate a variable big enough to hold a bitmask of the specified size
 #define BITMASK(count) BITMASK_SIZE(count)
-#define BITMASK_SIZE(count) BITMASK_SIZE_##count
+#define BITMASK_SIZE(count) BITMASK_SIZE_(count)
+#define BITMASK_SIZE_(count) BITMASK_SIZE_##count
 #define BITMASK_SIZE_1 uint8_t
 #define BITMASK_SIZE_2 uint8_t
 #define BITMASK_SIZE_3 uint8_t

@@ -57,7 +57,9 @@ public:
 private: 
   
   friend void movement_ISR();
-  friend bool handleQueueCommand(const uint8_t* command, uint8_t command_length, bool continuing);
+  friend bool handle_queue_command();
+  friend bool check_underrun_condition();
+  friend void dump_movement_queue();
 
   static uint8_t *queue_buffer;
   static uint16_t queue_buffer_length;

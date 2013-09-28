@@ -59,7 +59,10 @@ CommandQueue::GetCommandInsertionPoint(uint8_t length_required)
   {
     // does command fit before end of buffer?
     if ((queue_buffer + queue_buffer_length) - queue_tail > length_required) 
+    {
+      *queue_tail = 0x69;
       return (uint8_t *)queue_tail+1;
+    }
     // otherwise does command fit after start of buffer?
     if (cached_queue_head - queue_buffer <= length_required + 1)
       return 0;
@@ -71,6 +74,7 @@ CommandQueue::GetCommandInsertionPoint(uint8_t length_required)
       queue_tail = queue_buffer + queue_buffer_length; 
       CRITICAL_SECTION_END
     }
+    *queue_buffer = 0x69;
     return queue_buffer+1;
   }
   else
@@ -78,6 +82,7 @@ CommandQueue::GetCommandInsertionPoint(uint8_t length_required)
     // will it fit at all?
     if (cached_queue_head - queue_tail <= length_required + 1)
       return 0;
+    *queue_tail = 0x69;
     return (uint8_t *)queue_tail+1;
   }
 }
@@ -103,11 +108,21 @@ CommandQueue::EnqueueCommand(uint8_t command_length)
   {
     if (queue_tail >= queue_buffer + queue_buffer_length)
     {
+      if (queue_buffer[0] != 0x69) // this can happen if the queue has been dumped by the ISR
+      {
+        CRITICAL_SECTION_END
+        return false;
+      }
       queue_buffer[0] = command_length;
       queue_tail = queue_buffer + command_length + 1;
     }
     else
     {
+      if (queue_tail[0] != 0x69) // this can happen if the queue has been dumped by the ISR
+      {
+        CRITICAL_SECTION_END
+        return false;
+      }
       queue_tail[0] = command_length;
       queue_tail += command_length + 1; 
     }
