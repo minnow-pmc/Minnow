@@ -39,7 +39,11 @@
 
 #include "Device_TemperatureSensor.h"
 #include "Device_Heater.h"
+#include "Device_Stepper.h"
+#include "Device_OutputSwitch.h"
+#include "Device_PwmOutput.h"
 #include "CommandQueue.h"
+#include "NVConfigStore.h"
 
 #include <avr/pgmspace.h>
 #if USE_WATCHDOG_FOR_RESET
@@ -171,10 +175,27 @@ void applyDebugConfiguration()
 {
 #if APPLY_DEBUG_CONFIGURATION
 
+  DEBUG_COMMAND_ARRAY("Clear stopped", ORDER_RESUME, ARRAY({ PARAM_RESUME_TYPE_CLEAR }));
+
+  DEBUG_COMMAND_ARRAY("Request Board Name", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_BOARD_NAME }) ); 
+  DEBUG_COMMAND_ARRAY("Request Hardware Type", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_HARDWARE_TYPE }) ); 
+
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "3");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.0.pin", "3");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.1.pin", "14");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.2.pin", "18");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.2.name", "ZMIN");
+
+  DEBUG_COMMAND_ARRAY("Get Input Switch Name 0", ORDER_DEVICE_NAME, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 0 }) );
+  DEBUG_COMMAND_ARRAY("Get Input Switch Name 1", ORDER_DEVICE_NAME, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 1 }) );
+  DEBUG_COMMAND_ARRAY("Get Input Switch Name 2", ORDER_DEVICE_NAME, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 2 }) );
+
+  DEBUG_READ_FIRMWARE_CONFIGURATION("devices.digital_input.0.name");
+  DEBUG_READ_FIRMWARE_CONFIGURATION("devices.digital_input.1.name");
+
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "1");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.pin", "13");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "7");
 
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "3");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.0.pin", "5");
@@ -220,7 +241,7 @@ void applyDebugConfiguration()
 
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_heaters", "1");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pin", "10");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.max_temp", "3000");
+  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.max_temp", "2500");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.use_bang_bang", "1");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.power_on_level", "255");
   DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.bang_bang_hysteresis", "1");
@@ -237,14 +258,11 @@ void applyDebugConfiguration()
   
   DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_REQUEST_INFORMATION, "\x11" );
   DEBUG_COMMAND_ARRAY("Set Output Switch 0 (P5)", ORDER_SET_OUTPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_OUTPUT, 0, 0 }) );
-  DEBUG_COMMAND_ARRAY("Set Output Switch 1 (P6)", ORDER_SET_OUTPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_OUTPUT, 1, 1 }) );
+//  DEBUG_COMMAND_ARRAY("Set Output Switch 1 (P6)", ORDER_SET_OUTPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_OUTPUT, 1, 1 }) );
 
   DEBUG_COMMAND_ARRAY("Request Num Pwm Outputs", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS }) ); 
-  DEBUG_COMMAND_ARRAY("Set Pwm Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_PWM_OUTPUT, 0, 64, 0 }) );
-  
-  DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
-  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
-  
+//  DEBUG_COMMAND_ARRAY("Set Pwm Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_PWM_OUTPUT, 0, 64, 0 }) );
+   
   DEBUG_COMMAND_ARRAY("Request Num Buzzers", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_NUM_BUZZERS }) );
 //  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
   
@@ -260,19 +278,23 @@ void applyDebugConfiguration()
 
   DEBUG_COMMAND_ARRAY("Set Stepper Enable (Empty)", ORDER_ENABLE_DISABLE_STEPPERS, ARRAY({  }) );
 
-  DEBUG_COMMAND_ARRAY("Set Stepper Enable", ORDER_ENABLE_DISABLE_STEPPERS, ARRAY({ 0, 1, 1, 0 }) );
+//  DEBUG_COMMAND_ARRAY("Set Stepper Enable", ORDER_ENABLE_DISABLE_STEPPERS, ARRAY({ 0, 1, 1, 0 }) );
   
   DEBUG_COMMAND_STR("Flush Command Queue", ORDER_CLEAR_COMMAND_QUEUE, "" );
   
   DEBUG_COMMAND_STR("Read Queue Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory" );
   DEBUG_COMMAND_STR("Read Stack Length", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_memory" );
   
-  delay(1000);
+//  while (!temp_meas_ready)  
+//    ;
   Device_TemperatureSensor::UpdateTemperatureSensors();
-  
+//  while (!temp_meas_ready)  
+//    ;
+  Device_TemperatureSensor::UpdateTemperatureSensors();
+
   DEBUG_COMMAND_ARRAY("Read Temp Sensor 0", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 0 }) );
-  DEBUG_COMMAND_ARRAY("Read Temp Sensor 1", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 1 }) );
-  DEBUG_COMMAND_ARRAY("Read Temp Sensor 2", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 2 }) );
+  //DEBUG_COMMAND_ARRAY("Read Temp Sensor 1", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 1 }) );
+  //DEBUG_COMMAND_ARRAY("Read Temp Sensor 2", ORDER_REQUEST_TEMPERATURE_READING, ARRAY({ PM_DEVICE_TYPE_TEMP_SENSOR, 2 }) );
 
 #endif
 }
@@ -299,6 +321,7 @@ void setup()
   DSerial.begin();
 #endif  
 
+  NVConfigStore::Initialize();
   movement_ISR_init();
   temperature_ISR_init();
 
@@ -464,13 +487,44 @@ void loop()
 
 void emergency_stop()
 {
-  // TODO
+  uint8_t i;
+  is_stopped = true; // this should be set by caller but just to be sure
+                     // this also causes the movement_ISR() to stop and flush queue
+  stopped_is_acknowledged = false;
+  // caller should have setup what the cause is - but in case they haven't/
+  if (stopped_cause == PARAM_STOPPED_CAUSE_RESET || stopped_cause == 0xFF)
+  {
+    stopped_cause = PARAM_STOPPED_CAUSE_FIRMWARE_ERROR;
+    stopped_type = PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED;
+  }
+  for (i=0; i<Device_Stepper::GetNumDevices(); i++)
+  {
+    Device_Stepper::WriteEnableState(i, false);
+  }
+  for (i=0; i<Device_Heater::GetNumDevices(); i++)
+  {
+    if (Device_Heater::IsInUse(i))
+    {
+      Device_Heater::SetTargetTemperature(i, 0);
+      digitalWrite(Device_Heater::GetHeaterPin(i), LOW); // forces device to turn off immediately even with soft PWM.
+    }
+  }    
+  for (i=0; i<Device_OutputSwitch::GetNumDevices(); i++)
+  {
+    Device_OutputSwitch::WriteState(i, OUTPUT_SWITCH_STATE_DISABLED);
+  }    
+  for (i=0; i<Device_PwmOutput::GetNumDevices(); i++)
+  {
+    if (Device_PwmOutput::IsInUse(i))
+    {
+      Device_PwmOutput::WriteState(i, 0);
+      digitalWrite(Device_PwmOutput::GetPin(i), LOW); // forces device to turn off immediately even with soft PWM.
+    }
+  }    
 }
 
 void die()
 {
-  // TODO turn off heaters and motors
-
   cli(); // Stop interrupts
   // Unfortunately we have no reliable way to do a hardware reset!
   //
@@ -479,8 +533,9 @@ void die()
   // watchdog when it starts and indeed reduces the timeout to 15ms 
   // which causes the AVR to go into a reset loop.
   //
-  // Some bootloaders do something smarter (in which case you can enable
-  // the USE_WATCHDOG_TO_RESET flag) but we can't set this as default.
+  // Some newer bootloaders do something smarter (in which case you can 
+  // enable the USE_WATCHDOG_TO_RESET flag) but we can't set this as
+  // default.
 #if USE_WATCHDOG_FOR_RESET
   wdt_enable(WDTO_1S);
   while (true) { } // wait for manual reset (or watchdog if enabled)

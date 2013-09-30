@@ -24,6 +24,10 @@
 #ifndef ORDER_HANDLERS_H
 #define ORDER_HANDLERS_H
 
+#include <stdint.h>
+
 void process_command();
+
+int8_t get_num_devices(uint8_t num_devices);
 
 #endif

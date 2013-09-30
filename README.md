@@ -11,12 +11,9 @@ There is still much to do.
 
 TODO List 
 - Makefile and Arduino libraries directory
-- Complete configuration implementation of all device types
-- Add EEPROM storage of device names
-- Integrate heater control parameters and functionality
-- Add stepper control
-- Add homing and endstop control
-- Add movement control
+- Add Heater PID support
+- Add advanced stepper configuration
+- Fully test movement control
 - Add event handling
 - Add coding guide
 
@@ -30,10 +27,34 @@ Currently supported firmware configuration commands:
   - system.hardware_rev
   
 * Device configuration elements
-  - devices.input_dig.<device number>.pin
-  - devices.input_dig.<device number>.name
-  - devices.output_dig.<device number>.pin
-  - devices.output_dig.<device number>.name
+  - devices.digital_input.<device number>.name
+  - devices.digital_input.<device number>.pin
+  - devices.digital_output.<device number>.name
+  - devices.digital_output.<device number>.pin
+  - devices.pwm_output.<device number>.name
+  - devices.pwm_output.<device number>.pin
+  - devices.pwm_output.<device number>.use_soft_pwm
+  - devices.buzzer.<device number>.name
+  - devices.buzzer.<device number>.pin
+  - devices.buzzer.<device number>.use_soft_pwm
+  - devices.temp_sensor.<device number>.name
+  - devices.temp_sensor.<device number>.pin
+  - devices.temp_sensor.<device number>.type
+  - devices.heater.<device number>.name
+  - devices.heater.<device number>.pin
+  - devices.heater.<device number>.temp_sensor
+  - devices.heater.<device number>.max_temp
+  - devices.heater.<device number>.power_on_level
+  - devices.heater.<device number>.use_soft_pwm
+  - devices.heater.<device number>.use_bang_bang
+  - devices.heater.<device number>.bang_bang_hysteresis
+  - devices.stepper.<device number>.name
+  - devices.stepper.<device number>.enable_pin
+  - devices.stepper.<device number>.enable_invert (0 = active low, 1 = active high)
+  - devices.stepper.<device number>.direction_pin
+  - devices.stepper.<device number>.direction_invert 
+  - devices.stepper.<device number>.step_pin
+  - devices.stepper.<device number>.step_invert 
   
 * Statistics elements
   - stats.rx_count

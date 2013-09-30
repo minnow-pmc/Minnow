@@ -24,14 +24,11 @@
 #ifndef MOVEMENT_H
 #define MOVEMENT_H
 
-// This primarily determines the size of bitmasks used to store these values 
-// for use by movement ISR.
-// Dynamic allocation of devices is handled separately.
-#define MAX_STEPPERS 8    
-#define MAX_ENDSTOPS 8
-                                                      
 void movement_ISR_init();
 void movement_ISR_wake_up();
+
+#define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
+#define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
 
 // Set to true to do what the name says.
 extern bool come_to_stop_and_flush_queue;

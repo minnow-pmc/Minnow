@@ -34,18 +34,44 @@
 
 #define USE_EEPROM 1 // Set to 0 to use default/compiled in values.
 
-#ifdef USE_EEPROM
-  #define EEPROM_OFFSET 0 // Offset of first element
-  #define EEPROM_NAME_STORE_OFFSET (EEPROM_OFFSET+200) // Start of device name store
-  
-  #define EEPROM_FORMAT_VERSION 0
-#endif
+// EEPROM Contents and Layout
+#define FORMAT_NUMBER_OFFSET        0
+#define FORMAT_NUMBER_LENGTH        1
+#define DATA_LENGTH_OFFSET          (FORMAT_NUMBER_OFFSET+FORMAT_NUMBER_LENGTH)
+#define DATA_LENGTH_LENGTH          2
+#define DEVICE_NAME_TABLE_OFFSET    (DATA_LENGTH_OFFSET+DATA_LENGTH_LENGTH)
+#define DEVICE_NAME_TABLE_LENGTH    2
+#define DEVICE_NAME_LENGTH_OFFSET   (DEVICE_NAME_TABLE_OFFSET+DEVICE_NAME_TABLE_LENGTH)
+#define DEVICE_NAME_LENGTH_LENGTH   1
+#define HARDWARE_TYPE_OFFSET        (DEVICE_NAME_LENGTH_OFFSET+DEVICE_NAME_LENGTH_LENGTH)
+#define HARDWARE_TYPE_LENGTH        1
+#define HARDWARE_REV_OFFSET         (HARDWARE_TYPE_OFFSET+HARDWARE_TYPE_LENGTH)
+#define HARDWARE_REV_LENGTH         1
+#define HARDWARE_NAME_OFFSET        (HARDWARE_REV_OFFSET+HARDWARE_REV_LENGTH)
+#define HARDWARE_NAME_LENGTH        30
+#define BOARD_ID_OFFSET             (HARDWARE_NAME_OFFSET+HARDWARE_NAME_LENGTH)
+#define BOARD_ID_LENGTH             15
+#define BOARD_SERIAL_NUM_OFFSET     (BOARD_ID_OFFSET+BOARD_ID_LENGTH)
+#define BOARD_SERIAL_NUM_LENGTH     15
 
-// Maximum String Lengths
-#define MAX_BOARD_ID_LENGTH         15
-#define MAX_BOARD_SERIAL_NUM_LENGTH 15
-#define MAX_HARDWARE_NAME_LENGTH    30
-#define MAX_DEVICE_NAME_LENGTH      8
+// This is the length of all the above data
+#define EEPROM_DATA_LENGTH          (BOARD_SERIAL_NUM_OFFSET+BOARD_SERIAL_NUM_LENGTH)
+
+// Device Name store information
+#if E2END == 511  
+  #define MAX_DEVICE_NAME_LENGTH      8
+  #define MAX_NUM_DEVICE_NAMES        30 // taking up top 300 bytes
+#elif E2END == 1023
+  #define MAX_DEVICE_NAME_LENGTH      10
+  #define MAX_NUM_DEVICE_NAMES        50 // taking up top 600 bytes
+#else  
+  #define MAX_DEVICE_NAME_LENGTH      16
+  #define MAX_NUM_DEVICE_NAMES        60 // taking up top 1080 bytes
+#endif  
+
+#define EEPROM_NAME_STORE_OFFSET    (E2END+1-((MAX_DEVICE_NAME_LENGTH+2)*MAX_NUM_DEVICE_NAMES)) // Start of device name store
+
+#define EEPROM_FORMAT_VERSION       1
 
 // Default Hardware Identifiers (these are used when resetting EEPROM config or  not using EEPROM)
 #define DEFAULT_BOARD_IDENTITY      ""
@@ -54,30 +80,28 @@
 #define DEFAULT_HARDWARE_TYPE       1 // as defined in Pacemaker
 #define DEFAULT_HARDWARE_REV        0xFF // == invalid
 
-class NonVolatileConfigurationStore
+class NVConfigStore
 {
 public:
 
-  void Initialize();
+  static void Initialize();
   
-  void ResetDefault();
+  static void WriteDefaults(bool reset_all);
 
-  int8_t GetBoardIdentity(char *buffer, uint8_t buffer_len) const;
-  int8_t GetBoardSerialNumber(char *buffer, uint8_t buffer_len) const;
-  int8_t GetHardwareName(char *buffer, uint8_t buffer_len) const;
-  uint8_t GetHardwareType() const;
-  uint8_t GetHardwareRevision() const;
-  int8_t GetDeviceName(uint8_t device_type, uint8_t device_number, char *buffer, uint8_t buffer_len) const;
+  static int8_t GetBoardIdentity(char *buffer, uint8_t buffer_len);
+  static int8_t GetBoardSerialNumber(char *buffer, uint8_t buffer_len);
+  static int8_t GetHardwareName(char *buffer, uint8_t buffer_len);
+  static uint8_t GetHardwareType();
+  static uint8_t GetHardwareRevision();
+  static int8_t GetDeviceName(uint8_t device_type, uint8_t device_number, char *buffer, uint8_t buffer_len);
   
-  uint8_t SetBoardIdentity(const char *buffer);
-  uint8_t SetBoardSerialNumber(const char *buffer);
-  uint8_t SetHardwareName(const char *buffer);
-  uint8_t SetHardwareType(uint8_t type);
-  uint8_t SetHardwareRevision(uint8_t rev);
-  uint8_t SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer);
+  static uint8_t SetBoardIdentity(const char *buffer);
+  static uint8_t SetBoardSerialNumber(const char *buffer);
+  static uint8_t SetHardwareName(const char *buffer);
+  static uint8_t SetHardwareType(uint8_t type);
+  static uint8_t SetHardwareRevision(uint8_t rev);
+  static uint8_t SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer);
 
 };
-
-extern NonVolatileConfigurationStore NVConfigStore;
 
 #endif//NV_CONFIG_STORE_H

@@ -120,7 +120,8 @@
 #define PARAM_STOPPED_CAUSE_DEVICE_FAULT                  0x4
 #define PARAM_STOPPED_CAUSE_ELECTRICAL_ERROR              0x5
 #define PARAM_STOPPED_CAUSE_FIRMWARE_ERROR                0x6
-#define PARAM_STOPPED_CAUSE_OTHER_ERROR                   0x7
+#define PARAM_STOPPED_CAUSE_USER_REQUEST                  0x7
+#define PARAM_STOPPED_CAUSE_OTHER_ERROR                   0x8
 
 //
 // Order Codes
@@ -192,6 +193,13 @@
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0
 #define PARAM_HEATER_CONFIG_HOST_SENSOR_CONFIG            0x1
+
+//
+// Device Status Values
+#define DEVICE_STATUS_ACTIVE                              0x0
+#define DEVICE_STATUS_INACTIVE                            0x1
+#define DEVICE_STATUS_CONFIG_ERROR                        0x2
+#define DEVICE_STATUS_DEVICE_FAULT                        0x3
 
 //
 // Queue Command Types

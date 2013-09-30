@@ -72,7 +72,7 @@ public:
   
   FORCE_INLINE static int16_t GetTargetTemperature(uint8_t device_number)
   {
-    return heater_target_temps[device_number];
+    return heater_info_array[device_number].target_temp;
   }
   
   FORCE_INLINE static int16_t ReadCurrentTemperature(uint8_t device_number)
@@ -91,15 +91,19 @@ public:
   // So you shouldn't use it unless you are OK with PWM on your heater.
   static uint8_t SetPowerOnLevel(uint8_t device_number, uint8_t level);
   static uint8_t EnableSoftPwm(uint8_t device_number, bool enable);
+  
+  // At this level temp_range is in the standard 1/10th degC units 
+  // Note however that devices.heater.x.bang_bang_hysteresis is specified in degrees C units.
   static uint8_t SetBangBangHysteresis(uint8_t device_number, uint8_t temp_range);
 
   static uint8_t ValidateTargetTemperature(uint8_t device_number, int16_t temp);
 
   FORCE_INLINE static void SetTargetTemperature(uint8_t device_number, int16_t temp)
   {
-    if (temp == PM_TEMPERATURE_INVALID)
-      SetHeaterPower(&heater_info_array[device_number], 0);
-    heater_target_temps[device_number] = temp;
+    HeaterInfo *heater_info = &heater_info_array[device_number];
+    if (temp == PM_TEMPERATURE_INVALID || temp == 0)
+      SetHeaterPower(heater_info, 0);
+    heater_info->target_temp = temp;
   }
   
   static void UpdateHeaters();
@@ -141,6 +145,8 @@ private:
     int16_t max_temp;
     uint8_t power_on_level;
     uint8_t control_mode;
+    int16_t target_temp;
+    bool is_heating;
     union 
     {
       BangBangInfo bangbang;
@@ -155,11 +161,11 @@ private:
       analogWrite(heater_info->heater_pin, power);
     else
       soft_pwm_state->SetPower(device_number, power);
+    heater_info->is_heating = (power > 0);
   }
   
   static uint8_t num_heaters;
   static HeaterInfo *heater_info_array;
-  static int16_t *heater_target_temps;
   
   // additional state to support soft pwm 
   static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 heaters

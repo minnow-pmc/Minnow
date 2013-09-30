@@ -55,11 +55,18 @@
 #define MIN_QUEUE_SIZE                          150   // If the firmware cannot allocate this much memory then it will fail
                                                       // (otherwise all excess memory is allocated to the queue)
 
+// The following values determines the size of bitmasks used to store some state
+// for these device states.
+// Note: dynamic allocation of individual devices is still handled separately, so 
+// there is no benfit of reducing below 8.
+#define MAX_STEPPERS 8    
+#define MAX_ENDSTOPS 8
                                                       
 
 //
 // Advanced Configuration Options
 //
+
 
 // Only enable the watchdog for reset if you Arduino bootloader supports disabling the watchdog
 #define USE_WATCHDOG_FOR_RESET 0

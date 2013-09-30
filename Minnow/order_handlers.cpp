@@ -176,6 +176,22 @@ void process_command()
   }
 }
  
+int8_t get_num_devices(uint8_t device_type)
+{
+  switch(device_type)
+  {
+  case PM_DEVICE_TYPE_SWITCH_INPUT: return Device_InputSwitch::GetNumDevices();
+  case PM_DEVICE_TYPE_SWITCH_OUTPUT: return Device_OutputSwitch::GetNumDevices();
+  case PM_DEVICE_TYPE_PWM_OUTPUT: return Device_PwmOutput::GetNumDevices();
+  case PM_DEVICE_TYPE_STEPPER: return Device_Stepper::GetNumDevices();
+  case PM_DEVICE_TYPE_HEATER: return Device_Heater::GetNumDevices();
+  case PM_DEVICE_TYPE_TEMP_SENSOR: return Device_TemperatureSensor::GetNumDevices();
+  case PM_DEVICE_TYPE_BUZZER: return Device_Buzzer::GetNumDevices();
+  default:
+    return -1;
+  }
+}
+
 void handle_resume_order()
 {
   if (parameter_length < 1)
@@ -223,7 +239,7 @@ void handle_request_information_order()
   generate_response_start(RSP_OK);
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
-  uint8_t retval;
+  int8_t length;
   
   switch(request_type)
   {
@@ -232,18 +248,19 @@ void handle_request_information_order()
     break;
   
   case PARAM_REQUEST_INFO_BOARD_SERIAL_NUMBER:
-    if ((retval = NVConfigStore.GetBoardSerialNumber(response_data_buf, response_data_buf_len)) > 0)
-      generate_response_data_addlen(retval);
+    if ((length = NVConfigStore::GetBoardSerialNumber(response_data_buf, response_data_buf_len)) > 0)
+      generate_response_data_addlen(length);
     break;
   
   case PARAM_REQUEST_INFO_BOARD_NAME:
-    if ((retval = NVConfigStore.GetHardwareName(response_data_buf, response_data_buf_len)) > 0)
-      generate_response_data_addlen(retval);
+    if ((length = NVConfigStore::GetHardwareName(response_data_buf, response_data_buf_len)) > 0)
+      generate_response_data_addlen(length);
+    DEBUG("Retval: "); DEBUGLN((int)length);
     break;
     
   case PARAM_REQUEST_INFO_GIVEN_NAME:
-    if ((retval = NVConfigStore.GetBoardIdentity(response_data_buf, response_data_buf_len)) > 0)
-      generate_response_data_addlen(retval);
+    if ((length = NVConfigStore::GetBoardIdentity(response_data_buf, response_data_buf_len)) > 0)
+      generate_response_data_addlen(length);
     break;
     
   case PARAM_REQUEST_INFO_PROTO_VERSION_MAJOR:
@@ -271,12 +288,12 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_HARDWARE_TYPE:
-    generate_response_data_addbyte(NVConfigStore.GetHardwareType());
+    generate_response_data_addbyte(NVConfigStore::GetHardwareType());
     break;
     
   case PARAM_REQUEST_INFO_HARDWARE_REVISION:
-    if ((retval = NVConfigStore.GetHardwareRevision()) != 0xFF)
-      generate_response_data_addbyte(retval);
+    if ((length = NVConfigStore::GetHardwareRevision()) != 0xFF)
+      generate_response_data_addbyte(length);
     break;
     
   case PARAM_REQUEST_INFO_NUM_STEPPERS:
@@ -324,28 +341,109 @@ void handle_device_name_order()
 
   const uint8_t device_type = parameter_value[0];
   const uint8_t device_number = parameter_value[1];
+
+  uint8_t num_devices = get_num_devices(device_type);
+  if (device_number >= num_devices)
+  {
+    if (num_devices < 0)
+      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    else
+      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
+    return;
+  }
   
+  generate_response_start(RSP_OK);
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
-  uint8_t retval;
+
+  int8_t length;
+  if ((length = NVConfigStore::GetDeviceName(device_type, device_number, response_data_buf, response_data_buf_len)) > 0)
+    generate_response_data_addlen(length);
+  generate_response_send();
+}
   
+void handle_device_status_order()
+{
+  if (parameter_length < 2)
+  {
+    send_insufficient_bytes_error_response(2);
+    return; 
+  }
+
+  const uint8_t device_type = parameter_value[0];
+  const uint8_t device_number = parameter_value[1];
+  
+  uint8_t num_devices = get_num_devices(device_type);
+  if (device_number >= num_devices)
+  {
+    if (num_devices < 0)
+      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    else
+      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
+    return;
+  }
+  
+  generate_response_start(RSP_OK, 1);
+
   switch(device_type)
   {
   case PM_DEVICE_TYPE_SWITCH_INPUT:
+    if (!Device_InputSwitch::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_SWITCH_OUTPUT:
+    if (!Device_OutputSwitch::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (!Device_OutputSwitch::GetEnableState(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_PWM_OUTPUT:
+    if (!Device_PwmOutput::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (!Device_PwmOutput::GetActiveState(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_STEPPER:
+    if (!AxisInfo::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (!AxisInfo::GetStepperEnableState(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_HEATER:
+    if (!Device_Heater::ValidateTargetTemperature(device_number, 0))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (Device_Heater::GetTargetTemperature(device_number) == 0)
+      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_TEMP_SENSOR:
+    if (!Device_TemperatureSensor::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
   case PM_DEVICE_TYPE_BUZZER:
-    // TODO check device number
-    if ((retval = NVConfigStore.GetDeviceName(device_type, device_number, response_data_buf, response_data_buf_len)) > 0)
-      generate_response_data_addlen(retval);
+    if (!Device_Buzzer::IsInUse(device_number))
+      generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (Device_Buzzer::GetActiveState(device_number) == 0)
+      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+    else
+      generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
+    break;
     break;
   default:
     send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
   }
-  
+  generate_response_send();
 }
   
 void handle_request_temperature_reading_order()
@@ -361,7 +459,7 @@ void handle_request_temperature_reading_order()
     return; 
   }
 
-  generate_response_start(RSP_OK,parameter_length);
+  generate_response_start(RSP_OK,parameter_length*2);
   
   for (int i = 0; i < parameter_length; i+=2)
   {
@@ -437,10 +535,10 @@ void handle_configure_heater_order()
   const uint8_t temp_sensor = parameter_value[1];
   
   generate_response_start(RSP_APPLICATION_ERROR, 1);
-  uint8_t retval = Device_Heater::SetTempSensor(heater_number, temp_sensor);
-  if (retval != APP_ERROR_TYPE_SUCCESS)
+  uint8_t length = Device_Heater::SetTempSensor(heater_number, temp_sensor);
+  if (length != APP_ERROR_TYPE_SUCCESS)
   {
-    generate_response_data_addbyte(retval);
+    generate_response_data_addbyte(length);
     generate_response_send();
   }
   else
@@ -719,11 +817,11 @@ void handle_enable_disable_steppers_order()
 
 void handle_configure_endstops_order()
 {
-  uint8_t num_endstops = parameter_length / 3;
+  uint8_t num_endstops = (parameter_length-1) / 3;
   
-  if (parameter_length != (3 * num_endstops))
+  if (parameter_length < 4 || parameter_length != (3 * num_endstops) + 1)
   {
-    send_insufficient_bytes_error_response(3 * (num_endstops+1));
+    send_insufficient_bytes_error_response(3 * (num_endstops+1) + 1);
     return;
   }
   
@@ -736,11 +834,11 @@ void handle_configure_endstops_order()
   
   AxisInfo::ClearEndstops(axis_number);
   
-  for (uint8_t i=0; i < parameter_length; i+=3)
+  for (uint8_t i=1; i < parameter_length; i+=3)
   {
-    uint8_t device_number = parameter_value[i+1];
-    uint8_t min_or_max = parameter_value[i+2];
-    uint8_t trigger_level = parameter_value[i+3];
+    uint8_t device_number = parameter_value[i];
+    uint8_t min_or_max = parameter_value[i+1];
+    uint8_t trigger_level = parameter_value[i+2];
     
     uint8_t retval;
     if (min_or_max)
@@ -750,7 +848,7 @@ void handle_configure_endstops_order()
 
     if (retval != APP_ERROR_TYPE_SUCCESS)
     {
-      send_app_error_at_offset_response(retval, i+1);
+      send_app_error_at_offset_response(retval, i);
       AxisInfo::ClearEndstops(axis_number);
       return;
     }
@@ -816,13 +914,13 @@ void handle_configure_axis_movement_rates_order()
 
 void handle_configure_underrun_params_order()
 {
+  uint8_t num_axes_specified = parameter_length/6;
   if ((parameter_length % 6) != 0)
   {
-    send_insufficient_bytes_error_response(parameter_length+1);
+    send_insufficient_bytes_error_response((num_axes_specified + 1)*6);
     return;
   }
   
-  uint8_t num_axes_specified = parameter_length/6;
   for (uint8_t i=0; i<Device_Stepper::GetNumDevices(); i++)
   {
     if (Device_Stepper::IsInUse(i))
@@ -869,3 +967,4 @@ void handle_clear_command_queue_order()
   generate_response_data_add(total_command_count);
   generate_response_send(); 
 } 
+

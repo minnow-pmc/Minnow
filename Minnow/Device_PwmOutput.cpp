@@ -28,6 +28,7 @@ extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 
 uint8_t Device_PwmOutput::num_pwm_outputs = 0;
 uint8_t *Device_PwmOutput::pwm_output_pins;
+bool *Device_PwmOutput::pwm_output_disabled;
 
 uint8_t Device_PwmOutput::soft_pwm_device_bitmask;
 SoftPwmState *Device_PwmOutput::soft_pwm_state;
@@ -46,7 +47,8 @@ uint8_t Device_PwmOutput::Init(uint8_t num_devices)
   if (num_devices == 0)
     return APP_ERROR_TYPE_SUCCESS;
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*pwm_output_pins));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * 
+      (sizeof(*pwm_output_pins) + sizeof(*pwm_output_disabled)));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
@@ -54,8 +56,10 @@ uint8_t Device_PwmOutput::Init(uint8_t num_devices)
   }
 
   pwm_output_pins = memory;
+  pwm_output_disabled = (bool*)(pwm_output_pins + num_devices);
   
   memset(pwm_output_pins, 0xFF, num_devices * sizeof(*pwm_output_pins));
+  memset(pwm_output_disabled, true, num_devices * sizeof(*pwm_output_disabled));
 
   soft_pwm_state = 0;
   soft_pwm_device_bitmask = 0;
@@ -81,9 +85,6 @@ uint8_t Device_PwmOutput::SetPin(uint8_t device_number, uint8_t pin)
 
   return APP_ERROR_TYPE_SUCCESS;
 }
-
-
-// TODO Add ValidateConfig function which check that port maps to timer if soft_pwm is not enabled
 
 uint8_t Device_PwmOutput::EnableSoftPwm(uint8_t device_number, bool enable)
 {

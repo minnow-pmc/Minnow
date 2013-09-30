@@ -28,6 +28,7 @@ extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 
 uint8_t Device_Buzzer::num_buzzers = 0;
 uint8_t *Device_Buzzer::buzzer_pins;
+bool *Device_Buzzer::buzzer_disabled;
 
 uint8_t Device_Buzzer::soft_pwm_device_bitmask;
 SoftPwmState *Device_Buzzer::soft_pwm_state;
@@ -46,7 +47,8 @@ uint8_t Device_Buzzer::Init(uint8_t num_devices)
   if (num_devices == 0)
     return APP_ERROR_TYPE_SUCCESS;
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*buzzer_pins));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * 
+      (sizeof(*buzzer_pins) + sizeof(*buzzer_disabled)));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
@@ -54,8 +56,10 @@ uint8_t Device_Buzzer::Init(uint8_t num_devices)
   }
 
   buzzer_pins = memory;
+  buzzer_disabled = (bool*)(buzzer_pins + num_devices);
   
   memset(buzzer_pins, 0xFF, num_devices * sizeof(*buzzer_pins));
+  memset(buzzer_disabled, true, num_devices * sizeof(*buzzer_disabled));
 
   soft_pwm_state = 0;
   soft_pwm_device_bitmask = 0;

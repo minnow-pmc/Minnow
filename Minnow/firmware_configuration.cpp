@@ -86,11 +86,11 @@ void handle_firmware_configuration_traversal(const char *name)
   
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
-  int8_t retval;
+  int8_t length;
 
-  if ((retval = tree.GetFullName(node, response_data_buf, response_data_buf_len)) > 0)
+  if ((length = tree.GetFullName(node, response_data_buf, response_data_buf_len)) > 0)
   {
-    generate_response_data_addlen(retval);
+    generate_response_data_addlen(length);
   }
   else
   {
@@ -239,13 +239,14 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     generate_response_start(RSP_OK);
     char *response_data_buf = (char *)generate_response_data_ptr();
     uint8_t response_data_buf_len = generate_response_data_len();
-    int8_t retval;
+    int8_t length;
 
     switch(node_type)
     {
+
     case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_FRIENDLY_NAME:
-      if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_SWITCH_INPUT, parent_instance_id, response_data_buf, response_data_buf_len)) > 0)
-        generate_response_data_addlen(retval);
+      if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_SWITCH_INPUT, parent_instance_id, response_data_buf, response_data_buf_len)) > 0)
+        generate_response_data_addlen(length);
       break;
     case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_PIN:
       utoa(Device_InputSwitch::GetPin(parent_instance_id), response_data_buf, 10);
@@ -253,8 +254,8 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       break;
       
     case NODE_TYPE_CONFIG_LEAF_OUTPUT_SWITCH_FRIENDLY_NAME:
-      if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_SWITCH_OUTPUT, instance_id, response_data_buf, response_data_buf_len)) > 0)
-        generate_response_data_addlen(retval);
+      if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_SWITCH_OUTPUT, instance_id, response_data_buf, response_data_buf_len)) > 0)
+        generate_response_data_addlen(length);
       break;
     case NODE_TYPE_CONFIG_LEAF_OUTPUT_SWITCH_PIN:
       utoa(Device_OutputSwitch::GetPin(parent_instance_id), response_data_buf, 10);
@@ -262,8 +263,8 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       break;
       
     case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_FRIENDLY_NAME:
-      if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_PWM_OUTPUT, instance_id, response_data_buf, response_data_buf_len)) > 0)
-        generate_response_data_addlen(retval);
+      if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_PWM_OUTPUT, instance_id, response_data_buf, response_data_buf_len)) > 0)
+        generate_response_data_addlen(length);
       break;
     case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_PIN:
       utoa(Device_PwmOutput::GetPin(parent_instance_id), response_data_buf, 10);
@@ -271,8 +272,8 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       break;
       
     case NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME:
-      if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_BUZZER, instance_id, response_data_buf, response_data_buf_len)) > 0)
-        generate_response_data_addlen(retval);
+      if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_BUZZER, instance_id, response_data_buf, response_data_buf_len)) > 0)
+        generate_response_data_addlen(length);
       break;
     case NODE_TYPE_CONFIG_LEAF_BUZZER_PIN:
       utoa(Device_Buzzer::GetPin(parent_instance_id), response_data_buf, 10);
@@ -280,8 +281,8 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       break;
       
     case NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME:
-      if ((retval = NVConfigStore.GetDeviceName(PM_DEVICE_TYPE_HEATER, instance_id, response_data_buf, response_data_buf_len)) > 0)
-        generate_response_data_addlen(retval);
+      if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_HEATER, instance_id, response_data_buf, response_data_buf_len)) > 0)
+        generate_response_data_addlen(length);
       break;
     case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
       utoa(Device_Heater::GetHeaterPin(parent_instance_id), response_data_buf, 10);
@@ -358,10 +359,10 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
     break;
     
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE:
-    retval = NVConfigStore.SetHardwareType(value);
+    retval = NVConfigStore::SetHardwareType(value);
     break;
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV:
-    retval = NVConfigStore.SetHardwareRevision(value);
+    retval = NVConfigStore::SetHardwareRevision(value);
     break;
     
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_INPUT_SWITCHES:
@@ -390,12 +391,12 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
     retval = Device_Heater::SetTempSensor(parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_BANG_BANG_HYSTERESIS:
-    retval = Device_Heater::SetBangBangHysteresis(parent_instance_id, value);
+    if (value > 25)
+      retval = PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+    else
+      retval = Device_Heater::SetBangBangHysteresis(parent_instance_id, value * 10);
     break;
-  case NODE_TYPE_CONFIG_LEAF_HEATER_POWER_ON_LEVEL:
-    retval = Device_Heater::SetPowerOnLevel(parent_instance_id, value);
-    break;
-      
+
   default: 
     send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
          PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
@@ -490,32 +491,35 @@ bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t in
   switch (node_type)
   {
   case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_SWITCH_INPUT, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_SWITCH_INPUT, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_OUTPUT_SWITCH_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_SWITCH_OUTPUT, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_SWITCH_OUTPUT, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_PWM_OUTPUT, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_PWM_OUTPUT, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_BUZZER, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_BUZZER, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_TEMP_SENSOR_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_TEMP_SENSOR, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_TEMP_SENSOR, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME:
-    retval = NVConfigStore.SetDeviceName(PM_DEVICE_TYPE_HEATER, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_HEATER, parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_STEPPER_FRIENDLY_NAME:
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_HEATER, parent_instance_id, value);
     break;
 
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME:
-    retval = NVConfigStore.SetHardwareName(value);
+    retval = NVConfigStore::SetHardwareName(value);
     break;
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_IDENTITY:
-    retval = NVConfigStore.SetBoardIdentity(value);
+    retval = NVConfigStore::SetBoardIdentity(value);
     break;
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_BOARD_SERIAL_NUM:
-    retval = NVConfigStore.SetBoardSerialNumber(value);
+    retval = NVConfigStore::SetBoardSerialNumber(value);
     break;
     
   default: 

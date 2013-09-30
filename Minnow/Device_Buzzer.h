@@ -44,6 +44,11 @@ public:
       && buzzer_pins[device_number] != 0xFF);
   }
 
+  FORCE_INLINE static bool GetActiveState(uint8_t device_number)
+  {
+    return !buzzer_disabled[device_number];
+  }
+
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)
   {
     return buzzer_pins[device_number];
@@ -59,6 +64,7 @@ public:
       analogWrite(buzzer_pins[device_number], power);
     else
       soft_pwm_state->SetPower(device_number, power);
+    buzzer_disabled[device_number] = (power == 0);
   }
 
 private:
@@ -66,6 +72,7 @@ private:
 
   static uint8_t num_buzzers;
   static uint8_t *buzzer_pins;
+  static bool *buzzer_disabled;
   
   // additional state to support soft pwm 
   static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 device numbers

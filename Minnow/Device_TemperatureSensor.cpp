@@ -16,6 +16,8 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "Minnow.h"
  
 #include "Device_TemperatureSensor.h"
 #include "response.h"
@@ -214,12 +216,10 @@ void Device_TemperatureSensor::UpdateTemperatureSensors()
 {
   if (!temp_meas_ready)
     return;
-
-  for(uint8_t i=0; i<num_temperature_sensors;i++)
+  for(uint8_t i=0; i<num_temperature_sensors; i++)
   {
     temperature_sensor_current_temps[i] = convert_raw_temp_value(temperature_sensor_types[i], temperature_sensor_raw_values[i]);
   }
-
   CRITICAL_SECTION_START;
   temp_meas_ready = false;
   CRITICAL_SECTION_END;

@@ -44,6 +44,11 @@ public:
       && pwm_output_pins[device_number] != 0xFF);
   }
 
+  FORCE_INLINE static bool GetActiveState(uint8_t device_number)
+  {
+    return !pwm_output_disabled[device_number];
+  }
+
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)
   {
     return pwm_output_pins[device_number];
@@ -55,10 +60,11 @@ public:
 
   FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t power)
   {
-    if (soft_pwm_device_bitmask == 0 || (soft_pwm_device_bitmask & (1<<device_number)) == 0)
+    if (soft_pwm_device_bitmask == 0 || (soft_pwm_device_bitmask & (1 << device_number)) == 0)
       analogWrite(pwm_output_pins[device_number], power);
     else
       soft_pwm_state->SetPower(device_number, power);
+    pwm_output_disabled[device_number] = (power == 0);
   }
 
 private:
@@ -66,7 +72,8 @@ private:
 
   static uint8_t num_pwm_outputs;
   static uint8_t *pwm_output_pins;
-  
+  static bool *pwm_output_disabled;
+ 
   // additional state to support soft pwm 
   static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 outputs
   static SoftPwmState *soft_pwm_state; // allocated on first use

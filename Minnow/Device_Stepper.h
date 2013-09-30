@@ -18,16 +18,12 @@
   
 */
 
-//
-// Stepper and Endstop 
-//
-
 #ifndef DEVICE_STEPPER_H
 #define DEVICE_STEPPER_H
 
 #include "AxisInfo.h"
 
-// This class represents just the control information associate with the stepper 
+// This class represents just the control information associated with the stepper 
 // motor device - not to the associated movement infomation which is primary
 // aggregated in AxisInfo.
 class Device_Stepper

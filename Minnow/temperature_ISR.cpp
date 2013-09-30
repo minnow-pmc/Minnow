@@ -131,8 +131,8 @@ FORCE_INLINE void updateSoftPwm()
 
 FORCE_INLINE void updateTemperatureSensorRawValues()
 {
-  static unsigned char temp_count = 0;
-  static unsigned char temp_index = 0;
+  static uint8_t temp_count = 0;
+  static uint8_t temp_index = 0;
 
   const uint8_t num_sensors = Device_TemperatureSensor::num_temperature_sensors;
   if (num_sensors <= 4)
@@ -169,7 +169,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
       }
     }
     // we loop through sensors every 8ms
-    if (++temp_index > 8)
+    if (++temp_index >= 8)
     {
       temp_count += 1;
       temp_index = 0;
@@ -179,10 +179,10 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
   {
     // if there are more than 4 sensors then we both read and prepare on each interrupt cycle (but for consecutive sensors)
     
-    // first, retrieve previous measurement
-    if (temp_index <= num_sensors && (temp_index != 0 || num_sensors >= 8))
+    // first, retrieve previous measurement (time slot 0 is only used if there are >=8 sensors)
+    if (num_sensors >= 8 || (temp_index > 0 && temp_index <= num_sensors))
     {
-      const uint8_t sensor = (temp_index != 0) ? temp_index - 1 : num_sensors - 1;
+      const uint8_t sensor = (temp_index > 0) ? temp_index - 1 : num_sensors - 1;
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
       if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
       {
@@ -196,7 +196,7 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     // second, prepare next measurement
     if (temp_index < num_sensors) 
     {
-      // sensor == temp_index in this mode
+      // sensor == temp_index in this case
       const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[temp_index];
       if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
       {
@@ -216,13 +216,13 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
       }
     }
     // we loop through sensors no faster than every 8 ms
-    if (++temp_index > 8 && temp_index >= num_sensors)
+    if (++temp_index >= max(num_sensors,8))
     {
       temp_count++;
       temp_index = 0;
     }
   }
-
+  
   // We oversample 16 times, so with 8 or fewer temperature sensors we update raw temperature readings every 8ms * 16 = 128ms
     
   if(temp_count >= OVERSAMPLENR) 

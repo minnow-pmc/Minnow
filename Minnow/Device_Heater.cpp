@@ -26,7 +26,6 @@ extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 uint8_t Device_Heater::num_heaters = 0;
 
 Device_Heater::HeaterInfo *Device_Heater::heater_info_array;
-int16_t *Device_Heater::heater_target_temps;
 
 uint8_t Device_Heater::soft_pwm_device_bitmask;
 SoftPwmState *Device_Heater::soft_pwm_state;
@@ -46,8 +45,7 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
   if (num_devices == 0)
     return APP_ERROR_TYPE_SUCCESS;
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * 
-    (sizeof(HeaterInfo) + sizeof(*heater_target_temps)));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(HeaterInfo));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
@@ -55,7 +53,6 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
   }
 
   heater_info_array = (HeaterInfo *) memory;
-  heater_target_temps = (int16_t *)heater_info_array + num_devices;
      
   for (int8_t i=0; i<num_devices; i++)
   {
@@ -64,7 +61,7 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
     heater_info_array[i].temp_sensor = 0xFF;
     heater_info_array[i].control_mode = HEATER_CONTROL_MODE_INVALID;
     heater_info_array[i].max_temp = PM_TEMPERATURE_INVALID;
-    heater_target_temps[i] = PM_TEMPERATURE_INVALID;
+    heater_info_array[i].target_temp = PM_TEMPERATURE_INVALID;
   }
 
   soft_pwm_state = 0;
@@ -84,7 +81,6 @@ uint8_t Device_Heater::SetHeaterPin(uint8_t device_number, uint8_t heater_pin)
     return retval;
   
   heater_info_array[device_number].heater_pin = heater_pin;
-
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -97,7 +93,6 @@ uint8_t Device_Heater::SetTempSensor(uint8_t heater_device_number, uint8_t senso
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
 
   heater_info_array[heater_device_number].temp_sensor = sensor_device_number;
-
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -116,7 +111,6 @@ uint8_t Device_Heater::SetControlMode(uint8_t device_number, uint8_t mode)
   }
     
   heater_info_array[device_number].control_mode = mode;
-
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -177,7 +171,6 @@ uint8_t Device_Heater::SetMaxTemperature(uint8_t device_number, int16_t temp)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   
   heater_info_array[device_number].max_temp = temp;
-
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -195,9 +188,10 @@ uint8_t Device_Heater::SetBangBangHysteresis(uint8_t device_number, uint8_t temp
 
 uint8_t Device_Heater::ValidateTargetTemperature(uint8_t device_number, int16_t temp)
 {
+  // TODO improve
   if (device_number >= num_heaters
       || heater_info_array[device_number].heater_pin == 0xFF
-      || Device_TemperatureSensor::ValidateConfig(heater_info_array[device_number].temp_sensor) != APP_ERROR_TYPE_SUCCESS
+      || !Device_TemperatureSensor::ValidateConfig(heater_info_array[device_number].temp_sensor)
       || heater_info_array[device_number].max_temp == PM_TEMPERATURE_INVALID
       || (heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_PID
             && heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_BANG_BANG))
@@ -214,7 +208,7 @@ void Device_Heater::UpdateHeaters()
   HeaterInfo *heater_info = heater_info_array;
   for (uint8_t i=0; i<num_heaters; i++)
   {
-    int16_t target_temp = heater_target_temps[i];
+    int16_t target_temp = heater_info->target_temp;
     if (target_temp != PM_TEMPERATURE_INVALID)
     {
       // Check if temperature is within the correct range
@@ -229,17 +223,22 @@ void Device_Heater::UpdateHeaters()
         ERRORLN((int)i);
         target_temp = PM_TEMPERATURE_INVALID;
         SetHeaterPower(heater_info, 0);
-        continue;
       }
-      if (heater_info->control_mode == HEATER_CONTROL_MODE_BANG_BANG)
+      else if (heater_info->control_mode == HEATER_CONTROL_MODE_BANG_BANG)
       {
-        if (current_temp > target_temp + heater_info->control_info.bangbang.hysteresis)
+        if (heater_info->is_heating)
         {
-          SetHeaterPower(heater_info, 0);
+          if (current_temp > target_temp + heater_info->control_info.bangbang.hysteresis)
+          {
+            SetHeaterPower(heater_info, 0);
+          }
         }
-        else if (current_temp < target_temp - heater_info->control_info.bangbang.hysteresis)
+        else 
         {
-          SetHeaterPower(heater_info, heater_info->power_on_level);
+          if (current_temp < target_temp - heater_info->control_info.bangbang.hysteresis)
+          {
+            SetHeaterPower(heater_info, heater_info->power_on_level);
+          }
         }
       }
       else

@@ -46,6 +46,11 @@ public:
       && output_switch_pins[device_number] != 0xFF);
   }
 
+  FORCE_INLINE static uint8_t GetEnableState(uint8_t device_number)
+  {
+    return !output_switch_disabled[device_number];
+  }
+  
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)
   {
     return output_switch_pins[device_number];

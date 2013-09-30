@@ -44,7 +44,8 @@ uint8_t Device_OutputSwitch::Init(uint8_t num_devices)
   if (num_devices == 0)
     return APP_ERROR_TYPE_SUCCESS;
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(*output_switch_pins));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * 
+      (sizeof(*output_switch_pins) + sizeof(*output_switch_disabled)));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
@@ -52,8 +53,10 @@ uint8_t Device_OutputSwitch::Init(uint8_t num_devices)
   }
 
   output_switch_pins = memory;
+  output_switch_disabled = (bool*)(output_switch_pins + num_devices);
   
   memset(output_switch_pins, 0xFF, num_devices * sizeof(*output_switch_pins));
+  memset(output_switch_disabled, true, num_devices * sizeof(*output_switch_disabled));
 
   num_output_switches = num_devices;
   
@@ -70,8 +73,6 @@ uint8_t Device_OutputSwitch::SetPin(uint8_t device_number, uint8_t pin)
     return retval;
   
   output_switch_pins[device_number] = pin;
-  output_switch_disabled[device_number] = true;
-
   return APP_ERROR_TYPE_SUCCESS;
 }
 

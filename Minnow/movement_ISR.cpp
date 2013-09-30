@@ -100,9 +100,6 @@
 
 // Some useful constants
 
-#define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
-#define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
-
 #define ALLOWED_SPEED_DIFF 4
 
 // queue statics placed in this compilation unit to allow better optimization
@@ -549,11 +546,7 @@ FORCE_INLINE bool handle_queue_command()
 #endif    
   default:
     ERRORPGM("Unknown cmd in ISR: cmd=");
-    ERROR((int)*command_in_progress);
-    ERRORPGM(" len="); // RM
-    ERROR((int)CommandQueue::in_progress_length);
-    ERRORPGM(" tcc="); // RM
-    ERRORLN(CommandQueue::total_attempted_queue_command_count);
+    ERRORLN((int)*command_in_progress);
     return false;
   }
 }
