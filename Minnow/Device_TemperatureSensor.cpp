@@ -24,8 +24,10 @@
 
 #include "thermistortables.h"
 
-// The Device_TemperatureSensor static are placed in the movement.cpp compilation unit to 
+// Most of the Device_TemperatureSensor statics are placed in the movement.cpp compilation unit to 
 // allow potentiall better optimization in the ISR
+
+float *Device_TemperatureSensor::temperature_sensor_current_temps;
 
 extern volatile bool temp_meas_ready;
 
@@ -33,7 +35,7 @@ extern volatile bool temp_meas_ready;
 // Methods
 //
 
-FORCE_INLINE static int16_t convert_raw_temp_value(uint8_t type, uint16_t raw_value)
+FORCE_INLINE static float convert_raw_temp_value(uint8_t type, uint16_t raw_value)
 {
   if (type <= LAST_THERMISTOR_SENSOR_TYPE)
   {
@@ -58,12 +60,12 @@ FORCE_INLINE static int16_t convert_raw_temp_value(uint8_t type, uint16_t raw_va
     case 60:  tt = TT_NAME(60); tt_len = NUM_ARRAY_ELEMENTS(TT_NAME(60)); break;
     case 71:  tt = TT_NAME(71); tt_len = NUM_ARRAY_ELEMENTS(TT_NAME(71)); break;
     default:
-      return PM_TEMPERATURE_INVALID;
+      return SENSOR_TEMPERATURE_INVALID;
     }
     
     // remember raw values are inverse of temperatures for thermistors.
     if (raw_value < THERMMISTOR_RAW_HI_TEMP || raw_value > THERMMISTOR_RAW_LO_TEMP) 
-      return PM_TEMPERATURE_INVALID;
+      return SENSOR_TEMPERATURE_INVALID;
     
     #define PGM_RD_W(x)   (int16_t)pgm_read_word(&x)
     // Derived from RepRap FiveD extruder::getTemperature()
@@ -80,18 +82,18 @@ FORCE_INLINE static int16_t convert_raw_temp_value(uint8_t type, uint16_t raw_va
           (raw_value - PGM_RD_W(tt[i-1][0])) * 
           (float)(PGM_RD_W(tt[i][1]) - PGM_RD_W(tt[i-1][1])) /
           (float)(PGM_RD_W(tt[i][0]) - PGM_RD_W(tt[i-1][0]));
-        return (int16_t)celsius * 10;
+        return celsius;
       }
     }
 
     // Overflow: Set to last value in the table
     celsius = PGM_RD_W(tt[i-1][1]);
-    return (int16_t)celsius * 10;
+    return celsius;
   }
   else
   {
     // TODO implement thermocouple types
-    return PM_TEMPERATURE_INVALID;
+    return SENSOR_TEMPERATURE_INVALID;
   }
 }
 
@@ -121,7 +123,7 @@ uint8_t Device_TemperatureSensor::Init(uint8_t num_devices)
   temperature_sensor_types = temperature_sensor_pins + num_devices;
   temperature_sensor_isr_raw_values = (uint16_t *)(temperature_sensor_types + num_devices);
   temperature_sensor_raw_values = temperature_sensor_isr_raw_values + num_devices;
-  temperature_sensor_current_temps = (int16_t *)(temperature_sensor_raw_values + num_devices);
+  temperature_sensor_current_temps = (float *)(temperature_sensor_raw_values + num_devices);
   
   memset(temperature_sensor_pins, 0xFF, num_devices * sizeof(*temperature_sensor_pins));
   memset(temperature_sensor_types, TEMP_SENSOR_TYPE_INVALID, num_devices * sizeof(*temperature_sensor_types));
@@ -130,7 +132,7 @@ uint8_t Device_TemperatureSensor::Init(uint8_t num_devices)
 
   for (int8_t i=0; i<num_devices; i++)
   {
-    temperature_sensor_current_temps[i] = PM_TEMPERATURE_INVALID;
+    temperature_sensor_current_temps[i] = SENSOR_TEMPERATURE_INVALID;
   }
 
   // Set analog inputs
@@ -169,7 +171,7 @@ uint8_t Device_TemperatureSensor::SetType(uint8_t device_number, uint8_t type)
   if (type <= LAST_THERMISTOR_SENSOR_TYPE)
   {
     // for now, do conversion as simple way of checking type validity
-    if (convert_raw_temp_value(type, THERMMISTOR_RAW_HI_TEMP) == PM_TEMPERATURE_INVALID)
+    if (convert_raw_temp_value(type, THERMMISTOR_RAW_HI_TEMP) == SENSOR_TEMPERATURE_INVALID)
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_UNKNOWN_VALUE));
       return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
@@ -200,16 +202,6 @@ uint8_t Device_TemperatureSensor::SetType(uint8_t device_number, uint8_t type)
   temperature_sensor_types[device_number] = type;
 
   return APP_ERROR_TYPE_SUCCESS;
-}
-
-uint8_t Device_TemperatureSensor::ValidateConfig(uint8_t device_number)
-{
-  if (device_number >= num_temperature_sensors
-      || temperature_sensor_pins[device_number] == 0xFF
-      || temperature_sensor_types[device_number] == TEMP_SENSOR_TYPE_INVALID)
-    return false;
-
-  return true;
 }
 
 void Device_TemperatureSensor::UpdateTemperatureSensors()

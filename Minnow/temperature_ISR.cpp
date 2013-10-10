@@ -47,7 +47,6 @@ uint8_t *Device_TemperatureSensor::temperature_sensor_pins;
 uint8_t *Device_TemperatureSensor::temperature_sensor_types;
 uint16_t *Device_TemperatureSensor::temperature_sensor_isr_raw_values;
 uint16_t *Device_TemperatureSensor::temperature_sensor_raw_values;
-int16_t *Device_TemperatureSensor::temperature_sensor_current_temps;
  
 // Function declarations
 FORCE_INLINE void updateSoftPwm(); // needs to be non-static due to friend usage elsewhere
@@ -120,7 +119,7 @@ FORCE_INLINE void updateSoftPwm()
         }
       }
       device_bitmask >>= 1;
-      i++;
+      i+=1;
     }
     while (device_bitmask != 0);
   }

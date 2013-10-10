@@ -35,7 +35,12 @@ public:
   FORCE_INLINE void SetPower(uint8_t device_number, uint8_t power)
   {
     if (device_number < num_devices)
-      pwm_power[device_number] = power / 2;
+    {
+      if (power != 0xFF)
+        pwm_power[device_number] = power / 2;
+      else
+        pwm_power[device_number] = 0x80; // power always on
+    }
   }
 
 private:

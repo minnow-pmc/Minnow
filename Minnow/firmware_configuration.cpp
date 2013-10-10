@@ -44,9 +44,45 @@ FORCE_INLINE static bool set_uint8_value(uint8_t node_type, uint8_t parent_insta
 FORCE_INLINE static bool set_int16_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, int16_t value);
 FORCE_INLINE static bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id, uint8_t instance_id, bool value);
 FORCE_INLINE static bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, const char *value);
+FORCE_INLINE static bool set_float_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, float value);
 FORCE_INLINE static bool setPin(uint8_t node_type, uint8_t device_number, uint8_t pin);
 
 static bool read_number(long &number, const char *value);
+
+void handle_firmware_configuration_value_properties(const char *name)
+{
+  ConfigurationTree tree;
+
+  if (name[0] == '\0')
+  {
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND));
+    return;
+  }
+  
+  ConfigurationTreeNode *node = tree.FindNode(name);
+  if (node == 0)
+  {
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_FOUND), name);
+    return;
+  }
+
+  if (!node->IsLeafNode())
+  {
+    send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
+                      PMSG(ERR_MSG_CONFIG_NODE_NOT_COMPLETE), name);
+    return;
+  }
+  
+  generate_response_start(RSP_OK, 2);
+  generate_response_data_addbyte(node->GetLeafClass());
+  generate_response_data_addbyte(node->GetLeafOperations());
+
+  // determine default value status here where necessary.
+
+  generate_response_send();
+}  
 
 void handle_firmware_configuration_traversal(const char *name)
 {
@@ -72,18 +108,12 @@ void handle_firmware_configuration_traversal(const char *name)
   
   if (node == 0)
   {
-    generate_response_start(RSP_OK);
-    generate_response_data_addbyte(LEAF_CLASS_INVALID);
-    generate_response_data_addbyte(0);
-    generate_response_send(); 
+    send_OK_response(); 
     return;
   }
 
   generate_response_start(RSP_OK);
 
-  generate_response_data_addbyte(node->GetLeafClass());
-  generate_response_data_addbyte(node->GetLeafOperations());
-  
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
   int8_t length;
@@ -129,7 +159,7 @@ void handle_firmware_configuration_request(const char *name, const char* value)
 
   if (value == 0)
   {
-    if ((node->GetLeafOperations() & LEAF_OPERATIONS_READABLE) == 0)
+    if ((node->GetLeafOperations() & FIRMWARE_CONFIG_OPS_READABLE) == 0)
     {
       send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
                       PMSG(ERR_MSG_CONFIG_NODE_NOT_READABLE));
@@ -139,7 +169,7 @@ void handle_firmware_configuration_request(const char *name, const char* value)
   }
   else
   {
-    if ((node->GetLeafOperations() & LEAF_OPERATIONS_WRITEABLE) == 0)
+    if ((node->GetLeafOperations() & FIRMWARE_CONFIG_OPS_WRITEABLE) == 0)
     {
       send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,
                       PMSG(ERR_MSG_CONFIG_NODE_NOT_WRITEABLE));
@@ -224,6 +254,25 @@ void handle_firmware_configuration_request(const char *name, const char* value)
       break;
     }
     
+    case LEAF_SET_DATATYPE_FLOAT:
+    {
+      char *end;
+      float val = strtod(value, &end);
+      if (end == value || *end != '\0')
+      {
+        send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
+                                PMSG(ERR_MSG_EXPECTED_FLOAT_VALUE));
+        return;
+      }
+
+      if (!set_float_value(node->GetNodeType(), tree.GetParentNode(node)->GetInstanceId(), 
+          node->GetInstanceId(), val))
+      {
+        return; // assume that set function has generated an error response
+      }
+      break;
+    }
+    
     default:
       send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,
                               PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
@@ -270,6 +319,10 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       utoa(Device_PwmOutput::GetPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
+    case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_USE_SOFT_PWM:
+      generate_response_data_addbyte(Device_PwmOutput::GetSoftPwmState(parent_instance_id) ? '1' : '0');
+      break;
+      
       
     case NODE_TYPE_CONFIG_LEAF_BUZZER_FRIENDLY_NAME:
       if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_BUZZER, instance_id, response_data_buf, response_data_buf_len)) > 0)
@@ -279,6 +332,9 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       utoa(Device_Buzzer::GetPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
+    case NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM:
+      generate_response_data_addbyte(Device_Buzzer::GetSoftPwmState(parent_instance_id) ? '1' : '0');
+      break;
       
     case NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME:
       if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_HEATER, instance_id, response_data_buf, response_data_buf_len)) > 0)
@@ -287,6 +343,17 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     case NODE_TYPE_CONFIG_LEAF_HEATER_PIN:
       utoa(Device_Heater::GetHeaterPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
+      break;
+    case NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM:
+      generate_response_data_addbyte(Device_Heater::GetSoftPwmState(parent_instance_id) ? '1' : '0');
+      break;
+    case NODE_TYPE_CONFIG_LEAF_HEATER_BANG_BANG_HYSTERESIS:
+      if (Device_Heater::GetControlMode(parent_instance_id) == HEATER_CONTROL_MODE_BANG_BANG)
+        generate_response_data_addbyte(Device_Heater::GetBangBangHysteresis(parent_instance_id));
+      break;
+    case NODE_TYPE_CONFIG_LEAF_HEATER_PID_FUNCTIONAL_RANGE:
+      if (Device_Heater::GetControlMode(parent_instance_id) == HEATER_CONTROL_MODE_PID)
+        generate_response_data_addbyte(Device_Heater::GetPidFunctionalRange(parent_instance_id));
       break;
     // TODO add other heater config
      
@@ -327,7 +394,6 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       break;
     }
 
-    case LEAF_SET_DATATYPE_INVALID:
     default:
       send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
               PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
@@ -364,7 +430,7 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV:
     retval = NVConfigStore::SetHardwareRevision(value);
     break;
-    
+   
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_NUM_INPUT_SWITCHES:
     retval = Device_InputSwitch::Init(value);
     break;
@@ -390,11 +456,14 @@ bool set_uint8_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t ins
   case NODE_TYPE_CONFIG_LEAF_HEATER_TEMP_SENSOR:
     retval = Device_Heater::SetTempSensor(parent_instance_id, value);
     break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_POWER_ON_LEVEL:
+    retval = Device_Heater::SetPowerOnLevel(parent_instance_id, value);
+    break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_BANG_BANG_HYSTERESIS:
-    if (value > 25)
-      retval = PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
-    else
-      retval = Device_Heater::SetBangBangHysteresis(parent_instance_id, value * 10);
+    retval = Device_Heater::SetBangBangHysteresis(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_PID_FUNCTIONAL_RANGE:
+    retval = Device_Heater::SetPidFunctionalRange(parent_instance_id, value);
     break;
 
   default: 
@@ -452,10 +521,16 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     break;
 
   case NODE_TYPE_CONFIG_LEAF_HEATER_USE_BANG_BANG:
-    retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_BANG_BANG);
+    if (value)
+      retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_BANG_BANG);
+    else
+      retval = APP_ERROR_TYPE_SUCCESS;
     break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_USE_PID:
-    retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_PID);
+    if (value)
+      retval = Device_Heater::SetControlMode(parent_instance_id, HEATER_CONTROL_MODE_PID);
+    else
+      retval = APP_ERROR_TYPE_SUCCESS;
     break;
     
   case NODE_TYPE_CONFIG_LEAF_STEPPER_ENABLE_INVERT:
@@ -466,6 +541,12 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     break;
   case NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_INVERT:
     retval = Device_Stepper::SetStepInvert(parent_instance_id, value);
+    break;
+
+  case NODE_TYPE_OPERATION_LEAF_RESET_EEPROM:
+    if (value)
+      NVConfigStore::WriteDefaults(true);
+    retval = APP_ERROR_TYPE_SUCCESS;
     break;
 
   default: 
@@ -522,6 +603,60 @@ bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t in
     retval = NVConfigStore::SetBoardSerialNumber(value);
     break;
     
+  case NODE_TYPE_CONFIG_LEAF_HEATER_PID_DO_AUTOTUNE:
+  {
+    char *end;
+    long temp, cycles;
+    if ((temp = strtol(value, &end, 10)) == 0 || *end != ',' || 
+        (cycles = strtol(end+1, &end, 10)) == 0 || *end != '\0')
+    {
+      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
+      generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
+      generate_response_msg_addPGM(PMSG(ERR_MSG_BAD_PID_AUTOTUNE_FORMAT));
+      generate_response_send();
+      return false;
+    }
+    if (!Device_Heater::IsInUse(parent_instance_id)
+        || !Device_TemperatureSensor::IsInUse(Device_Heater::GetTempSensor(parent_instance_id)))
+    {
+      send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,
+                              PMSG(ERR_MSG_DEVICE_NOT_IN_USE));
+      return false;
+    }
+    send_OK_response(); // send response now as it takes a while to complete
+    Device_Heater::DoPidAutotune(parent_instance_id, temp, cycles);
+    return false;
+  }  
+  default: 
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
+         PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);
+    return false;
+  }
+  
+  if (retval == APP_ERROR_TYPE_SUCCESS)
+    return true;
+  
+  generate_response_data_addbyte(retval);
+  generate_response_send();
+  return false;
+}
+
+bool set_float_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t instance_id, float value)
+{ 
+  uint8_t retval;
+
+  switch (node_type)
+  {
+  case NODE_TYPE_CONFIG_LEAF_HEATER_PID_KP:
+    retval = Device_Heater::SetPidDefaultKp(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_PID_KI:
+    retval = Device_Heater::SetPidDefaultKi(parent_instance_id, value);
+    break;
+  case NODE_TYPE_CONFIG_LEAF_HEATER_PID_KD:
+    retval = Device_Heater::SetPidDefaultKd(parent_instance_id, value);
+    break;
+
   default: 
     send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
          PMSG(MSG_ERR_CANNOT_HANDLE_FIRMWARE_CONFIG_REQUEST), __LINE__);

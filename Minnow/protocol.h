@@ -37,13 +37,13 @@
 #define CONTROL_BYTE_RESPONSE_DEBUG_BIT         0x80
 
 #define PM_SYNC_BYTE_OFFSET         0
-#define PM_ORDER_CODE_OFFSET        1
+#define PM_LENGTH_BYTE_OFFSET       1
 #define PM_CONTROL_BYTE_OFFSET      2
-#define PM_LENGTH_BYTE_OFFSET       3
+#define PM_ORDER_BYTE_OFFSET        3
 #define PM_PARAMETER_OFFSET         4
 #define PM_HEADER_SIZE              PM_PARAMETER_OFFSET
     
-#define MAX_FRAME_COMPLETION_DELAY_MS           20
+#define MAX_FRAME_COMPLETION_DELAY_MS     30 // this is actually measured from the start of the frame (hence the larger value)
 
 //
 // Protocol Defines
@@ -70,7 +70,7 @@
 
 #define PM_DEVICE_TYPE_INVALID            0x0
 #define PM_DEVICE_NUMBER_INVALID          0Xff
-#define PM_TEMPERATURE_INVALID            0x7fff
+#define PM_TEMPERATURE_INVALID            0x7fff // maximum +ve number
 
 //
 // Response Codes
@@ -130,7 +130,9 @@
 // Basic Orders
 #define ORDER_RESUME                           0x00
 #define ORDER_REQUEST_INFORMATION              0x01
+#define ORDER_DEVICE_COUNT                     0x18
 #define ORDER_DEVICE_NAME                      0x02
+#define ORDER_DEVICE_STATUS                    0x11
 #define ORDER_REQUEST_TEMPERATURE_READING      0x03
 #define ORDER_GET_HEATER_CONFIGURATION         0x04
 #define ORDER_CONFIGURE_HEATER                 0x05
@@ -140,7 +142,7 @@
 #define ORDER_SET_PWM_OUTPUT_STATE             0x09
 #define ORDER_WRITE_FIRMWARE_CONFIG_VALUE      0x0a
 #define ORDER_READ_FIRMWARE_CONFIG_VALUE       0x0b
-#define ORDER_TRAVERSE_FIRMWARE_CONFIG         0x18
+#define ORDER_TRAVERSE_FIRMWARE_CONFIG         0x1b
 #define ORDER_GET_FIRMWARE_CONFIG_PROPERTIES   0x1a
 #define ORDER_EMERGENCY_STOP                   0x0c
 
@@ -159,6 +161,13 @@
 // Movement Orders
 #define ORDER_CONFIGURE_AXIS_MOVEMENT_RATES    0x13
 #define ORDER_CONFIGURE_UNDERRUN_PARAMS        0x19
+
+
+//
+// Unsoliticted Client Orders
+//
+
+#define UNSOLICITED_FRAME_DEBUG_MESSAGE        0x50
 
 //
 // Order Parameter Values
@@ -182,13 +191,6 @@
 #define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MINOR         0x9
 #define PARAM_REQUEST_INFO_HARDWARE_TYPE                  0xa
 #define PARAM_REQUEST_INFO_HARDWARE_REVISION              0xb
-#define PARAM_REQUEST_INFO_NUM_STEPPERS                   0xc
-#define PARAM_REQUEST_INFO_NUM_HEATERS                    0xd
-#define PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS                0xe
-#define PARAM_REQUEST_INFO_NUM_TEMP_SENSORS               0xf
-#define PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS              0x10
-#define PARAM_REQUEST_INFO_NUM_SWITCH_OUTPUTS             0x11
-#define PARAM_REQUEST_INFO_NUM_BUZZERS                    0x12
 
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0
@@ -217,5 +219,17 @@
 #define QUEUE_COMMAND_ERROR_TYPE_MALFORMED_BLOCK          0x3
 #define QUEUE_COMMAND_ERROR_TYPE_ERROR_IN_COMMAND_BLOCK   0x4
 
+// 
+// Firmware Configuration Value Properties
+//
+#define FIRMWARE_CONFIG_TYPE_VOLATILE_CONFIG      0
+#define FIRMWARE_CONFIG_TYPE_NONVOLATILE_CONFIG   1
+#define FIRMWARE_CONFIG_TYPE_STATUS               2
+#define FIRMWARE_CONFIG_TYPE_OPERATION            3
+#define FIRMWARE_CONFIG_TYPE_DIAGNOSTICS          4
+// Operations allowed on leaf nodes & other info
+#define FIRMWARE_CONFIG_OPS_READABLE              1  // bit mask values
+#define FIRMWARE_CONFIG_OPS_WRITEABLE             2  
+#define FIRMWARE_CONFIG_OPS_DEFAULT_VALUE         4
 
 #endif

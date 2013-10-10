@@ -70,7 +70,7 @@ uint8_t read_eeprom_string(uint8_t *address, uint8_t max_length, char *buffer, u
   return i;
 }
 
-uint8_t write_eeprom_string(uint8_t *address, uint8_t max_length, const char *str)
+uint8_t update_eeprom_string(uint8_t *address, uint8_t max_length, const char *str)
 {
   uint8_t i = 0;
   while (i < max_length)
@@ -84,7 +84,7 @@ uint8_t write_eeprom_string(uint8_t *address, uint8_t max_length, const char *st
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t write_eeprom_string_P(uint8_t *address, uint8_t max_length, const char *pstr)
+uint8_t update_eeprom_string_P(uint8_t *address, uint8_t max_length, const char *pstr)
 {
   uint8_t i = 0;
   while (i < max_length)
@@ -131,9 +131,10 @@ NVConfigStore::WriteDefaults(bool reset_all)
   uint16_t old_device_name_table_offset = eeprom_read_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET);
   uint8_t old_device_name_length = eeprom_read_byte((uint8_t*)DEVICE_NAME_LENGTH_OFFSET);
   if (old_device_name_table_offset != EEPROM_NAME_STORE_OFFSET
-      || old_device_name_length != MAX_DEVICE_NAME_LENGTH)
+      || old_device_name_length != MAX_DEVICE_NAME_LENGTH
+      || reset_all)
   {
-    for (uint8_t* addr=(uint8_t*)DEVICE_NAME_TABLE_OFFSET; addr<(uint8_t*)E2END; addr += MAX_DEVICE_NAME_LENGTH + 2)
+    for (uint8_t* addr=(uint8_t*)EEPROM_NAME_STORE_OFFSET; addr<(uint8_t*)E2END; addr += MAX_DEVICE_NAME_LENGTH + 2)
       eeprom_update_byte(addr,0xFF); // we only need to reset the device type to 0xFF
   }
   eeprom_update_byte((uint8_t*)DEVICE_NAME_LENGTH_OFFSET, MAX_DEVICE_NAME_LENGTH);
@@ -142,9 +143,9 @@ NVConfigStore::WriteDefaults(bool reset_all)
   // reset other values
   eeprom_update_byte((uint8_t*)HARDWARE_TYPE_OFFSET, DEFAULT_HARDWARE_TYPE);
   eeprom_update_byte((uint8_t*)HARDWARE_REV_OFFSET, DEFAULT_HARDWARE_REV);
-  write_eeprom_string_P((uint8_t*)HARDWARE_NAME_OFFSET, HARDWARE_NAME_LENGTH, PSTR(DEFAULT_HARDWARE_NAME)); 
-  write_eeprom_string_P((uint8_t*)BOARD_ID_OFFSET, BOARD_ID_LENGTH, PSTR(DEFAULT_BOARD_IDENTITY)); 
-  write_eeprom_string_P((uint8_t*)BOARD_SERIAL_NUM_OFFSET, BOARD_SERIAL_NUM_LENGTH, PSTR(DEFAULT_BOARD_SERIAL_NUMBER)); 
+  update_eeprom_string_P((uint8_t*)HARDWARE_NAME_OFFSET, HARDWARE_NAME_LENGTH, PSTR(DEFAULT_HARDWARE_NAME)); 
+  update_eeprom_string_P((uint8_t*)BOARD_ID_OFFSET, BOARD_ID_LENGTH, PSTR(DEFAULT_BOARD_IDENTITY)); 
+  update_eeprom_string_P((uint8_t*)BOARD_SERIAL_NUM_OFFSET, BOARD_SERIAL_NUM_LENGTH, PSTR(DEFAULT_BOARD_SERIAL_NUMBER)); 
 #endif  
 }
 
@@ -223,7 +224,7 @@ int8_t NVConfigStore::GetDeviceName(uint8_t device_type, uint8_t device_number, 
 uint8_t NVConfigStore::SetBoardIdentity(const char *buffer)
 {
 #if USE_EEPROM
-  return write_eeprom_string((uint8_t*)BOARD_ID_OFFSET, BOARD_ID_LENGTH, buffer);
+  return update_eeprom_string((uint8_t*)BOARD_ID_OFFSET, BOARD_ID_LENGTH, buffer);
 #else
   generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
   return PARAM_APP_ERROR_TYPE_FAILED;
@@ -233,7 +234,7 @@ uint8_t NVConfigStore::SetBoardIdentity(const char *buffer)
 uint8_t NVConfigStore::SetBoardSerialNumber(const char *buffer)
 {
 #if USE_EEPROM
-  return write_eeprom_string((uint8_t*)BOARD_SERIAL_NUM_OFFSET, BOARD_SERIAL_NUM_LENGTH, buffer);
+  return update_eeprom_string((uint8_t*)BOARD_SERIAL_NUM_OFFSET, BOARD_SERIAL_NUM_LENGTH, buffer);
 #else
   generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
   return PARAM_APP_ERROR_TYPE_FAILED;
@@ -243,7 +244,7 @@ uint8_t NVConfigStore::SetBoardSerialNumber(const char *buffer)
 uint8_t NVConfigStore::SetHardwareName(const char *buffer)
 {
 #if USE_EEPROM
-  return write_eeprom_string((uint8_t*)HARDWARE_NAME_OFFSET, HARDWARE_NAME_LENGTH, buffer);
+  return update_eeprom_string((uint8_t*)HARDWARE_NAME_OFFSET, HARDWARE_NAME_LENGTH, buffer);
 #else
   generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
   return PARAM_APP_ERROR_TYPE_FAILED;
@@ -278,11 +279,16 @@ uint8_t NVConfigStore::SetDeviceName(uint8_t device_type, uint8_t device_number,
   uint8_t *address = (uint8_t*)EEPROM_NAME_STORE_OFFSET;
   while (address < (uint8_t*)E2END)
   {
-    if (eeprom_read_byte(address) == 0xFF)
+    uint8_t type = eeprom_read_byte(address);
+    if (type == 0xFF)
     {
       eeprom_update_byte(address,device_type);
       eeprom_update_byte(address+1,device_number);
-      return write_eeprom_string(address+2, MAX_DEVICE_NAME_LENGTH, buffer);
+      return update_eeprom_string(address+2, MAX_DEVICE_NAME_LENGTH, buffer);
+    }
+    else if (type == device_type && eeprom_read_byte(address+1) == device_number)
+    {
+      return update_eeprom_string(address+2, MAX_DEVICE_NAME_LENGTH, buffer);
     }
     address += MAX_DEVICE_NAME_LENGTH + 2;
   }

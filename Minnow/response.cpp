@@ -57,7 +57,7 @@ uint8_t reply_msg_len = 0;
 void generate_response_start(uint8_t response_code, uint8_t expected_length_excluding_msg)
 { 
   reply_started = true;
-  reply_header[PM_ORDER_CODE_OFFSET] = response_code;
+  reply_header[PM_ORDER_BYTE_OFFSET] = response_code;
   reply_control_byte = (control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_header[PM_CONTROL_BYTE_OFFSET] = reply_control_byte;
   reply_expected_length_excluding_msg = expected_length_excluding_msg;
@@ -70,7 +70,7 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
 void generate_response_transport_error_start(uint8_t transport_error, uint8_t local_control_byte)
 {
   reply_started = true;
-  reply_header[PM_ORDER_CODE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
+  reply_header[PM_ORDER_BYTE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
   reply_header[PM_CONTROL_BYTE_OFFSET] = (local_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_buf[0] = transport_error;
   reply_expected_length_excluding_msg = 1;
@@ -253,7 +253,7 @@ void generate_response_send()
 
 #if TRACE_RESPONSE
   DEBUGPGM("\nResp(");  
-  DEBUG_F(reply_header[PM_ORDER_CODE_OFFSET], HEX);  
+  DEBUG_F(reply_header[PM_ORDER_BYTE_OFFSET], HEX);  
   DEBUGPGM(", len=");  
   DEBUG_F(param_length, DEC);  
   DEBUGPGM(", cb=");  
@@ -274,8 +274,8 @@ void generate_response_send()
     PSERIAL.write(reply_header[i]);
   for (i = 0; i < param_length; i++)
     PSERIAL.write(reply_buf[i]);
-  PSERIAL.write(crc8(&reply_header[PM_ORDER_CODE_OFFSET], 
-                        (PM_HEADER_SIZE-PM_ORDER_CODE_OFFSET)+param_length));
+  PSERIAL.write(crc8(&reply_header[PM_ORDER_BYTE_OFFSET], 
+                        (PM_HEADER_SIZE-PM_ORDER_BYTE_OFFSET)+param_length));
   reply_started = false;
   reply_sent = true;
 }

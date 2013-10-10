@@ -67,7 +67,9 @@ bool stepper_control_enabled = false;
 // Basic Pacemaker Orders
 FORCE_INLINE static void handle_resume_order();
 FORCE_INLINE static void handle_request_information_order();
+FORCE_INLINE static void handle_device_count_order();
 FORCE_INLINE static void handle_device_name_order();
+FORCE_INLINE static void handle_device_status_order();
 FORCE_INLINE static void handle_request_temperature_reading_order();
 FORCE_INLINE static void handle_get_heater_configuration_order();
 FORCE_INLINE static void handle_configure_heater_order();
@@ -107,8 +109,14 @@ void process_command()
   case ORDER_REQUEST_INFORMATION:
     handle_request_information_order();
     break;
+  case ORDER_DEVICE_COUNT:
+    handle_device_count_order();
+    break;
   case ORDER_DEVICE_NAME:
     handle_device_name_order();
+    break;
+  case ORDER_DEVICE_STATUS:
+    handle_device_status_order();
     break;
   case ORDER_REQUEST_TEMPERATURE_READING:
     handle_request_temperature_reading_order();
@@ -141,6 +149,10 @@ void process_command()
   case ORDER_TRAVERSE_FIRMWARE_CONFIG:
     // note: get_command() already makes the end of the command (ie. name) null-terminated
     handle_firmware_configuration_traversal((const char *)&parameter_value[0]);
+    break;
+  case ORDER_GET_FIRMWARE_CONFIG_PROPERTIES:
+    // note: get_command() already makes the end of the command (ie. name) null-terminated
+    handle_firmware_configuration_value_properties((const char *)&parameter_value[0]);
     break;
   case ORDER_EMERGENCY_STOP:
     emergency_stop();
@@ -255,7 +267,6 @@ void handle_request_information_order()
   case PARAM_REQUEST_INFO_BOARD_NAME:
     if ((length = NVConfigStore::GetHardwareName(response_data_buf, response_data_buf_len)) > 0)
       generate_response_data_addlen(length);
-    DEBUG("Retval: "); DEBUGLN((int)length);
     break;
     
   case PARAM_REQUEST_INFO_GIVEN_NAME:
@@ -272,7 +283,9 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_SUPPORTED_EXTENSIONS:
-    // TODO add extension
+    generate_response_data_addbyte(PM_EXTENSION_STEPPER_CONTROL);
+    generate_response_data_addbyte(PM_EXTENSION_QUEUED_CMD);
+    generate_response_data_addbyte(PM_EXTENSION_BASIC_MOVE);
     break;
     
   case PARAM_REQUEST_INFO_FIRMWARE_TYPE:
@@ -296,39 +309,33 @@ void handle_request_information_order()
       generate_response_data_addbyte(length);
     break;
     
-  case PARAM_REQUEST_INFO_NUM_STEPPERS:
-    generate_response_data_addbyte(Device_Stepper::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_HEATERS:
-    generate_response_data_addbyte(Device_Heater::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_PWM_OUTPUTS:
-    generate_response_data_addbyte(Device_PwmOutput::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_TEMP_SENSORS:
-    generate_response_data_addbyte(Device_TemperatureSensor::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_SWITCH_INPUTS:
-    generate_response_data_addbyte(Device_InputSwitch::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_SWITCH_OUTPUTS:
-    generate_response_data_addbyte(Device_OutputSwitch::GetNumDevices());
-    break;
-    
-  case PARAM_REQUEST_INFO_NUM_BUZZERS:
-    generate_response_data_addbyte(Device_Buzzer::GetNumDevices());
-    break;
-
   default:
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,0);
     return;
   }
   generate_response_send();  
+}
+
+void handle_device_count_order()
+{
+  if (parameter_length < 1)
+  {
+    send_insufficient_bytes_error_response(1);
+    return; 
+  }
+
+  const uint8_t device_type = parameter_value[0];
+
+  uint8_t num_devices = get_num_devices(device_type);
+  if (num_devices < 0)
+  {
+    send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    return;
+  }
+  
+  generate_response_start(RSP_OK,1);
+  generate_response_data_addbyte(num_devices);
+  generate_response_send();
 }
  
 void handle_device_name_order()
@@ -361,7 +368,7 @@ void handle_device_name_order()
     generate_response_data_addlen(length);
   generate_response_send();
 }
-  
+
 void handle_device_status_order()
 {
   if (parameter_length < 2)
@@ -439,9 +446,9 @@ void handle_device_status_order()
     else
       generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
     break;
-    break;
   default:
     send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    return;
   }
   generate_response_send();
 }
@@ -465,6 +472,8 @@ void handle_request_temperature_reading_order()
   {
     const uint8_t device_type = parameter_value[i];
     const uint8_t device_number = parameter_value[i+1];
+    float ftemp;
+    int16_t temp;
     
     switch(device_type)
     {
@@ -475,9 +484,7 @@ void handle_request_temperature_reading_order()
         send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      int16_t temp = Device_Heater::ReadCurrentTemperature(device_number);
-      generate_response_data_addbyte(highByte(temp));
-      generate_response_data_addbyte(lowByte(temp));
+      ftemp = Device_Heater::ReadCurrentTemperature(device_number);
       break;
     }
     case PM_DEVICE_TYPE_TEMP_SENSOR: 
@@ -487,15 +494,19 @@ void handle_request_temperature_reading_order()
         send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
         return;
       }
-      int16_t temp = Device_TemperatureSensor::ReadCurrentTemperature(device_number);
-      generate_response_data_addbyte(highByte(temp));
-      generate_response_data_addbyte(lowByte(temp));
+      ftemp = Device_TemperatureSensor::ReadCurrentTemperature(device_number);
       break;
     }
     default:
       send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
       return;
     }
+    if (ftemp != SENSOR_TEMPERATURE_INVALID)
+      temp = ftemp * 10.0;
+    else
+      temp = PM_TEMPERATURE_INVALID;
+    generate_response_data_addbyte(highByte(temp));
+    generate_response_data_addbyte(lowByte(temp));
   }  
   
   generate_response_send();
@@ -511,7 +522,7 @@ void handle_get_heater_configuration_order()
   
   const uint8_t heater_number = parameter_value[0];
 
-  if (!Device_Heater::IsInUse(heater_number))
+  if (Device_Heater::GetHeaterPin(heater_number) == 0xFF)
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
     return;
@@ -533,12 +544,29 @@ void handle_configure_heater_order()
   
   const uint8_t heater_number = parameter_value[0];
   const uint8_t temp_sensor = parameter_value[1];
+  const uint8_t current_temp_sensor = Device_Heater::GetTempSensor(heater_number);
+  
+  if (current_temp_sensor != 0xFF)
+  {
+    if (current_temp_sensor != temp_sensor)
+    {
+      // Don't allow Pacemaker order to override internal configuration
+      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FAILED);
+      generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
+      generate_response_send();
+    }
+    else
+    {
+      send_OK_response();
+    }
+    return;
+  }
   
   generate_response_start(RSP_APPLICATION_ERROR, 1);
-  uint8_t length = Device_Heater::SetTempSensor(heater_number, temp_sensor);
-  if (length != APP_ERROR_TYPE_SUCCESS)
+  uint8_t retval = Device_Heater::SetTempSensor(heater_number, temp_sensor);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
   {
-    generate_response_data_addbyte(length);
+    generate_response_data_addbyte(retval);
     generate_response_send();
   }
   else
@@ -557,16 +585,17 @@ void handle_set_heater_target_temperature_order()
 
   const uint8_t heater_number = parameter_value[0];
   const int16_t temp = (parameter_value[1] << 8) | parameter_value[2];
+  const float ftemp = (float)temp / 10;
 
   generate_response_start(RSP_APPLICATION_ERROR, 1);
-  uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, temp);
+  uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, ftemp);
   if (retval != APP_ERROR_TYPE_SUCCESS)
   {
     generate_response_data_addbyte(retval);
     generate_response_send();
     return;
   }
-  Device_Heater::SetTargetTemperature(heater_number, temp);
+  Device_Heater::SetTargetTemperature(heater_number, ftemp);
   send_OK_response();
 }  
  

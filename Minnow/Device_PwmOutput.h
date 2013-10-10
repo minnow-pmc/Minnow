@@ -54,6 +54,14 @@ public:
     return pwm_output_pins[device_number];
   }
   
+  FORCE_INLINE static bool GetSoftPwmState(uint8_t device_number)
+  {
+    if (device_number < sizeof(soft_pwm_device_bitmask)*8)
+      return (soft_pwm_device_bitmask & (1 << device_number)) != 0;
+    else
+      return false;
+  }
+  
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
   static uint8_t EnableSoftPwm(uint8_t device_number, bool enable);

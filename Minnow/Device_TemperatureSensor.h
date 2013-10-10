@@ -30,6 +30,8 @@ class Device_TemperatureSensor
 {
 public:
 
+#define SENSOR_TEMPERATURE_INVALID 0.0
+
 #define TEMP_SENSOR_TYPE_INVALID     0
 
 // see thermistortables.h for available thermistor types.
@@ -61,7 +63,7 @@ public:
     return temperature_sensor_types[device_number];
   }
   
-  FORCE_INLINE static int16_t ReadCurrentTemperature(uint8_t device_number)
+  FORCE_INLINE static float ReadCurrentTemperature(uint8_t device_number)
   {
     return temperature_sensor_current_temps[device_number];
   }
@@ -69,7 +71,6 @@ public:
   // these configuration functions return APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
   static uint8_t SetType(uint8_t device_number, uint8_t type);
-  static uint8_t ValidateConfig(uint8_t device_number);
 
   static void UpdateTemperatureSensors();
   
@@ -85,7 +86,7 @@ private:
   static uint16_t *temperature_sensor_raw_values;  
   static uint16_t *temperature_sensor_isr_raw_values;  
 
-  static int16_t *temperature_sensor_current_temps;  
+  static float *temperature_sensor_current_temps;  
 };
 
 

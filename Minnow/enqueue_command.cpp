@@ -288,15 +288,16 @@ FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t
   
   uint8_t heater_number = parameter_value[0];
   int16_t target_temp = (parameter_value[1] << 8) | parameter_value[2];
+  float target_ftemp = (float)target_temp / 10;
   
-  uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, target_temp);
+  uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, target_ftemp);
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
 
   SetHeaterTargetTempCommand *cmd = (SetHeaterTargetTempCommand *)insertion_point;
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_HEATER_TARGET_TEMP;
   cmd->heater_number = parameter_value[0];
-  cmd->target_temp = target_temp;
+  cmd->target_temp = target_ftemp;
 
   CommandQueue::EnqueueCommand(sizeof(SetHeaterTargetTempCommand));
   return ENQUEUE_SUCCESS;

@@ -26,4 +26,7 @@
 
 void temperature_ISR_init();
 
+// Number of times that the ADC temperature measurement is oversampled.
+#define OVERSAMPLENR 16
+
 #endif

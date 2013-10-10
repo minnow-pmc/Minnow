@@ -1,5 +1,5 @@
 /*
-  DebugSerial.cpp - Hardware serial library for Wiring
+  Minnow Pacemaker client firmware.
   Copyright (c) 2006 Nicholas Zambetti.  All right reserved.
 
   This library is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ DebugSerial::DebugSerial()
 {
 #if USE_PACEMAKER_FRAMES_FOR_DEBUG
   debug_header[PM_SYNC_BYTE_OFFSET] = SYNC_BYTE_RESPONSE_VALUE;
-  debug_header[PM_ORDER_CODE_OFFSET] = 0;
+  debug_header[PM_ORDER_BYTE_OFFSET] = 0;
   debug_buf_len = 0;
   debug_sequence_number = 0;
 #elif USE_SERIAL_PORT_FOR_DEBUG
@@ -53,8 +53,9 @@ void DebugSerial::flush()
 #if USE_PACEMAKER_FRAMES_FOR_DEBUG
   if (debug_buf_len > 0)
   {
+    debug_header[PM_LENGTH_BYTE_OFFSET] = debug_buf_len + 2;
     debug_header[PM_CONTROL_BYTE_OFFSET] = CONTROL_BYTE_RESPONSE_DEBUG_BIT | (debug_sequence_number++ & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
-    debug_header[PM_LENGTH_BYTE_OFFSET] = debug_buf_len;
+    debug_header[PM_ORDER_BYTE_OFFSET] = UNSOLICITED_FRAME_DEBUG_MESSAGE;
     PSERIAL.write(debug_header, sizeof(debug_header));
     PSERIAL.write(debug_buf, debug_buf_len);
     PSERIAL.write(crc8(&debug_header[1], PM_HEADER_SIZE + debug_buf_len - 1));

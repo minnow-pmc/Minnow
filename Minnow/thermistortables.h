@@ -21,8 +21,7 @@
 #define THERMISTORTABLES_H_
 
 #include "Minnow.h"
-
-#define OVERSAMPLENR 16
+#include "temperature_ISR.h"
 
 // 0 is not used
 // 1 is 100k thermistor - EPCOS (4.7k pullup)

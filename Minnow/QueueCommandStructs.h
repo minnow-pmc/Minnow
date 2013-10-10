@@ -93,7 +93,7 @@ struct SetHeaterTargetTempCommand
 {
   uint8_t command_type; // QUEUE_COMMAND_STRUCTS_TYPE_SET_HEATER_TARGET_TEMP
   uint8_t heater_number;
-  int16_t target_temp;
+  float target_temp;
 };
 
 struct SetActiveToolheadCommand
