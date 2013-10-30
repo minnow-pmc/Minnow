@@ -41,7 +41,7 @@
 volatile bool temp_meas_ready = false;
 
 // The Device_TemperatureSensor static are placed in this compilation unit to 
-// allow potentiall better compiler optimization in the ISR
+// allow potentially better compiler optimization in the ISR
 uint8_t Device_TemperatureSensor::num_temperature_sensors = 0;
 uint8_t *Device_TemperatureSensor::temperature_sensor_pins;
 uint8_t *Device_TemperatureSensor::temperature_sensor_types;
@@ -60,7 +60,7 @@ void temperature_ISR_init()
   TIMSK0 |= (1<<OCIE0B);  
 }
 
- // Timer 0 is shared with millies
+ // Timer 0 is shared with millis
 ISR(TIMER0_COMPB_vect)
 {
   updateSoftPwm();
@@ -70,14 +70,11 @@ ISR(TIMER0_COMPB_vect)
 // This is executed from the ISR
 FORCE_INLINE void updateSoftPwm()
 {
-  //these variables are only accesible from the ISR, but static, so they don't lose their value
-  static uint8_t pwm_count = (1 << SOFT_PWM_SCALE);
-  
   uint8_t i;
   uint16_t device_bitmask;
-  const SoftPwmState *state;
+  SoftPwmState *state;
   
-  for (uint8_t j=0; j<=2; j++)
+  for (uint8_t j=0; j<2; j++)
   {
     if (j == 0)
     {
@@ -85,13 +82,6 @@ FORCE_INLINE void updateSoftPwm()
       if (device_bitmask == 0)
         continue;
       state = Device_Heater::soft_pwm_state;
-    }
-    else if (j == 1)
-    {
-      device_bitmask = Device_Buzzer::soft_pwm_device_bitmask;
-      if (device_bitmask == 0)
-        continue;
-      state = Device_Buzzer::soft_pwm_state;
     }
     else
     {
@@ -107,14 +97,14 @@ FORCE_INLINE void updateSoftPwm()
       if ((device_bitmask & 1) != 0)
       {
         volatile uint8_t *output_reg = state->output_reg[i];
-        if(pwm_count == 0)
+        if(state->pwm_isr_count == 0)
         {
           if ((state->pwm_count[i] = state->pwm_power[i]) > 0)
             *output_reg |= state->output_bit[i];
         }
         else
         {
-          if (state->pwm_count[i] <= pwm_count)
+          if (state->pwm_count[i] <= state->pwm_isr_count)
             *output_reg &= ~state->output_bit[i];
         }
       }
@@ -122,10 +112,11 @@ FORCE_INLINE void updateSoftPwm()
       i+=1;
     }
     while (device_bitmask != 0);
+
+    state->pwm_isr_count += (1 << state->soft_pwm_scale);
+    state->pwm_isr_count &= 0x7f;
   }
 
-  pwm_count += (1 << SOFT_PWM_SCALE);
-  pwm_count &= 0x7f;
 }
 
 FORCE_INLINE void updateTemperatureSensorRawValues()

@@ -20,7 +20,7 @@
 #include "SoftPwmState.h"
 
  
-bool SoftPwmState::Init(uint8_t _num_devices)
+bool SoftPwmState::Init(uint8_t _num_devices, uint8_t _soft_pwm_scale)
 {
   uint8_t *memory = (uint8_t*)malloc(_num_devices * 
     (sizeof(*output_reg) + sizeof(*output_bit) + sizeof(*pwm_power) + sizeof(*pwm_count)));
@@ -37,6 +37,8 @@ bool SoftPwmState::Init(uint8_t _num_devices)
   memset(pwm_count, 0, _num_devices * sizeof(*pwm_count));
 
   num_devices = _num_devices;
+  soft_pwm_scale = _soft_pwm_scale;
+  pwm_isr_count = (1 << soft_pwm_scale);
   
   return true;
 }

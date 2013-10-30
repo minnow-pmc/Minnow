@@ -28,7 +28,7 @@
 class SoftPwmState
 {
 public:
-  bool Init(uint8_t num_devices);
+  bool Init(uint8_t num_devices, uint8_t soft_pwm_scale = DEFAULT_SOFT_PWM_SCALE);
   
   bool EnableSoftPwm(uint8_t device_number, uint8_t pin, bool enable);
   
@@ -47,11 +47,13 @@ private:
   friend void updateSoftPwm();
   
   uint8_t num_devices;
+  uint8_t soft_pwm_scale;
   
   uint8_t *pwm_power; // desired duty cycle for each device
   uint8_t *output_bit;
   uint8_t **output_reg;
   
+  uint8_t pwm_isr_count; // count across devices incremented by ISR
   uint8_t *pwm_count; // raw pwm count for each device
 };
 

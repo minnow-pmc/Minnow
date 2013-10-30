@@ -27,6 +27,15 @@
 #include "Minnow.h"
 #include "SoftPwmState.h"
 
+//
+// Currently just support directly connected buzzers. Although
+// this allows multiple buzzers to be defined, the basic Tone library
+// only support generating a tone on one buzzer at a time.
+// This may also interfere with hardware PWM on pins 3 and 11 on Arduino 
+// processors which don't have a separate PWM hardware interrupt 
+// available (the Arduino megas don't have this problem)
+// See Arduino tone() documentation.
+//
 class Device_Buzzer
 {
 public:
@@ -54,37 +63,27 @@ public:
     return buzzer_pins[device_number];
   }
   
-  FORCE_INLINE static bool GetSoftPwmState(uint8_t device_number)
-  {
-    if (device_number < sizeof(soft_pwm_device_bitmask)*8)
-      return (soft_pwm_device_bitmask & (1 << device_number)) != 0;
-    else
-      return false;
-  }
-
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
-  static uint8_t EnableSoftPwm(uint8_t device_number, bool enable);
 
-  FORCE_INLINE static void WriteState(uint8_t device_number, uint8_t power)
+  FORCE_INLINE static void WriteState(uint8_t device_number, uint16_t frequency)
   {
-    if (soft_pwm_device_bitmask == 0 || (soft_pwm_device_bitmask & (1<<device_number)) == 0)
-      analogWrite(buzzer_pins[device_number], power);
+    if (frequency > 0)
+    {
+      tone(buzzer_pins[device_number], frequency);
+      buzzer_disabled[device_number] = false;
+    }
     else
-      soft_pwm_state->SetPower(device_number, power);
-    buzzer_disabled[device_number] = (power == 0);
+    {
+      noTone(buzzer_pins[device_number]);
+      buzzer_disabled[device_number] = true;
+    }
   }
 
 private:
-  friend void updateSoftPwm();
-
   static uint8_t num_buzzers;
   static uint8_t *buzzer_pins;
   static bool *buzzer_disabled;
-  
-  // additional state to support soft pwm 
-  static uint8_t soft_pwm_device_bitmask; // soft pwm is only supported on first 8 device numbers
-  static SoftPwmState *soft_pwm_state; // allocated on first use
 };
 
 #endif

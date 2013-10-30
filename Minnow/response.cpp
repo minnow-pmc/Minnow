@@ -357,11 +357,9 @@ void send_stopped_response()
 {
   if (is_stopped)
   {
-    generate_response_start(RSP_STOPPED, 3);
-    generate_response_data_addbyte(stopped_is_acknowledged);
+    generate_response_start(RSP_STOPPED, 2);
     generate_response_data_addbyte(stopped_type);
     generate_response_data_addbyte(stopped_cause);
-    // might want to add some argument information but this will do for now
     if (stopped_reason != 0)
       generate_response_msg_addPGM(stopped_reason);
     generate_response_send();

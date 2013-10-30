@@ -439,6 +439,9 @@ void Device_Heater::UpdatePidDerivedConfig(HeaterInfo *heater_info)
   InitializePidState(heater_info);
 }
 
+//
+// Copied largely unchanged from Marlin
+//
 void Device_Heater::DoPidAutotune(uint8_t device_number, float temp, int ncycles)
 {
   float input = 0.0;

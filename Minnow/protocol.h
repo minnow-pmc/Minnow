@@ -104,11 +104,9 @@
 #define PARAM_APP_ERROR_TYPE_BUSY                         0x7
 #define PARAM_APP_ERROR_TYPE_FAILED                       0x8
 #define PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR               0x9
+#define PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE       0xa
 
 // Stopped Response Parameter values
-#define PARAM_STOPPED_STATE_UNACKNOWLEDGED                0x0
-#define PARAM_STOPPED_STATE_ACKNOWLEDGED                  0x1
-
 #define PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED            0x0
 #define PARAM_STOPPED_TYPE_PERSISTS                       0x1
 #define PARAM_STOPPED_TYPE_UNRECOVERABLE                  0x2
@@ -130,9 +128,9 @@
 // Basic Orders
 #define ORDER_RESUME                           0x00
 #define ORDER_REQUEST_INFORMATION              0x01
-#define ORDER_DEVICE_COUNT                     0x18
+#define ORDER_DEVICE_COUNT                     0x11
 #define ORDER_DEVICE_NAME                      0x02
-#define ORDER_DEVICE_STATUS                    0x11
+#define ORDER_DEVICE_STATUS                    0x18
 #define ORDER_REQUEST_TEMPERATURE_READING      0x03
 #define ORDER_GET_HEATER_CONFIGURATION         0x04
 #define ORDER_CONFIGURE_HEATER                 0x05
@@ -140,6 +138,7 @@
 #define ORDER_GET_INPUT_SWITCH_STATE           0x07
 #define ORDER_SET_OUTPUT_SWITCH_STATE          0x08
 #define ORDER_SET_PWM_OUTPUT_STATE             0x09
+#define ORDER_SET_OUTPUT_TONE                  0x1c
 #define ORDER_WRITE_FIRMWARE_CONFIG_VALUE      0x0a
 #define ORDER_READ_FIRMWARE_CONFIG_VALUE       0x0b
 #define ORDER_TRAVERSE_FIRMWARE_CONFIG         0x1b
@@ -164,7 +163,7 @@
 
 
 //
-// Unsoliticted Client Orders
+// Unsolicited Client Orders
 //
 
 #define UNSOLICITED_FRAME_DEBUG_MESSAGE        0x50
@@ -174,9 +173,8 @@
 //
 
 // Resume Order
-#define PARAM_RESUME_TYPE_QUERY                           0x0
-#define PARAM_RESUME_TYPE_ACKNOWLEDGE                     0x1
-#define PARAM_RESUME_TYPE_CLEAR                           0x2
+#define PARAM_RESUME_TYPE_ACKNOWLEDGE                     0x0
+#define PARAM_RESUME_TYPE_CLEAR                           0x1
 
 // Request Information Order
 #define PARAM_REQUEST_INFO_FIRMWARE_NAME                  0x0
@@ -191,6 +189,7 @@
 #define PARAM_REQUEST_INFO_FIRMWARE_VERSION_MINOR         0x9
 #define PARAM_REQUEST_INFO_HARDWARE_TYPE                  0xa
 #define PARAM_REQUEST_INFO_HARDWARE_REVISION              0xb
+#define PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE              0xc
 
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0
@@ -202,6 +201,7 @@
 #define DEVICE_STATUS_INACTIVE                            0x1
 #define DEVICE_STATUS_CONFIG_ERROR                        0x2
 #define DEVICE_STATUS_DEVICE_FAULT                        0x3
+#define DEVICE_STATUS_STOPPED                             0x4
 
 //
 // Queue Command Types

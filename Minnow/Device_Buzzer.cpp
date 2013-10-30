@@ -30,9 +30,6 @@ uint8_t Device_Buzzer::num_buzzers = 0;
 uint8_t *Device_Buzzer::buzzer_pins;
 bool *Device_Buzzer::buzzer_disabled;
 
-uint8_t Device_Buzzer::soft_pwm_device_bitmask;
-SoftPwmState *Device_Buzzer::soft_pwm_state;
-
 //
 // Methods
 //
@@ -61,8 +58,6 @@ uint8_t Device_Buzzer::Init(uint8_t num_devices)
   memset(buzzer_pins, 0xFF, num_devices * sizeof(*buzzer_pins));
   memset(buzzer_disabled, true, num_devices * sizeof(*buzzer_disabled));
 
-  soft_pwm_state = 0;
-  soft_pwm_device_bitmask = 0;
   num_buzzers = num_devices;
   
   return APP_ERROR_TYPE_SUCCESS;
@@ -84,41 +79,3 @@ uint8_t Device_Buzzer::SetPin(uint8_t device_number, uint8_t pin)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t Device_Buzzer::EnableSoftPwm(uint8_t device_number, bool enable)
-{
-  if (device_number >= num_buzzers || device_number >= sizeof(soft_pwm_device_bitmask)*8)
-    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
-
-  if (buzzer_pins[device_number] == 0xFF)
-  {
-    generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-    return PARAM_APP_ERROR_TYPE_FAILED;
-  }
-
-  if (soft_pwm_state == 0 && enable)
-  {
-    soft_pwm_state = (SoftPwmState *)malloc(sizeof(SoftPwmState));
-    if (soft_pwm_state == 0 
-        || !soft_pwm_state->Init(min(num_buzzers,sizeof(soft_pwm_device_bitmask)*8)))
-    {
-      generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
-      return PARAM_APP_ERROR_TYPE_FAILED;
-    }
-  }
-  
-  if (soft_pwm_state != 0)
-  {
-    if (!soft_pwm_state->EnableSoftPwm(device_number, buzzer_pins[device_number], enable))
-    {
-      generate_response_msg_addPGM(PMSG(ERR_MSG_INVALID_PIN_NUMBER));
-      return PARAM_APP_ERROR_TYPE_FAILED;
-    }
-  }
-  
-  if (enable)
-    soft_pwm_device_bitmask |= (1<<device_number);
-  else
-    soft_pwm_device_bitmask &= ~(1<<device_number);
-    
-  return APP_ERROR_TYPE_SUCCESS;
-}

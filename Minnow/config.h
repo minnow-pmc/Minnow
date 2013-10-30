@@ -74,8 +74,10 @@
 // Incrementing this by 1 will double the software PWM frequency,
 // affecting heaters, and the fan if FAN_SOFT_PWM is enabled.
 // However, control resolution will be halved for each increment;
-// at zero value, there are 128 effective control positions.
-#define SOFT_PWM_SCALE 0
+// At 0: there are 128 effective control positions with a
+// ~8Hz switching period; at 1: there are 64 effective control 
+// positions with a ~16Hz switching period.
+#define DEFAULT_SOFT_PWM_SCALE 1
 
 // Does the Arduino use an AT90USB USB Serial UART?
 #if defined (__AVR_AT90USB1287__) || defined (__AVR_AT90USB1286__) || defined (__AVR_AT90USB646__) || defined(__AVR_AT90USB647__)

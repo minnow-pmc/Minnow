@@ -77,6 +77,7 @@ FORCE_INLINE static void handle_set_heater_target_temperature_order();
 FORCE_INLINE static void handle_get_input_switch_state_order();
 FORCE_INLINE static void handle_set_output_switch_state_order();
 FORCE_INLINE static void handle_set_pwm_output_state_order();
+FORCE_INLINE static void handle_set_output_tone_order();
 FORCE_INLINE static void handle_write_firmware_configuration_value_order();
 FORCE_INLINE static void handle_activate_stepper_control_order();
 FORCE_INLINE static void handle_enable_disable_steppers_order();
@@ -138,6 +139,9 @@ void process_command()
     break;
   case ORDER_SET_PWM_OUTPUT_STATE:
     handle_set_pwm_output_state_order();
+    break;
+  case ORDER_SET_OUTPUT_TONE:
+    handle_set_output_tone_order();
     break;
   case ORDER_WRITE_FIRMWARE_CONFIG_VALUE:
     handle_write_firmware_configuration_value_order();
@@ -214,11 +218,7 @@ void handle_resume_order()
   
   const uint8_t resume_type = parameter_value[0];
   
-  if (resume_type == PARAM_RESUME_TYPE_QUERY)
-  {
-    send_stopped_response();
-  }
-  else if (resume_type == PARAM_RESUME_TYPE_ACKNOWLEDGE)
+  if (resume_type == PARAM_RESUME_TYPE_ACKNOWLEDGE)
   {
     stopped_is_acknowledged = true;
     send_stopped_response();
@@ -307,6 +307,10 @@ void handle_request_information_order()
   case PARAM_REQUEST_INFO_HARDWARE_REVISION:
     if ((length = NVConfigStore::GetHardwareRevision()) != 0xFF)
       generate_response_data_addbyte(length);
+    break;
+    
+  case PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE:
+    generate_response_data_add(MAX_STEP_FREQUENCY);
     break;
     
   default:
@@ -419,6 +423,8 @@ void handle_device_status_order()
   case PM_DEVICE_TYPE_STEPPER:
     if (!AxisInfo::IsInUse(device_number))
       generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (is_stopped)
+      generate_response_data_addbyte(DEVICE_STATUS_STOPPED);
     else if (!AxisInfo::GetStepperEnableState(device_number))
       generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
     else
@@ -427,6 +433,8 @@ void handle_device_status_order()
   case PM_DEVICE_TYPE_HEATER:
     if (!Device_Heater::ValidateTargetTemperature(device_number, 0))
       generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
+    else if (is_stopped)
+      generate_response_data_addbyte(DEVICE_STATUS_STOPPED);
     else if (Device_Heater::GetTargetTemperature(device_number) == 0)
       generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
     else
@@ -551,9 +559,8 @@ void handle_configure_heater_order()
     if (current_temp_sensor != temp_sensor)
     {
       // Don't allow Pacemaker order to override internal configuration
-      generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_FAILED);
-      generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
-      generate_response_send();
+      send_app_error_response(PARAM_APP_ERROR_TYPE_FAILED,
+          PMSG(MSG_ERR_ALREADY_INITIALIZED));
     }
     else
     {
@@ -593,6 +600,13 @@ void handle_set_heater_target_temperature_order()
   {
     generate_response_data_addbyte(retval);
     generate_response_send();
+    return;
+  }
+
+  if (is_stopped && ftemp != SENSOR_TEMPERATURE_INVALID)
+  {
+    send_app_error_response(PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE,
+        PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
     return;
   }
   Device_Heater::SetTargetTemperature(heater_number, ftemp);
@@ -709,50 +723,65 @@ void handle_set_pwm_output_state_order()
     return; 
   }
 
-  // TODO consider only allowing a singe write
-  for (int i = 0; i < parameter_length; i+=4)
+  device_type = parameter_value[0];
+  device_number = parameter_value[1];
+  device_state = (parameter_value[2]<<8) | parameter_value[3];
+    
+  switch(device_type)
   {
-    if (i + 4 > parameter_length)
+  case PM_DEVICE_TYPE_PWM_OUTPUT:
+  {
+    if (!Device_PwmOutput::IsInUse(device_number))
     {
-      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
-      return; 
-    }
-    
-    device_type = parameter_value[i];
-    device_number = parameter_value[i+1];
-    device_state = (parameter_value[i+2]<<8) | parameter_value[i+3];
-    
-    switch(device_type)
-    {
-    case PM_DEVICE_TYPE_PWM_OUTPUT:
-    {
-      if (!Device_PwmOutput::IsInUse(device_number))
-      {
-        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
-        return;
-      }
-      Device_PwmOutput::WriteState(device_number, device_state >> 8);
-      break;
-    }
-    case PM_DEVICE_TYPE_BUZZER:
-    {
-      if (!Device_Buzzer::IsInUse(device_number))
-      {
-        send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, i+1);
-        return;
-      }
-      Device_Buzzer::WriteState(device_number, device_state >> 8);
-      break;
-    }
-    default:
-      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 1);
       return;
     }
-  }  
+    Device_PwmOutput::WriteState(device_number, device_state >> 8);
+    break;
+  }
+  default:
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    return;
+  }
   
   send_OK_response();
 }
  
+void handle_set_output_tone_order()
+{
+  uint8_t device_type, device_number;
+  uint16_t device_state;
+  
+  if (parameter_length < 4)
+  {
+    send_insufficient_bytes_error_response(4);
+    return; 
+  }
+
+  device_type = parameter_value[0];
+  device_number = parameter_value[1];
+  device_state = (parameter_value[2]<<8) | parameter_value[3];
+  
+  switch(device_type)
+  {
+  case PM_DEVICE_TYPE_BUZZER:
+  {
+    if (!Device_Buzzer::IsInUse(device_number))
+    {
+      send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 1);
+      return;
+    }
+    Device_Buzzer::WriteState(device_number, device_state);
+    break;
+  }
+  default:
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
+    return;
+  }
+
+  send_OK_response();
+}
+
 void handle_write_firmware_configuration_value_order()
 {
   const uint8_t name_length = parameter_value[0];
@@ -815,12 +844,14 @@ void handle_enable_disable_steppers_order()
     send_insufficient_bytes_error_response(1);
     return;
   }
-
+  
+#if !DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
   if (!stepper_control_enabled)
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_INCORRECT_MODE, 0);  
     return;
   }
+#endif  
   
   if (parameter_length == 0)
   {
@@ -839,6 +870,23 @@ void handle_enable_disable_steppers_order()
       send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 0);
       return;
     }
+    if (is_stopped && device_state != 0)
+    {
+      send_app_error_response(PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE,
+          PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
+      return;
+    }
+#if DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
+    if (!stepper_control_enabled)
+    {
+      // generate a fake stepper control order
+      parameter_value[0] = 1;
+      parameter_length = 1;
+      handle_activate_stepper_control_order(); // this sends OK;
+      Device_Stepper::WriteEnableState(device_number, device_state);
+      return;
+    }
+#endif     
     Device_Stepper::WriteEnableState(device_number, device_state);
   }
   send_OK_response();
@@ -912,60 +960,60 @@ void handle_enable_disable_endstops_order()
 
 void handle_configure_axis_movement_rates_order()
 {
-  if ((parameter_length & 1) != 0)
+  if (parameter_length < 5)
   {
-    send_insufficient_bytes_error_response(parameter_length+1);
+    send_insufficient_bytes_error_response(5);
     return;
   }
   
-  for (uint8_t i=0; i<Device_Stepper::GetNumDevices(); i++)
+  uint8_t device_number = parameter_value[0];
+
+  if (!Device_Stepper::IsInUse(device_number))
   {
-    if (Device_Stepper::IsInUse(i))
-    {
-      if (i < parameter_length/2)
-      {
-        AxisInfo::SetAxisMaxRate(i,(parameter_value[2*i]<<8) | parameter_value[(2*i)+1]);
-      }
-      else
-      {
-        AxisInfo::SetAxisMaxRate(i,0);
-      }
-    }
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 0);
+    return;
   }
-#if DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
-  parameter_value[0] = 1;
-  parameter_length = 1;
-  handle_activate_stepper_control_order();
-#else
+
+  uint32_t max_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | (parameter_value[3] << 8) | parameter_value[4];
+  
+  if (max_rate > MAX_STEP_FREQUENCY)
+  {
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,1);
+    return;
+  }
+
+  AxisInfo::SetAxisMaxRate(device_number, max_rate);
+
   send_OK_response();  
-#endif
 }
 
 void handle_configure_underrun_params_order()
 {
-  uint8_t num_axes_specified = parameter_length/6;
-  if ((parameter_length % 6) != 0)
+  if (parameter_length < 9)
   {
-    send_insufficient_bytes_error_response((num_axes_specified + 1)*6);
+    send_insufficient_bytes_error_response(9);
     return;
   }
   
-  for (uint8_t i=0; i<Device_Stepper::GetNumDevices(); i++)
+  uint8_t device_number = parameter_value[0];
+
+  if (!Device_Stepper::IsInUse(device_number))
   {
-    if (Device_Stepper::IsInUse(i))
-    {
-      if (i < num_axes_specified)
-      {
-        AxisInfo::SetUnderrunRate(i,(parameter_value[2*i]<<8) | parameter_value[(2*i)+1]);
-        AxisInfo::SetUnderrunAccelRate(i,
-           ((uint32_t)parameter_value[(2*i)+2]<<24)|((uint32_t)parameter_value[(2*i)+3]<<16)|(parameter_value[(2*i)+4]<<8)|parameter_value[(2*i)+5]);
-      }
-      else
-      {
-        AxisInfo::SetUnderrunRate(i,0);
-      }
-    }
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 0);
+    return;
   }
+
+  uint32_t underrun_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | (parameter_value[3] << 8) | parameter_value[4];
+  uint32_t underrun_accel_rate = ((uint32_t)parameter_value[5] << 24) | ((uint32_t)parameter_value[6] << 16) | (parameter_value[7] << 8) | parameter_value[8];
+
+  if (underrun_rate > MAX_STEP_FREQUENCY)
+  {
+    send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,1);
+    return;
+  }
+
+  AxisInfo::SetUnderrunRate(device_number, underrun_rate);
+  AxisInfo::SetUnderrunAccelRate(device_number, underrun_accel_rate);
   send_OK_response();  
 }
 

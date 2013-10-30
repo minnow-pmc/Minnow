@@ -81,6 +81,22 @@ void handle_firmware_configuration_value_properties(const char *name)
 
   // determine default value status here where necessary.
 
+  // determine whether configuration node is associated with a device
+  // (we search for a parent instance node where the device type has been set)
+  uint8_t device_type = PM_DEVICE_TYPE_INVALID;
+  uint8_t device_number = 0;
+  while ((node = tree.GetParentNode(node)) != 0)
+  {
+    if (node->IsInstanceNode() 
+        && node->GetLeafSetDataType() != PM_DEVICE_TYPE_INVALID)
+    {
+      device_type = node->GetLeafSetDataType();
+      device_number = node->GetInstanceId();
+    }
+  }
+  generate_response_data_addbyte(device_type);
+  generate_response_data_addbyte(device_number);
+  
   generate_response_send();
 }  
 
@@ -332,9 +348,6 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       utoa(Device_Buzzer::GetPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
-    case NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM:
-      generate_response_data_addbyte(Device_Buzzer::GetSoftPwmState(parent_instance_id) ? '1' : '0');
-      break;
       
     case NODE_TYPE_CONFIG_LEAF_HEATER_FRIENDLY_NAME:
       if ((length = NVConfigStore::GetDeviceName(PM_DEVICE_TYPE_HEATER, instance_id, response_data_buf, response_data_buf_len)) > 0)
@@ -512,9 +525,6 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
   {
   case NODE_TYPE_CONFIG_LEAF_PWM_OUTPUT_USE_SOFT_PWM:
     retval = Device_PwmOutput::EnableSoftPwm(parent_instance_id, value);
-    break;
-  case NODE_TYPE_CONFIG_LEAF_BUZZER_USE_SOFT_PWM:
-    retval = Device_Buzzer::EnableSoftPwm(parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM:
     retval = Device_Heater::EnableSoftPwm(parent_instance_id, value);
