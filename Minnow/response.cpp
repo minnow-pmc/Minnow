@@ -73,6 +73,7 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
 void generate_response_transport_error_start(uint8_t transport_error, uint8_t local_control_byte)
 {
   reply_started = true;
+  reply_header[PM_SYNC_BYTE_OFFSET] = SYNC_BYTE_RESPONSE_VALUE;
   reply_header[PM_ORDER_BYTE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
   reply_header[PM_CONTROL_BYTE_OFFSET] = (local_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_buf[0] = transport_error;

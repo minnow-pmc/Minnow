@@ -335,7 +335,7 @@ void setup()
 
 FORCE_INLINE static bool get_command()
 {
-  char serial_char;
+  uint8_t serial_char;
   
   if (recv_buf_len > 0 && millis() - first_rcvd_time > MAX_FRAME_COMPLETION_DELAY_MS)
   {
