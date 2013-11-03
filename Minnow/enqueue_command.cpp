@@ -686,12 +686,14 @@ uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_
   
   // a = (v^2 - u^2) / (2*distance)
   if (cmd->steps_phase_2 != max_steps)
-    cmd->acceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (initial_speed * initial_speed)) / (2 * (max_steps - cmd->steps_phase_2));
+    cmd->acceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (initial_speed * initial_speed)) 
+                                / (2 * (max_steps - cmd->steps_phase_2));
   else
     cmd->acceleration_rate = 0;
   
   if (cmd->steps_phase_3 != 0)
-    cmd->deceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (cmd->final_rate * cmd->final_rate)) / (2 * cmd->steps_phase_3);
+    cmd->deceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (cmd->final_rate * cmd->final_rate)) 
+                                / (2 * cmd->steps_phase_3);
   else
     cmd->deceleration_rate = 0;
   
@@ -711,7 +713,8 @@ uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_
   
   // d = (v^2 - u^2) / (2*a)
   if (underrun_rate > cmd->final_rate)
-    cmd->steps_to_final_speed_from_underrun_rate = ((uint32_t)(underrun_rate*underrun_rate) - (uint32_t)(cmd->final_rate*cmd->final_rate)) / (2 * AxisInfo::GetUnderrunAccelRate(primary_axis));
+    cmd->steps_to_final_speed_from_underrun_rate = ((uint32_t)(underrun_rate*underrun_rate) - (uint32_t)(cmd->final_rate*cmd->final_rate)) 
+                                                      / (2 * AxisInfo::GetUnderrunAccelRate(primary_axis));
   else
     cmd->steps_to_final_speed_from_underrun_rate = 0;
  

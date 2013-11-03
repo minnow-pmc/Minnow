@@ -54,9 +54,12 @@ uint8_t reply_msg_len = 0;
 //============================= ROUTINES =============================
 //===========================================================================
 
+// TODO - refactor these routines to do better validity checking of data & msg lengths
+
 void generate_response_start(uint8_t response_code, uint8_t expected_length_excluding_msg)
 { 
   reply_started = true;
+  reply_header[PM_SYNC_BYTE_OFFSET] = SYNC_BYTE_RESPONSE_VALUE;
   reply_header[PM_ORDER_BYTE_OFFSET] = response_code;
   reply_control_byte = (control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_header[PM_CONTROL_BYTE_OFFSET] = reply_control_byte;
@@ -247,19 +250,17 @@ void generate_response_send()
   else
     param_length = reply_expected_length_excluding_msg + reply_msg_len;
   
-  reply_header[PM_LENGTH_BYTE_OFFSET] = param_length;
+  reply_header[PM_LENGTH_BYTE_OFFSET] = param_length + 2;
 
   // TODO set event flag if required
 
 #if TRACE_RESPONSE
   DEBUGPGM("\nResp(");  
   DEBUG_F(reply_header[PM_ORDER_BYTE_OFFSET], HEX);  
-  DEBUGPGM(", len=");  
+  DEBUGPGM(", plen=");  
   DEBUG_F(param_length, DEC);  
   DEBUGPGM(", cb=");  
-  DEBUG_F(control_byte, DEC);  
-  DEBUGPGM(", rcb=");  
-  DEBUG_F(reply_control_byte, DEC);  
+  DEBUG_F(reply_header[PM_CONTROL_BYTE_OFFSET], DEC);  
   DEBUGPGM("):");  
   for (i = 0; i < param_length; i++)
   {
@@ -269,13 +270,11 @@ void generate_response_send()
   DEBUG_EOL();
 #endif  
   
-  PSERIAL.write(SYNC_BYTE_RESPONSE_VALUE);
-  for (i = 1; i < PM_HEADER_SIZE; i++)
+  for (i = 0; i < PM_HEADER_SIZE; i++)
     PSERIAL.write(reply_header[i]);
   for (i = 0; i < param_length; i++)
     PSERIAL.write(reply_buf[i]);
-  PSERIAL.write(crc8(&reply_header[PM_ORDER_BYTE_OFFSET], 
-                        (PM_HEADER_SIZE-PM_ORDER_BYTE_OFFSET)+param_length));
+  PSERIAL.write(crc8(&reply_header[1],(PM_HEADER_SIZE-1)+param_length));
   reply_started = false;
   reply_sent = true;
 }

@@ -31,8 +31,8 @@
 
 // On startup, the firmware will cycle through the following baudrates 
 // until it finds a match.
-#define AUTODETECT_BAUDRATES { 115200, 250000 }
-//#define AUTODETECT_BAUDRATES { 115200 }
+#define AUTODETECT_BAUDRATES { 115200 }
+//#define AUTODETECT_BAUDRATES { 115200, 250000 } # no currently working
 
 // Languages (uncmment one of the following languages
 #define LANGUAGE_CHOICE ENGLISH
@@ -78,6 +78,9 @@
 // ~8Hz switching period; at 1: there are 64 effective control 
 // positions with a ~16Hz switching period.
 #define DEFAULT_SOFT_PWM_SCALE 1
+
+// A host timeout is declared if the host does not send a request within this period
+#define HOST_TIMEOUT_SECS      30
 
 // Does the Arduino use an AT90USB USB Serial UART?
 #if defined (__AVR_AT90USB1287__) || defined (__AVR_AT90USB1286__) || defined (__AVR_AT90USB646__) || defined(__AVR_AT90USB647__)

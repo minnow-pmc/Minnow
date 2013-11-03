@@ -18,6 +18,7 @@
  */
  
 #include "Device_Stepper.h"
+#include "AxisInfo.h"
 #include "response.h"
 
 extern uint8_t checkDigitalPin(uint8_t pin);
@@ -64,6 +65,27 @@ uint8_t Device_Stepper::Init(uint8_t num_devices)
   num_steppers = num_devices;
   
   return APP_ERROR_TYPE_SUCCESS;
+}
+
+void Device_Stepper::WriteEnableState(uint8_t device_number, bool enable)
+{
+  // defer to AxisInfo
+  AxisInfo::WriteStepperEnableState(device_number, enable);
+}
+
+bool Device_Stepper::GetEnableInvert(uint8_t device_number)
+{
+  return AxisInfo::GetStepperEnableInvert(device_number);
+}
+
+bool Device_Stepper::GetDirectionInvert(uint8_t device_number)
+{
+  return AxisInfo::GetStepperDirectionInvert(device_number);
+}
+
+bool Device_Stepper::GetStepInvert(uint8_t device_number)
+{
+  return AxisInfo::GetStepperStepInvert(device_number);
 }
 
 uint8_t Device_Stepper::SetEnablePin(uint8_t device_number, uint8_t enable_pin)
@@ -116,3 +138,29 @@ uint8_t Device_Stepper::SetStepPin(uint8_t device_number, uint8_t step_pin)
   stepper_info_array[device_number].step_pin = step_pin;
   return APP_ERROR_TYPE_SUCCESS;
 }
+
+uint8_t Device_Stepper::SetEnableInvert(uint8_t device_number, bool value)
+{
+  return AxisInfo::SetStepperEnableInvert(device_number, value);
+}
+
+uint8_t Device_Stepper::SetDirectionInvert(uint8_t device_number, bool value)
+{
+  return AxisInfo::SetStepperDirectionInvert(device_number, value);
+}
+
+uint8_t Device_Stepper::SetStepInvert(uint8_t device_number, bool value)
+{
+  return AxisInfo::SetStepperStepInvert(device_number, value);
+}
+
+bool Device_Stepper::ValidateConfig(uint8_t device_number)
+{
+  if (device_number >= num_steppers)
+    return false;
+  StepperInfoInternal *stepper_info = &stepper_info_array[device_number];
+  return (stepper_info->enable_pin != 0xFF 
+      && stepper_info->direction_pin != 0xFF
+      && stepper_info->step_pin != 0xFF);
+}
+

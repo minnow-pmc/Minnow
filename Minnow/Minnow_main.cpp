@@ -94,6 +94,10 @@ const char *stopped_reason = 0;
 uint8_t reset_cause = 0; // cache of MCUSR register written by bootloader
 
 uint32_t first_rcvd_time; // time a byte was first received in the frame
+uint32_t last_order_time; // time the last valid order was received
+uint32_t last_idle_check; // time of last idle loop check
+
+bool is_host_active; // is host actively communicating?
 
 extern "C" {
   extern unsigned int __bss_end;
@@ -424,11 +428,20 @@ void loop()
       first_rcvd_time = millis();
     }
   }
+#else
+  static bool first_time = true;
+  if (first_time)
+  {
+    DEBUGLNPGM("starting");
+    first_time = false;
+  }
 #endif
   
   if (get_command())
   {
     autodetect_baudrates_index = 0xFF;
+    last_order_time = millis();
+    is_host_active = true;
     order_code = recv_buf[PM_ORDER_BYTE_OFFSET];
     control_byte = recv_buf[PM_CONTROL_BYTE_OFFSET];
     parameter_length = recv_buf[PM_LENGTH_BYTE_OFFSET]-2;
@@ -436,7 +449,7 @@ void loop()
 #if TRACE_ORDER
     DEBUGPGM("\nOrder(");  
     DEBUG_F(order_code, HEX);  
-    DEBUGPGM(", len=");  
+    DEBUGPGM(", plen=");  
     DEBUG_F(parameter_length, DEC);  
     DEBUGPGM(", cb=");  
     DEBUG_F(control_byte, HEX);  
@@ -486,25 +499,40 @@ void loop()
   }
 
   // Idle loop activities
+  
+  // Check if heaters need to be updated?
   if (temp_meas_ready)
   {
     Device_TemperatureSensor::UpdateTemperatureSensors();
     Device_Heater::UpdateHeaters();
   }
+
+  // Now check low-priority stuff
+  uint32_t now = millis();
+  if (now - last_idle_check > 1000) // checked every second
+  {
+    // have we heard from the host within the timeout?
+    if (now - last_order_time > (HOST_TIMEOUT_SECS * 1000) && is_host_active)
+    {
+      is_host_active = false;
+      if (!is_stopped)
+      {
+        emergency_stop(PARAM_STOPPED_CAUSE_HOST_TIMEOUT);
+      }
+    }
+    
+    last_idle_check = now;
+  }
 }
 
-void emergency_stop()
+void emergency_stop(uint8_t new_stopped_cause, uint8_t new_stopped_type
+                              /* = PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED */)
 {
   uint8_t i;
-  is_stopped = true; // this should be set by caller but just to be sure
-                     // this also causes the movement_ISR() to stop and flush queue
+  is_stopped = true; 
   stopped_is_acknowledged = false;
-  // caller should have setup what the cause is - but in case they haven't/
-  if (stopped_cause == PARAM_STOPPED_CAUSE_RESET || stopped_cause == 0xFF)
-  {
-    stopped_cause = PARAM_STOPPED_CAUSE_FIRMWARE_ERROR;
-    stopped_type = PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED;
-  }
+  stopped_cause = new_stopped_cause;
+  stopped_type = new_stopped_type;
   for (i=0; i<Device_Stepper::GetNumDevices(); i++)
   {
     Device_Stepper::WriteEnableState(i, false);

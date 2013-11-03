@@ -34,6 +34,7 @@
 #include "Device_Heater.h" 
 #include "Device_Buzzer.h" 
 #include "Device_Stepper.h" 
+#include "AxisInfo.h"
 
 #include "NVConfigStore.h" 
 #include "enqueue_command.h"
@@ -101,7 +102,7 @@ void process_command()
   switch (order_code)
   {
   case ORDER_RESET:
-    emergency_stop();
+    emergency_stop(PARAM_STOPPED_CAUSE_USER_REQUEST);
     die();
     break;
   case ORDER_RESUME:
@@ -159,7 +160,7 @@ void process_command()
     handle_firmware_configuration_value_properties((const char *)&parameter_value[0]);
     break;
   case ORDER_EMERGENCY_STOP:
-    emergency_stop();
+    emergency_stop(PARAM_STOPPED_CAUSE_USER_REQUEST);
     send_OK_response();
     break;
   case ORDER_ACTIVATE_STEPPER_CONTROL:
@@ -311,6 +312,10 @@ void handle_request_information_order()
     
   case PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE:
     generate_response_data_add(MAX_STEP_FREQUENCY);
+    break;
+    
+  case PARAM_REQUEST_INFO_HOST_TIMEOUT:
+    generate_response_data_addbyte(HOST_TIMEOUT_SECS);
     break;
     
   default:

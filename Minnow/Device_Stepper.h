@@ -21,7 +21,7 @@
 #ifndef DEVICE_STEPPER_H
 #define DEVICE_STEPPER_H
 
-#include "AxisInfo.h"
+#include "Minnow.h"
 
 // This class represents just the control information associated with the stepper 
 // motor device - not to the associated movement infomation which is primary
@@ -43,66 +43,35 @@ public:
       && stepper_info_array[device_number].enable_pin != 0xFF);
   }
 
-  FORCE_INLINE static bool ValidateConfig(uint8_t device_number)
-  {
-    if (device_number >= num_steppers)
-      return false;
-    StepperInfoInternal *stepper_info = &stepper_info_array[device_number];
-    return (stepper_info->enable_pin != 0xFF 
-        && stepper_info->direction_pin != 0xFF
-        && stepper_info->step_pin != 0xFF);
-  }
-
   FORCE_INLINE static uint8_t GetEnablePin(uint8_t device_number)
   {
     return stepper_info_array[device_number].enable_pin;
-  }
-  FORCE_INLINE static bool GetEnableInvert(uint8_t device_number)
-  {
-    return AxisInfo::GetStepperEnableInvert(device_number);
   }
   
   FORCE_INLINE static uint8_t GetDirectionPin(uint8_t device_number)
   {
     return stepper_info_array[device_number].direction_pin;
   }
-  FORCE_INLINE static bool GetDirectionInvert(uint8_t device_number)
-  {
-    return AxisInfo::GetStepperDirectionInvert(device_number);
-  }
   
   FORCE_INLINE static uint8_t GetStepPin(uint8_t device_number)
   {
     return stepper_info_array[device_number].step_pin;
   }
-  FORCE_INLINE static bool GetStepInvert(uint8_t device_number)
-  {
-    return AxisInfo::GetStepperStepInvert(device_number);
-  }
-  
-  FORCE_INLINE static void WriteEnableState(uint8_t device_number, bool enable)
-  {
-    // defer to AxisInfo
-    AxisInfo::WriteStepperEnableState(device_number, enable);
-  }
+
+  // these methods defer to AxisInfo 
+  static bool GetEnableInvert(uint8_t device_number);
+  static bool GetDirectionInvert(uint8_t device_number);
+  static bool GetStepInvert(uint8_t device_number);
+  static void WriteEnableState(uint8_t device_number, bool enable);
   
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetEnablePin(uint8_t device_number, uint8_t pin);
   static uint8_t SetDirectionPin(uint8_t device_number, uint8_t pin);
   static uint8_t SetStepPin(uint8_t device_number, uint8_t pin);
-
-  FORCE_INLINE static uint8_t SetEnableInvert(uint8_t device_number, bool value)
-  {
-    return AxisInfo::SetStepperEnableInvert(device_number, value);
-  }
-  FORCE_INLINE static uint8_t SetDirectionInvert(uint8_t device_number, bool value)
-  {
-    return AxisInfo::SetStepperDirectionInvert(device_number, value);
-  }
-  FORCE_INLINE static uint8_t SetStepInvert(uint8_t device_number, bool value)
-  {
-    return AxisInfo::SetStepperStepInvert(device_number, value);
-  }
+  static uint8_t SetEnableInvert(uint8_t device_number, bool value);
+  static uint8_t SetDirectionInvert(uint8_t device_number, bool value);
+  static uint8_t SetStepInvert(uint8_t device_number, bool value);
+  static bool ValidateConfig(uint8_t device_number);
 
   // TODO add get and sets for advanced state
 private:

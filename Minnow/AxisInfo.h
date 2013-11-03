@@ -26,6 +26,7 @@
 
 #include "Minnow.h"
 #include "movement_ISR.h"
+#include "Device_Stepper.h"
 
 //
 // Structure used internally to store all axis-specific information
@@ -75,10 +76,7 @@ public:
   
   FORCE_INLINE static bool IsInUse(uint8_t axis_number)
   {
-    // assume that you can't set the rates to non-zero values with invalid stepper config
-    return (axis_number < num_axes
-        && axis_info_array[axis_number].max_rate != 0 
-        && axis_info_array[axis_number].underrun_max_rate != 0);
+    return Device_Stepper::ValidateConfig(axis_number);
   }
 
   FORCE_INLINE static bool GetStepperEnableInvert(uint8_t axis_number)

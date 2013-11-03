@@ -85,6 +85,9 @@
 #define RSP_STOPPED                       0x12
 #define RSP_ORDER_SPECIFIC_ERROR          0x13
 
+// Unsolicited Client Frames
+#define RSP_UNSOLICITED_DEBUG_MESSAGE     0x50
+
 //
 // Response Parameter Value Definitions
 //
@@ -119,7 +122,8 @@
 #define PARAM_STOPPED_CAUSE_ELECTRICAL_ERROR              0x5
 #define PARAM_STOPPED_CAUSE_FIRMWARE_ERROR                0x6
 #define PARAM_STOPPED_CAUSE_USER_REQUEST                  0x7
-#define PARAM_STOPPED_CAUSE_OTHER_ERROR                   0x8
+#define PARAM_STOPPED_CAUSE_HOST_TIMEOUT                  0x8
+#define PARAM_STOPPED_CAUSE_OTHER_ERROR                   0x9
 
 //
 // Order Codes
@@ -190,6 +194,7 @@
 #define PARAM_REQUEST_INFO_HARDWARE_TYPE                  0xa
 #define PARAM_REQUEST_INFO_HARDWARE_REVISION              0xb
 #define PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE              0xc
+#define PARAM_REQUEST_INFO_HOST_TIMEOUT                   0xd
 
 // Get Heater Configuration
 #define PARAM_HEATER_CONFIG_INTERNAL_SENSOR_CONFIG        0x0

@@ -64,7 +64,7 @@
 //
 
 bool allocate_command_queue_memory();
-void emergency_stop();
+void emergency_stop(uint8_t stopped_cause, uint8_t stopped_type = PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED);
 void die();
 
 //
@@ -133,8 +133,8 @@ extern const char *stopped_reason;
 // calculates the number of elements in a non-zero length array   
 #define NUM_ARRAY_ELEMENTS(array) (sizeof(array)/sizeof(array[0]))
 
-#define STRINGIFY_(n) #n
 #define STRINGIFY(n) STRINGIFY_(n)
+#define STRINGIFY_(n) #n
 
 #define ARRAY(...) __VA_ARGS__ 
    
