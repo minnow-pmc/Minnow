@@ -583,47 +583,50 @@ ConfigurationTreeNode::InitializeNextChild(ConfigurationTreeNode &child) const
             (num_children_functor_type)pgm_read_word(&node_info->num_children) :
             (num_children_functor_type)pgm_read_dword(&node_info->num_children);
     
-  if (instance_child_type != NODE_TYPE_INVALID)
+  if (!IsLeafNode())
   {
-    if (child.node_type != instance_child_type)
+    if (instance_child_type != NODE_TYPE_INVALID)
     {
-      child.node_type = instance_child_type;
-      child.node_info_index = FindNodeInfoIndex(instance_child_type);
-      child.instance_id = 0;
-      return true;
+      if (child.node_type != instance_child_type)
+      {
+        child.node_type = instance_child_type;
+        child.node_info_index = FindNodeInfoIndex(instance_child_type);
+        child.instance_id = 0;
+        return true;
+      }
+      if (child.instance_id < num_children_functor() - 1)
+      {
+        child.instance_id += 1;
+        return true;
+      }
     }
-    if (child.instance_id < num_children_functor() - 1)
+    else
     {
-      child.instance_id += 1;
-      return true;
-    }
-  }
-  else
-  {
-    if (child.node_type == NODE_TYPE_INVALID)
-    {
-      child.node_type = (sizeof(node_info->named_child_types) == 2) ?
-            pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[0]) :
-            pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[0]);
-      child.node_info_index = FindNodeInfoIndex(child.node_type);
-      child.instance_id = INVALID_INSTANCE_ID;
-      return true;
-    }
-    // the functor pointer is acually storing a raw value in this case
-    const uint8_t num_children = (uint8_t)(uint32_t)num_children_functor; 
-    for (uint8_t i=0; i<num_children-1; i++)
-    {
-      const uint8_t named_child_type = (sizeof(node_info->named_child_types) == 2) ?
-            pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[i]) :
-            pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[i]);
-      if (child.node_type == named_child_type)
+      if (child.node_type == NODE_TYPE_INVALID)
       {
         child.node_type = (sizeof(node_info->named_child_types) == 2) ?
-              pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[i+1]) :
-              pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[i+1]);
+              pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[0]) :
+              pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[0]);
         child.node_info_index = FindNodeInfoIndex(child.node_type);
         child.instance_id = INVALID_INSTANCE_ID;
         return true;
+      }
+      // the functor pointer is acually storing a raw value in this case
+      const uint8_t num_children = (uint8_t)(uint32_t)num_children_functor; 
+      for (uint8_t i=0; i<num_children-1; i++)
+      {
+        const uint8_t named_child_type = (sizeof(node_info->named_child_types) == 2) ?
+              pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[i]) :
+              pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[i]);
+        if (child.node_type == named_child_type)
+        {
+          child.node_type = (sizeof(node_info->named_child_types) == 2) ?
+                pgm_read_byte(&((const uint8_t*)pgm_read_word(&node_info->named_child_types))[i+1]) :
+                pgm_read_byte(&((const uint8_t*)pgm_read_dword(&node_info->named_child_types))[i+1]);
+          child.node_info_index = FindNodeInfoIndex(child.node_type);
+          child.instance_id = INVALID_INSTANCE_ID;
+          return true;
+        }
       }
     }
   }

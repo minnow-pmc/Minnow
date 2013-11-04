@@ -253,6 +253,7 @@ void handle_request_information_order()
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
   int8_t length;
+  uint8_t value;
   
   switch(request_type)
   {
@@ -280,7 +281,7 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_PROTO_VERSION_MINOR:
-    generate_response_data_addbyte(PM_PROTCOL_VERSION_MAJOR);
+    generate_response_data_addbyte(PM_PROTCOL_VERSION_MINOR);
     break;
     
   case PARAM_REQUEST_INFO_SUPPORTED_EXTENSIONS:
@@ -306,8 +307,8 @@ void handle_request_information_order()
     break;
     
   case PARAM_REQUEST_INFO_HARDWARE_REVISION:
-    if ((length = NVConfigStore::GetHardwareRevision()) != 0xFF)
-      generate_response_data_addbyte(length);
+    if ((value = NVConfigStore::GetHardwareRevision()) != 0xFF)
+      generate_response_data_addbyte(value);
     break;
     
   case PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE:

@@ -192,11 +192,13 @@ ConfigurationTree::GetCurrentChild(const ConfigurationTreeNode *node)
   if ((uint8_t*)node >= (uint8_t*)node_array + sizeof(node_array) - sizeof(ConfigurationTreeNode))
     return 0;
 
-  ConfigurationTreeNode *child = (ConfigurationTreeNode *)node + 1;
-  if (child->IsValid())
-    return child;
-  else
-    return 0;
+  if (!node->IsLeafNode())
+  {
+    ConfigurationTreeNode *child = (ConfigurationTreeNode *)node + 1;
+    if (child->IsValid())
+      return child;
+  }
+  return 0;
 }
 
 
