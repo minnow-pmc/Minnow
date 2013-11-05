@@ -35,13 +35,13 @@ Device_Stepper::StepperAdvancedInfoInternal *Device_Stepper::stepper_advanced_in
 
 uint8_t Device_Stepper::Init(uint8_t num_devices)
 {
+  if (num_devices == num_steppers)
+    return APP_ERROR_TYPE_SUCCESS;
   if (num_steppers != 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
-  if (num_devices == 0)
-    return APP_ERROR_TYPE_SUCCESS;
 
   if (num_devices > MAX_STEPPERS)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;

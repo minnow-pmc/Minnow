@@ -39,13 +39,13 @@ SoftPwmState *Device_PwmOutput::soft_pwm_state;
 
 uint8_t Device_PwmOutput::Init(uint8_t num_devices)
 {
+  if (num_devices == num_pwm_outputs)
+    return APP_ERROR_TYPE_SUCCESS;
   if (num_pwm_outputs != 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
-  if (num_devices == 0)
-    return APP_ERROR_TYPE_SUCCESS;
 
   uint8_t *memory = (uint8_t*)malloc(num_devices * 
       (sizeof(*pwm_output_pins) + sizeof(*pwm_output_disabled)));

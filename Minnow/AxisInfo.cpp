@@ -42,13 +42,13 @@ BITMASK(MAX_ENDSTOPS) AxisInfo::endstop_trigger_level;
 
 uint8_t AxisInfo::Init(uint8_t num_devices)
 {
+  if (num_devices == num_axes)
+    return APP_ERROR_TYPE_SUCCESS;
   if (num_axes != 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
-  if (num_devices == 0)
-    return APP_ERROR_TYPE_SUCCESS;
 
   if (num_devices > MAX_STEPPERS)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;

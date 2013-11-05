@@ -41,13 +41,13 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
 {
   uint8_t i;
   
+  if (num_devices == num_heaters)
+    return APP_ERROR_TYPE_SUCCESS;
   if (num_heaters != 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
-  if (num_devices == 0)
-    return APP_ERROR_TYPE_SUCCESS;
 
   uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(HeaterInfo));
   if (memory == 0)
