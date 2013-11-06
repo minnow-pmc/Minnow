@@ -71,13 +71,7 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
   
   soft_pwm_state = 0;
   soft_pwm_device_bitmask = 0;
-
-  if (DEFAULT_HEATER_USE_SOFT_PWM)
-  {
-    for (i=0; i<min(num_devices,sizeof(soft_pwm_device_bitmask)*8); i++)
-      soft_pwm_device_bitmask |= (1 << i);
-  }
-  
+ 
   num_heaters = num_devices;
   return APP_ERROR_TYPE_SUCCESS;
 }
@@ -131,10 +125,14 @@ uint8_t Device_Heater::SetControlMode(uint8_t device_number, uint8_t mode)
   if (mode != HEATER_CONTROL_MODE_PID && mode != HEATER_CONTROL_MODE_BANG_BANG)
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
 
-  if (heater_info_array[device_number].control_mode == HEATER_CONTROL_MODE_PID
-      && mode != HEATER_CONTROL_MODE_PID)
+  if (heater_info_array[device_number].control_mode != HEATER_CONTROL_MODE_INVALID)
   {
-    free(heater_info_array[device_number].control_info.pid);
+    if (heater_info_array[device_number].control_mode != mode)
+    {
+      generate_response_msg_addPGM(PMSG(MSG_ERR_ALREADY_INITIALIZED));
+      return PARAM_APP_ERROR_TYPE_FAILED;
+    }
+    return APP_ERROR_TYPE_SUCCESS;
   }
     
   if (mode == HEATER_CONTROL_MODE_BANG_BANG)

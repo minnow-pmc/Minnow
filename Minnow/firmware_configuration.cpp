@@ -600,7 +600,7 @@ bool set_string_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t in
     retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_HEATER, parent_instance_id, value);
     break;
   case NODE_TYPE_CONFIG_LEAF_STEPPER_FRIENDLY_NAME:
-    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_HEATER, parent_instance_id, value);
+    retval = NVConfigStore::SetDeviceName(PM_DEVICE_TYPE_STEPPER, parent_instance_id, value);
     break;
 
   case NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME:

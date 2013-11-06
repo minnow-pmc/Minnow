@@ -40,8 +40,8 @@ class Device_Heater
 public:
 
 // By default Soft PWM is enabled for heaters. A large current switched 
-// at high frequency can overheat components (it not designed for it) and 
-// will generate a lot more electrical noise.
+// at high frequency can overheat components (if not designed for it) and 
+// will generate more electrical noise.
 #define DEFAULT_HEATER_USE_SOFT_PWM              1 
 
 #define DEFAULT_HEATER_POWER_ON_LEVEL            255 // == full current
