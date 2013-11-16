@@ -41,9 +41,9 @@ extern volatile bool temp_meas_ready;
 #define THERMOCOUPLE_RAW_HI_TEMP (16383-ADC_OCSC_FAULT_MARGIN) // this is opposite to a thermistor
 #define THERMOCOUPLE_RAW_LO_TEMP (0+ADC_OCSC_FAULT_MARGIN)
 
-FORCE_INLINE static float convert_raw_temp_value(uint8_t type, uint16_t raw_value)
+FORCE_INLINE static float convert_raw_temp_value(int8_t type, uint16_t raw_value)
 {
-  if (type <= LAST_THERMISTOR_SENSOR_TYPE)
+  if (type >= FIRST_THERMISTOR_SENSOR_TYPE && type <= LAST_THERMISTOR_SENSOR_TYPE)
   {
     const int16_t (*tt)[2];
     uint8_t tt_len;
