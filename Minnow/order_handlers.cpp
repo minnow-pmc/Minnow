@@ -22,11 +22,11 @@
 // 
  
 #include "order_handlers.h" 
+#include "order_helpers.h" 
 #include "Minnow.h" 
 #include "protocol.h"
 #include "response.h"
 #include "firmware_configuration.h"
-
 
 #include "Device_InputSwitch.h"
 #include "Device_OutputSwitch.h"
@@ -50,16 +50,14 @@ extern uint16_t total_executed_queued_command_count;
 //=============================private variables=============================
 //===========================================================================
 
+static bool firmware_configuration_change_made = false;
+static bool final_firmware_configuration_update_done = false;
 
 //===========================================================================
 //=============================public variables=============================
 //===========================================================================
 
-#ifdef DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
-bool stepper_control_enabled = DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY;
-#else
-bool stepper_control_enabled = false;
-#endif
+bool initial_pin_state_updated = false;
 
 //===========================================================================
 //=============================ROUTINES=============================
@@ -98,7 +96,42 @@ void process_command()
     send_stopped_response();
     return;
   }
- 
+
+  // we allow a sequence of write configuration commands
+  // to be set as configured as a group. For instance,
+  // writing the following sequence:
+  // device.stepper.0.enable_pin=48
+  // device.stepper.0.enable_invert=1
+  // ...
+  // will only result in the stepper configuration being applied when all 
+  // attributes have been applied.
+  if (firmware_configuration_change_made || !final_firmware_configuration_update_done)
+  {
+    if (!final_firmware_configuration_update_done
+        && (order_code == ORDER_SET_HEATER_TARGET_TEMP 
+            || order_code == ORDER_SET_OUTPUT_SWITCH_STATE
+            || order_code == ORDER_SET_PWM_OUTPUT_STATE
+            || order_code == ORDER_SET_OUTPUT_TONE
+            || order_code == ORDER_ACTIVATE_STEPPER_CONTROL
+            || order_code == ORDER_ENABLE_DISABLE_STEPPERS
+            || order_code == ORDER_QUEUE_COMMAND_BLOCKS))
+    {
+      // assume that once devices are activated then initial firmware
+      // configuration is complete and EEPROM state should be updated
+      firmware_configuration_change_made = false;
+      final_firmware_configuration_update_done = true;
+      update_firmware_configuration(true);
+    }
+    else if (firmware_configuration_change_made
+        && order_code != ORDER_WRITE_FIRMWARE_CONFIG_VALUE)
+    {
+      // update individual device states once firmware configuration
+      // block is done
+      firmware_configuration_change_made = false;
+      update_firmware_configuration(false);
+    }
+  }
+  
   switch (order_code)
   {
   case ORDER_RESET:
@@ -145,6 +178,7 @@ void process_command()
     handle_set_output_tone_order();
     break;
   case ORDER_WRITE_FIRMWARE_CONFIG_VALUE:
+    firmware_configuration_change_made = true;
     handle_write_firmware_configuration_value_order();
     break;
   case ORDER_READ_FIRMWARE_CONFIG_VALUE:
@@ -191,24 +225,9 @@ void process_command()
     send_app_error_response(PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER, 0);
     break;
   }
+  
 }
  
-int8_t get_num_devices(uint8_t device_type)
-{
-  switch(device_type)
-  {
-  case PM_DEVICE_TYPE_SWITCH_INPUT: return Device_InputSwitch::GetNumDevices();
-  case PM_DEVICE_TYPE_SWITCH_OUTPUT: return Device_OutputSwitch::GetNumDevices();
-  case PM_DEVICE_TYPE_PWM_OUTPUT: return Device_PwmOutput::GetNumDevices();
-  case PM_DEVICE_TYPE_STEPPER: return Device_Stepper::GetNumDevices();
-  case PM_DEVICE_TYPE_HEATER: return Device_Heater::GetNumDevices();
-  case PM_DEVICE_TYPE_TEMP_SENSOR: return Device_TemperatureSensor::GetNumDevices();
-  case PM_DEVICE_TYPE_BUZZER: return Device_Buzzer::GetNumDevices();
-  default:
-    return -1;
-  }
-}
-
 void handle_resume_order()
 {
   if (parameter_length < 1)
@@ -814,31 +833,14 @@ void handle_activate_stepper_control_order()
     send_insufficient_bytes_error_response(1);
     return; 
   }
-  if (stepper_control_enabled != parameter_value[0])
+
+  // Currently Minnow does not supported disabling on stepper control. This is 
+  // primarily only necessary for SPI controlled stepper modules which are not
+  // supported by Minnow and would complicate the initial_pin_state logic.
+  if (!parameter_value[0])
   {
-    stepper_control_enabled = parameter_value[0];
-    for (uint8_t i=0; i < Device_Stepper::GetNumDevices(); i++)
-    {
-      if (Device_Stepper::ValidateConfig(i))
-      {
-        if (stepper_control_enabled)
-        {
-          pinMode(Device_Stepper::GetEnablePin(i), OUTPUT);
-          digitalWrite(Device_Stepper::GetEnablePin(i), AxisInfo::GetStepperEnableInvert(i) ? HIGH : LOW);
-          pinMode(Device_Stepper::GetDirectionPin(i), OUTPUT);
-          digitalWrite(Device_Stepper::GetDirectionPin(i), AxisInfo::GetStepperDirectionInvert(i) ? HIGH : LOW);
-          pinMode(Device_Stepper::GetStepPin(i), OUTPUT);
-          digitalWrite(Device_Stepper::GetStepPin(i), AxisInfo::GetStepperStepInvert(i) ? HIGH : LOW);
-        }
-        else
-        {
-          Device_Stepper::WriteEnableState(i, false);
-          pinMode(Device_Stepper::GetEnablePin(i), INPUT);
-          pinMode(Device_Stepper::GetDirectionPin(i), INPUT);
-          pinMode(Device_Stepper::GetStepPin(i), INPUT);
-        }
-      }
-    }
+    send_app_error_response(PARAM_APP_ERROR_TYPE_FAILED,PMSG(MSG_ERR_NOT_SUPPORTED));
+    return;
   }
   send_OK_response();
 }
@@ -850,15 +852,7 @@ void handle_enable_disable_steppers_order()
     send_insufficient_bytes_error_response(1);
     return;
   }
-  
-#if !DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
-  if (!stepper_control_enabled)
-  {
-    send_app_error_response(PARAM_APP_ERROR_TYPE_INCORRECT_MODE, 0);  
-    return;
-  }
-#endif  
-  
+   
   if (parameter_length == 0)
   {
     for (uint8_t i=0; i<Device_Stepper::GetNumDevices(); i++)
@@ -882,17 +876,6 @@ void handle_enable_disable_steppers_order()
           PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
       return;
     }
-#if DEBUG_STEPPER_CONTROL_ACTIVATED_INITIALLY
-    if (!stepper_control_enabled)
-    {
-      // generate a fake stepper control order
-      parameter_value[0] = 1;
-      parameter_length = 1;
-      handle_activate_stepper_control_order(); // this sends OK;
-      Device_Stepper::WriteEnableState(device_number, device_state);
-      return;
-    }
-#endif     
     Device_Stepper::WriteEnableState(device_number, device_state);
   }
   send_OK_response();

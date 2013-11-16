@@ -44,7 +44,7 @@ volatile bool temp_meas_ready = false;
 // allow potentially better compiler optimization in the ISR
 uint8_t Device_TemperatureSensor::num_temperature_sensors = 0;
 uint8_t *Device_TemperatureSensor::temperature_sensor_pins;
-uint8_t *Device_TemperatureSensor::temperature_sensor_types;
+int8_t *Device_TemperatureSensor::temperature_sensor_types;
 uint16_t *Device_TemperatureSensor::temperature_sensor_isr_raw_values;
 uint16_t *Device_TemperatureSensor::temperature_sensor_raw_values;
  

@@ -32,13 +32,16 @@
 // Switches to make development testing easier
 //
 #define DEBUG_DONT_CHECK_CRC8_VALUE   0
-#define DEBUG_NOT_STOPPED_INITIALLY   1
+#define DEBUG_NOT_STOPPED_INITIALLY   0
+#define DEBUG_DISABLE_HOST_TIMEOUT    0
 
-#define APPLY_DEBUG_CONFIGURATION     0
-
+#define TRACE_ORDER                   0
 #define TRACE_RESPONSE                0
+#define TRACE_INITIAL_PIN_STATE       0
 
-#define QUEUE_DEBUG                   1
+#define QUEUE_DEBUG                   0
+#define MOVEMENT_DEBUG                0
+#define HEATER_DEBUG                  0
 
 // Some unit test support
 
@@ -305,8 +308,8 @@ class DebugSerial
       
 private:
 
-    void printNumber(bool error, unsigned long, uint8_t);
-    void printFloat(bool error, double, uint8_t);
+    void printNumber(bool error, unsigned long value, uint8_t format);
+    void printFloat(bool error, double value, uint8_t decimaldigits);
 
   #if USE_PACEMAKER_FRAMES_FOR_DEBUG
     uint8_t debug_header[PM_HEADER_SIZE];
@@ -323,29 +326,6 @@ private:
 //
 // Macros to apply configuration at boot time (useful for testing without host-based configuration) 
 //
-
-// Macro used in DEBUG_STATIC_FIRMWARE_CONFIGURATION_LIST to write a firmware configuration value.
-#define DEBUG_WRITE_FIRMWARE_CONFIGURATION(name,value) \
-do { \
-  static PROGMEM const char namePstr[] = name; \
-  static PROGMEM const char valuePstr[] = value; \
-  DEBUGPGM("WriteConfig: "); \
-  DEBUGPGM_P(namePstr); \
-  DEBUG("="); \
-  DEBUGLNPGM_P(valuePstr); \
-  strcpy_P((char *)parameter_value, namePstr); \
-  strcpy_P((char *)&parameter_value[sizeof(namePstr)], valuePstr); \
-  handle_firmware_configuration_request((char *)parameter_value, (char *)&parameter_value[sizeof(namePstr)]); \
-} while (0) \
-
-#define DEBUG_READ_FIRMWARE_CONFIGURATION(name) \
-do { \
-  static PROGMEM const char namePstr[] = name; \
-  DEBUGPGM("ReadConfig: "); \
-  DEBUGPGM_P(namePstr); \
-  strcpy_P((char *)parameter_value, namePstr); \
-  handle_firmware_configuration_request((char *)parameter_value, 0); \
-} while (0) \
 
 // Macro used in DEBUG_STATIC_COMMAND_LIST to send a Pacemaker command using an array initializer
 // for the parameter data.

@@ -57,6 +57,10 @@ public:
   }
   
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
+  
+  // These are applied to/from NVConfigStore.
+  static uint8_t SetInitialState(uint8_t device_number, uint8_t initial_state);
+  static uint8_t GetInitialState(uint8_t device_number);
 
   // Note: this write method is not used for time-critical output pins
   // such as stepper or heater pins or for queued commands executed in the ISR.
@@ -84,7 +88,8 @@ private:
 
   static uint8_t num_output_switches;
   static uint8_t *output_switch_pins;
-  static bool *output_switch_disabled;
+  static bool *output_switch_disabled; // TODO store full set state for GetDeviceStatus
+  
 };
 
 #endif

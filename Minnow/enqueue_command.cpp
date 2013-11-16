@@ -317,7 +317,7 @@ FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
 
-  if (is_stopped & target_ftemp != SENSOR_TEMPERATURE_INVALID)
+  if (is_stopped && target_ftemp != SENSOR_TEMPERATURE_INVALID)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
     return PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE;
@@ -356,7 +356,7 @@ FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pac
     {
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
     }
-    if (is_stopped & pacemaker_command[1] != 0)
+    if (is_stopped && pacemaker_command[1] != 0)
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
       return PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE;

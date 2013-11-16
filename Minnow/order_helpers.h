@@ -18,14 +18,18 @@
  */
  
 //
-// This file handles each of the Pacemaker Orders
+// This file provides shared helper/utility functions for handling orders
 // 
 
-#ifndef ORDER_HANDLERS_H
-#define ORDER_HANDLERS_H
+#ifndef ORDER_HELPERS_H
+#define ORDER_HELPERS_H
 
 #include <stdint.h>
 
-void process_command();
+int8_t get_num_devices(uint8_t num_devices);
+bool is_pin_in_use(uint8_t pin);
+
+uint8_t checkDigitalPin(uint8_t pin);
+uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 
 #endif

@@ -96,12 +96,13 @@ uint8_t Device_Stepper::SetEnablePin(uint8_t device_number, uint8_t enable_pin)
   uint8_t retval = checkDigitalPin(enable_pin);
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
-  
+
   retval = AxisInfo::SetStepperEnablePin(device_number, enable_pin);
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
   
   stepper_info_array[device_number].enable_pin = enable_pin;
+  
   return APP_ERROR_TYPE_SUCCESS;
 }
 
@@ -164,3 +165,34 @@ bool Device_Stepper::ValidateConfig(uint8_t device_number)
       && stepper_info->step_pin != 0xFF);
 }
 
+void Device_Stepper::UpdateInitialPinState(uint8_t device_number)
+{
+  if (ValidateConfig(device_number) && 
+      !AxisInfo::GetStepperEnableState(device_number))
+  {
+    uint8_t current_state;
+    uint8_t expected_state;
+    uint8_t pin;
+    
+    expected_state = GetEnableInvert(device_number) ? INITIAL_PIN_STATE_HIGH : INITIAL_PIN_STATE_LOW;
+    pin = GetEnablePin(device_number);
+    if (!retrieve_initial_pin_state(pin, &current_state) && current_state != expected_state)
+    {
+      set_initial_pin_state(pin, expected_state);
+    }
+
+    expected_state = GetDirectionInvert(device_number) ? INITIAL_PIN_STATE_HIGH : INITIAL_PIN_STATE_LOW;
+    pin = GetDirectionPin(device_number);
+    if (!retrieve_initial_pin_state(pin, &current_state) && current_state != expected_state)
+    {
+      set_initial_pin_state(pin, expected_state);
+    }
+    
+    expected_state = GetStepInvert(device_number) ? INITIAL_PIN_STATE_HIGH : INITIAL_PIN_STATE_LOW;
+    pin = GetStepPin(device_number);
+    if (!retrieve_initial_pin_state(pin, &current_state) && current_state != expected_state)
+    {
+      set_initial_pin_state(pin, expected_state);
+    }
+  }
+}

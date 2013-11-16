@@ -33,6 +33,8 @@
 #include "response.h"
 #include "crc8.h"
 #include "firmware_configuration.h"
+#include "initial_pin_state.h"
+#include "order_helpers.h"
 
 #include "movement_ISR.h"
 #include "temperature_ISR.h"
@@ -64,14 +66,15 @@ extern volatile bool temp_meas_ready;
 //=============================private variables=============================
 //===========================================================================
 
-static uint16_t recv_buf_len = 0;
-static uint8_t recv_buf[MAX_RECV_BUF_LEN];
 static PROGMEM const uint32_t autodetect_baudrates[] = AUTODETECT_BAUDRATES;
 static uint8_t autodetect_baudrates_index = 0;
 
 //===========================================================================
 //=============================public variables=============================
 //===========================================================================
+
+uint16_t recv_buf_len = 0;
+uint8_t recv_buf[MAX_RECV_BUF_LEN];
 
 uint32_t recv_count = 0;
 uint16_t recv_errors = 0;
@@ -175,88 +178,125 @@ bool allocate_command_queue_memory()
   return true;
 }
 
-void applyDebugConfiguration()
+void apply_debug_commands()
 {
-#if APPLY_DEBUG_CONFIGURATION
+#if 0
 
+  static PROGMEM const char additional_debug_configuration[] = 
+      COMMAND("#Debug commands go here. For example")
+      COMMAND("#system.command = 1")
+
+//    COMMAND("system.reset_eeprom=1")
+      
+      COMMAND("system.num_digital_inputs = 4")
+      COMMAND("devices.digital_input.0.name=XMIN")
+      COMMAND("devices.digital_input.0.pin=3")
+      COMMAND("devices.digital_input.1.name=YMIN")
+      COMMAND("devices.digital_input.1.pin=14")
+      COMMAND("devices.digital_input.2.name=ZMIN")
+      COMMAND("devices.digital_input.2.pin=18")
+
+      COMMAND("devices.digital_input.3.pin = 11")
+      COMMAND("devices.digital_input.3.enable_pullup=1")
+
+      COMMAND("system.num_digital_outputs = 3")
+      COMMAND("devices.digital_output.0.pin = 13")
+      COMMAND("devices.digital_output.0.initial_state = highz")
+
+      COMMAND("devices.digital_output.1.pin = 5")
+      COMMAND("devices.digital_output.1.initial_state = high")
+
+      COMMAND("devices.digital_output.2.pin = 6")
+      COMMAND("devices.digital_output.2.initial_state = low")
+      
+      COMMAND("system.num_pwm_outputs = 1")
+      COMMAND("devices.pwm_output.0.name = FAN")
+      COMMAND("devices.pwm_output.0.pin = 7")
+      COMMAND("devices.pwm_output.0.use_soft_pwm = 0")
+
+      COMMAND("system.num_temp_sensors=3")
+      COMMAND("devices.temp_sensor.0.name = HEND1")
+      COMMAND("devices.temp_sensor.0.pin = 8")
+      COMMAND("devices.temp_sensor.0.type = 7")
+      COMMAND("devices.temp_sensor.1.name = HEND2")
+      COMMAND("devices.temp_sensor.1.pin = 9")
+      COMMAND("devices.temp_sensor.1.type = 7")
+      COMMAND("devices.temp_sensor.2.name = HBED")
+      COMMAND("devices.temp_sensor.2.pin = 10")
+      COMMAND("devices.temp_sensor.2.type = 1")
+
+      COMMAND("system.num_steppers=5")
+      COMMAND("devices.stepper.0.name=X")
+      COMMAND("devices.stepper.0.enable_pin=38")
+      COMMAND("devices.stepper.0.direction_pin=55")
+      COMMAND("devices.stepper.0.step_pin=54")
+      COMMAND("devices.stepper.0.enable_invert=1")
+      COMMAND("devices.stepper.0.direction_invert=1")
+      COMMAND("devices.stepper.0.step_invert=0")
+      COMMAND("devices.stepper.1.name=Y")
+      COMMAND("devices.stepper.1.enable_pin=56")
+      COMMAND("devices.stepper.1.direction_pin=61")
+      COMMAND("devices.stepper.1.step_pin=60")
+      COMMAND("devices.stepper.1.enable_invert=1")
+      COMMAND("devices.stepper.1.direction_invert=0")
+      COMMAND("devices.stepper.1.step_invert=0")
+      COMMAND("devices.stepper.2.name=Z")
+      COMMAND("devices.stepper.2.enable_pin=62")
+      COMMAND("devices.stepper.2.direction_pin=48")
+      COMMAND("devices.stepper.2.step_pin=46")
+      COMMAND("devices.stepper.2.enable_invert=1")
+      COMMAND("devices.stepper.2.direction_invert=1")
+      COMMAND("devices.stepper.2.step_invert=0")
+      COMMAND("devices.stepper.3.name=E0")
+      COMMAND("devices.stepper.3.enable_pin=24")
+      COMMAND("devices.stepper.3.direction_pin=28")
+      COMMAND("devices.stepper.3.step_pin=26")
+      COMMAND("devices.stepper.3.enable_invert=1")
+      COMMAND("devices.stepper.3.direction_invert=0")
+      COMMAND("devices.stepper.3.step_invert=0")
+
+      COMMAND("system.num_heaters=3")
+      COMMAND("devices.heater.0.name=HBED")
+      COMMAND("devices.heater.0.pin=8")
+      COMMAND("devices.heater.0.max_temp=120")
+      COMMAND("devices.heater.0.power_on_level=255")
+      COMMAND("devices.heater.0.temp_sensor=2")
+      COMMAND("devices.heater.0.use_bang_bang=1")
+      COMMAND("devices.heater.0.bang_bang_hysteresis=0")
+      COMMAND("devices.heater.1.name=HEND1")
+      COMMAND("devices.heater.1.pin=10")
+      COMMAND("devices.heater.1.max_temp=250")
+      COMMAND("devices.heater.1.power_on_level=255")
+      COMMAND("devices.heater.1.temp_sensor=0")
+      COMMAND("devices.heater.1.use_pid=1")
+      COMMAND("devices.heater.1.pid_kp=87.89")
+      COMMAND("devices.heater.1.pid_ki=3.88")
+      COMMAND("devices.heater.1.pid_kd=664.28")
+            
+  ;
+
+  const char *pstr = additional_debug_configuration;
+  const char *pstr_end = additional_debug_configuration + sizeof(additional_debug_configuration);
+  
+  while (pstr < pstr_end)
+  {
+    apply_firmware_configuration_string_P(pstr);
+    pstr += strlen_P(pstr) + 1;
+  }
+
+  update_firmware_configuration(false);
+  
   DEBUG_COMMAND_ARRAY("Clear stopped", ORDER_RESUME, ARRAY({ PARAM_RESUME_TYPE_CLEAR }));
 
   DEBUG_COMMAND_ARRAY("Request Board Name", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_BOARD_NAME }) ); 
   DEBUG_COMMAND_ARRAY("Request Hardware Type", ORDER_REQUEST_INFORMATION, ARRAY({ PARAM_REQUEST_INFO_HARDWARE_TYPE }) ); 
 
-  //DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.reset_eeprom", "1");
+  DEBUG_COMMAND_ARRAY("RFCV", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.heater.0.pid_range");
+  DEBUG_COMMAND_ARRAY("RFCV", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.heater.0.use_soft_pwm");
 
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_inputs", "3");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.0.name", "XMIN");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.0.pin", "3");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.1.name", "YMIN");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.1.pin", "14");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.2.name", "ZMIN");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_input.2.pin", "18");
-
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_digital_outputs", "3");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.0.pin", "5");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.1.pin", "6");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.digital_output.2.pin", "11");
-  
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_pwm_outputs", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.name", "FAN");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.pin", "4");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.pwm_output.0.use_soft_pwm", "0");
-  
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_buzzers", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.pin", "33");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.buzzer.0.use_soft_pwm", "1");
-  
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_temp_sensors", "3");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.name", "HEND1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.pin", "13");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.0.type", "7");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.pin", "15");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.1.type", "7");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.pin", "9");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.temp_sensor.2.type", "1");
-
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_steppers", "4");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.enable_pin", "38");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.direction_pin", "55");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.direction_invert", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.step_pin", "54");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.0.enable_invert", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.enable_pin", "56");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.direction_pin", "61");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.direction_invert", "0");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.step_pin", "60");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.1.enable_invert", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.enable_pin", "62");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.direction_pin", "48");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.direction_invert", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.step_pin", "46");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.2.enable_invert", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.enable_pin", "24");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.direction_pin", "28");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.step_pin", "26");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.stepper.3.enable_invert", "1");
-
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("system.num_heaters", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.name", "HEND1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pin", "10");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.max_temp", "120");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.use_pid", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.use_bang_bang", "0");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.power_on_level", "255");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.bang_bang_hysteresis", "1");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.temp_sensor", "0");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pid_kp", "87.89");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pid_ki", "3.88");
-  DEBUG_WRITE_FIRMWARE_CONFIGURATION("devices.heater.0.pid_kd", "664.28");
-
-  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.heater.0.pid_range");
-  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.heater.0.use_soft_pwm");
-
-  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_memory");
-  DEBUG_READ_FIRMWARE_CONFIGURATION("debug.stack_low_water_mark");
-  DEBUG_READ_FIRMWARE_CONFIGURATION("stats.queue_memory");
+  DEBUG_COMMAND_ARRAY("RFCV", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_memory");
+  DEBUG_COMMAND_ARRAY("RFCV", ORDER_READ_FIRMWARE_CONFIG_VALUE, "debug.stack_low_water_mark");
+  DEBUG_COMMAND_ARRAY("RFCV", ORDER_READ_FIRMWARE_CONFIG_VALUE, "stats.queue_memory");
 
   DEBUG_COMMAND_STR("Request Num Output Switches", ORDER_DEVICE_COUNT, "\x01" );
   DEBUG_COMMAND_ARRAY("Request Input Switch 0", ORDER_GET_INPUT_SWITCH_STATE, ARRAY({ PM_DEVICE_TYPE_SWITCH_INPUT, 0 }) );
@@ -270,7 +310,6 @@ void applyDebugConfiguration()
 //  DEBUG_COMMAND_ARRAY("Set Pwm Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_PWM_OUTPUT, 0, 64, 0 }) );
    
 //  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
-  
 
   DEBUG_COMMAND_ARRAY("Configure Endstops 0", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 0, 0, 0, 0  }) );
   DEBUG_COMMAND_ARRAY("Configure Endstops 1", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 1, 1, 0, 0, 2, 0, 0 }) );
@@ -319,7 +358,7 @@ void setup()
 
   // initialize PaceMaker serial port to first value
   PSERIAL.begin(pgm_read_dword(&autodetect_baudrates[0]));
-  if (sizeof(autodetect_baudrates)/sizeof(autodetect_baudrates[0])  )
+  if (sizeof(autodetect_baudrates)/sizeof(autodetect_baudrates[0]))
     autodetect_baudrates_index = 0xFF; // no need to autodetect
 
 #if DEBUG_ENABLED  
@@ -329,8 +368,12 @@ void setup()
   NVConfigStore::Initialize();
   movement_ISR_init();
   temperature_ISR_init();
+  apply_boot_initial_pin_state();  
 
-  applyDebugConfiguration();
+  DEBUGLNPGM("starting");
+
+  apply_initial_configuration();
+  apply_debug_commands();
 }
 
 FORCE_INLINE static bool get_command()
@@ -427,13 +470,6 @@ void loop()
       recv_buf_len = 0;
       first_rcvd_time = millis();
     }
-  }
-#else
-  static bool first_time = true;
-  if (first_time)
-  {
-    DEBUGLNPGM("starting");
-    first_time = false;
   }
 #endif
   

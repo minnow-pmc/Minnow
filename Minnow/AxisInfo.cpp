@@ -39,7 +39,6 @@ BITMASK(MAX_ENDSTOPS) AxisInfo::endstop_trigger_level;
 // Methods
 //
 
-
 uint8_t AxisInfo::Init(uint8_t num_devices)
 {
   if (num_devices == num_axes)

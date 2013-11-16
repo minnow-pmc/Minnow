@@ -23,6 +23,7 @@
 
 #include "Device_OutputSwitch.h"
 #include "response.h"
+#include "initial_pin_state.h"
 
 extern uint8_t checkDigitalPin(uint8_t pin);
 
@@ -56,6 +57,7 @@ uint8_t Device_OutputSwitch::Init(uint8_t num_devices)
   output_switch_disabled = (bool*)(output_switch_pins + num_devices);
   
   memset(output_switch_pins, 0xFF, num_devices * sizeof(*output_switch_pins));
+
   memset(output_switch_disabled, true, num_devices * sizeof(*output_switch_disabled));
 
   num_output_switches = num_devices;
@@ -73,7 +75,48 @@ uint8_t Device_OutputSwitch::SetPin(uint8_t device_number, uint8_t pin)
     return retval;
   
   output_switch_pins[device_number] = pin;
+
+  uint8_t initial_state = INITIAL_PIN_STATE_HIGHZ;
+  (void) retrieve_initial_pin_state(pin, &initial_state);
+  output_switch_disabled[device_number] =
+    (initial_state == INITIAL_PIN_STATE_PULLUP
+      || initial_state == INITIAL_PIN_STATE_HIGHZ);
+
   return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t Device_OutputSwitch::SetInitialState(uint8_t device_number, uint8_t initial_state)
+{
+  if (device_number >= num_output_switches)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+  uint8_t pin = output_switch_pins[device_number];
+  if (pin == 0xFF)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+  uint8_t retval = set_initial_pin_state(pin, initial_state);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+    return retval;
+
+  output_switch_disabled[device_number] =
+    (initial_state == INITIAL_PIN_STATE_PULLUP
+      || initial_state == INITIAL_PIN_STATE_HIGHZ);
+  
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+uint8_t Device_OutputSwitch::GetInitialState(uint8_t device_number)
+{
+  if (device_number >= num_output_switches)
+    return INITIAL_PIN_STATE_HIGHZ;
+
+  uint8_t pin = output_switch_pins[device_number];
+  if (pin == 0xFF)
+    return INITIAL_PIN_STATE_HIGHZ;
+  
+  uint8_t state = INITIAL_PIN_STATE_HIGHZ;
+  (void)retrieve_initial_pin_state(pin, &state);
+  return state;
 }
 
 

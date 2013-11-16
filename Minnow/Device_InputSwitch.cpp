@@ -23,6 +23,7 @@
 
 #include "Device_InputSwitch.h"
 #include "response.h"
+#include "initial_pin_state.h"
 
 extern uint8_t checkDigitalPin(uint8_t pin);
 
@@ -53,7 +54,9 @@ uint8_t Device_InputSwitch::Init(uint8_t num_devices)
   input_switch_info = (InputSwitchInfoInternal *)memory;
   
   for (uint8_t i=0; i < num_devices; i++)
+  {
     input_switch_info[i].pin = 0xFF;
+  }
 
   num_input_switches = num_devices;
   return APP_ERROR_TYPE_SUCCESS;
@@ -77,5 +80,31 @@ uint8_t Device_InputSwitch::SetPin(uint8_t device_number, uint8_t pin)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
+uint8_t Device_InputSwitch::SetEnablePullup(uint8_t device_number, bool enable)
+{
+  if (device_number >= num_input_switches)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
+  uint8_t pin = input_switch_info[device_number].pin;
+  if (pin == 0xFF)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+  
+  set_initial_pin_state(pin, (enable) ? INITIAL_PIN_STATE_PULLUP : INITIAL_PIN_STATE_HIGHZ);
+  
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
+bool Device_InputSwitch::GetEnablePullup(uint8_t device_number)
+{
+  if (device_number >= num_input_switches)
+    return false;
+
+  uint8_t pin = input_switch_info[device_number].pin;
+  if (pin == 0xFF)
+    return false;
+  
+  uint8_t state = INITIAL_PIN_STATE_HIGHZ;
+  (void)retrieve_initial_pin_state(pin, &state);
+  return (state == INITIAL_PIN_STATE_PULLUP);
+}
     

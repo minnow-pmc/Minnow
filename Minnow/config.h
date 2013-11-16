@@ -25,6 +25,7 @@
 #define CONFIG_H
 
 #include "protocol.h"
+#include "initial_pin_state.h"
 
 // This is the serial port that the firmware uses to communicate with the host
 #define SERIAL_PORT 0
@@ -61,7 +62,8 @@
 // there is no benfit of reducing below 8.
 #define MAX_STEPPERS 8    
 #define MAX_ENDSTOPS 8
-                                                      
+
+                                                     
 
 //
 // Advanced Configuration Options
@@ -88,5 +90,40 @@
 #endif  
 
 #define MAX_STEP_FREQUENCY 40000 // Max step frequency (5000 pps / half step)
+
+/////////////////////////////////////////////////////////////////////////////////
+// Boot time configuration (optional)
+//
+
+// By default Minnow stores a pin's initial state in EEPROM so that at boot 
+// time the pin's initial state is automatically set according to the firmware  
+// configuration used prior to reboot (this is done for just the pin state
+// and not all of the configuration). All unspecified pins are left in their 
+// default high-impedance state. This should be sufficient for most situations 
+// - this provides boot time application of the previous "initial_state" value 
+// coupled with the convenience of host-based configuration.
+//
+// If however special circumstances or poor board design require that certain 
+// pins must ALWAYS be set high, set low or internally pulled up at boot time - 
+// irrespective of the previous configuration or lack thereof - then these can 
+// here using the following pin lists.
+//
+
+MINNOW_INITIAL_LOW_PINS { /* 13, 14, 15 */ };
+MINNOW_INITIAL_HIGH_PINS { /* 16, 17 */ };
+MINNOW_INITIAL_PULLUP_PINS { /* 18 */ };
+
+//
+// Minnow normally receives its hardware configuration from the host. The 
+// following structure however allows some elements of configuration to be 
+// automatically (and always) applied at boot time.
+//
+
+START_MINNOW_INITIAL_CONFIGURATION
+//   COMMAND("special.command.a = 1") 
+//   COMMAND("special.command.b = 2") 
+END_MINNOW_INITIAL_CONFIGURATION
+
+
 
 #endif

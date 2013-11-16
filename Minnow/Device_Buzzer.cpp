@@ -23,6 +23,7 @@
 
 #include "Device_Buzzer.h"
 #include "response.h"
+#include "initial_pin_state.h"
 
 extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 
@@ -75,7 +76,8 @@ uint8_t Device_Buzzer::SetPin(uint8_t device_number, uint8_t pin)
     return retval;
   
   buzzer_pins[device_number] = pin;
-  pinMode(pin, OUTPUT);
+
+  set_initial_pin_state(pin, INITIAL_PIN_STATE_LOW);
   return APP_ERROR_TYPE_SUCCESS;
 }
 

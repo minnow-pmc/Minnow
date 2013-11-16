@@ -36,12 +36,12 @@
 //=============================private variables=============================
 //===========================================================================
 
-static uint8_t reply_header[PM_HEADER_SIZE];
-static uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH]; // must follow directly after reply_header
-
 //===========================================================================
 //=============================public variables=============================
 //===========================================================================
+
+uint8_t reply_header[PM_HEADER_SIZE];
+uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH]; // must follow directly after reply_header
 
 bool reply_sent = false;
 bool reply_started = false;
@@ -49,6 +49,7 @@ uint8_t reply_control_byte = 0xFF;
 uint8_t reply_expected_length_excluding_msg = 0;
 uint8_t reply_data_len = 0;
 uint8_t reply_msg_len = 0;
+bool response_squelch = false;
 
 //===========================================================================
 //============================= ROUTINES =============================
@@ -245,6 +246,9 @@ void generate_response_send()
 {
   uint8_t param_length;
   uint8_t i;
+  
+  if (response_squelch)
+    return;
   
   if (reply_msg_len == 0)
     param_length = reply_data_len;

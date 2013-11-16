@@ -44,9 +44,11 @@ Currently supported firmware configuration commands:
 * Device configuration elements
   - devices.digital_input.<device number>.name
   - devices.digital_input.<device number>.pin
+  - devices.digital_input.<device number>.enable_pullup
   
   - devices.digital_output.<device number>.name
   - devices.digital_output.<device number>.pin
+  - devices.digital_output.<device number>.initial_state
   
   - devices.pwm_output.<device number>.name
   - devices.pwm_output.<device number>.pin

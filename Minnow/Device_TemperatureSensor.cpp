@@ -35,6 +35,12 @@ extern volatile bool temp_meas_ready;
 // Methods
 //
 
+//
+// Set the raw measurement limits for detecting a open-circuit/short-circuit 
+//
+#define THERMOCOUPLE_RAW_HI_TEMP (16383-ADC_OCSC_FAULT_MARGIN) // this is opposite to a thermistor
+#define THERMOCOUPLE_RAW_LO_TEMP (0+ADC_OCSC_FAULT_MARGIN)
+
 FORCE_INLINE static float convert_raw_temp_value(uint8_t type, uint16_t raw_value)
 {
   if (type <= LAST_THERMISTOR_SENSOR_TYPE)
@@ -64,7 +70,7 @@ FORCE_INLINE static float convert_raw_temp_value(uint8_t type, uint16_t raw_valu
     }
     
     // remember raw values are inverse of temperatures for thermistors.
-    if (raw_value < THERMMISTOR_RAW_HI_TEMP || raw_value > THERMMISTOR_RAW_LO_TEMP) 
+    if (raw_value < THERMISTOR_RAW_HI_TEMP || raw_value > THERMISTOR_RAW_LO_TEMP) 
       return SENSOR_TEMPERATURE_INVALID;
     
     #define PGM_RD_W(x)   (int16_t)pgm_read_word(&x)
@@ -90,9 +96,16 @@ FORCE_INLINE static float convert_raw_temp_value(uint8_t type, uint16_t raw_valu
     celsius = PGM_RD_W(tt[i-1][1]);
     return celsius;
   }
+  else if (type == -1) // AD595 thermocouple
+  {
+    if (raw_value > THERMOCOUPLE_RAW_HI_TEMP || raw_value < THERMOCOUPLE_RAW_LO_TEMP)
+      return SENSOR_TEMPERATURE_INVALID;
+
+    return ((raw_value * ((5.0 * 100.0) / 1024.0) / OVERSAMPLENR) * TEMP_SENSOR_AD595_GAIN) 
+                + TEMP_SENSOR_AD595_OFFSET;
+  }
   else
   {
-    // TODO implement thermocouple types
     return SENSOR_TEMPERATURE_INVALID;
   }
 }
@@ -120,7 +133,7 @@ uint8_t Device_TemperatureSensor::Init(uint8_t num_devices)
   }
 
   temperature_sensor_pins = memory;
-  temperature_sensor_types = temperature_sensor_pins + num_devices;
+  temperature_sensor_types = (int8_t *)(temperature_sensor_pins + num_devices);
   temperature_sensor_isr_raw_values = (uint16_t *)(temperature_sensor_types + num_devices);
   temperature_sensor_raw_values = temperature_sensor_isr_raw_values + num_devices;
   temperature_sensor_current_temps = (float *)(temperature_sensor_raw_values + num_devices);
@@ -157,25 +170,39 @@ uint8_t Device_TemperatureSensor::SetPin(uint8_t device_number, uint8_t pin)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t Device_TemperatureSensor::SetType(uint8_t device_number, uint8_t type)
+uint8_t Device_TemperatureSensor::SetType(uint8_t device_number, int16_t type)
 {
   if (device_number >= num_temperature_sensors)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
-  if (type > LAST_THERMISTOR_SENSOR_TYPE || type == TEMP_SENSOR_TYPE_INVALID)
+  if (type == 0)
   {
-    generate_response_msg_addPGM(PMSG(MSG_ERR_UNKNOWN_VALUE));
-    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+    temperature_sensor_types[device_number] = type;
+    return APP_ERROR_TYPE_SUCCESS;
   }
   
-  if (type <= LAST_THERMISTOR_SENSOR_TYPE)
+  if (type >= FIRST_THERMISTOR_SENSOR_TYPE && type <= LAST_THERMISTOR_SENSOR_TYPE)
   {
     // for now, do conversion as simple way of checking type validity
-    if (convert_raw_temp_value(type, THERMMISTOR_RAW_HI_TEMP) == SENSOR_TEMPERATURE_INVALID)
+    if (convert_raw_temp_value(type, THERMISTOR_RAW_HI_TEMP) == SENSOR_TEMPERATURE_INVALID)
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_UNKNOWN_VALUE));
       return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
     }
+  }
+  else if (type >= FIRST_THERMOCOUPLE_SENSOR_TYPE && type <= LAST_THERMOCOUPLE_SENSOR_TYPE)
+  {
+    // for now, do conversion as simple way of checking type validity
+    if (convert_raw_temp_value(type, THERMOCOUPLE_RAW_HI_TEMP) == SENSOR_TEMPERATURE_INVALID)
+    {
+      generate_response_msg_addPGM(PMSG(MSG_ERR_UNKNOWN_VALUE));
+      return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
+    }
+  }
+  else
+  {
+    generate_response_msg_addPGM(PMSG(MSG_ERR_UNKNOWN_VALUE));
+    return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   }
   
   if (temperature_sensor_pins[device_number] == 0xFF)
@@ -185,6 +212,9 @@ uint8_t Device_TemperatureSensor::SetType(uint8_t device_number, uint8_t type)
   }
 
   const uint8_t pin = temperature_sensor_pins[device_number];
+
+  // setup A2D pin
+  pinMode(pin, INPUT);
   if (pin < 8)
   {
     DIDR0 |= 1 << pin; 

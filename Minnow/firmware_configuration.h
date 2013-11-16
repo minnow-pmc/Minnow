@@ -30,7 +30,12 @@ void handle_firmware_configuration_request(const char *name, const char *value);
 void handle_firmware_configuration_traversal(const char *name);
 void handle_firmware_configuration_value_properties(const char *name);
 
-uint8_t checkDigitalPin(uint8_t pin);
-uint8_t checkAnalogOrDigitalPin(uint8_t pin);
+
+void apply_initial_configuration();
+
+void apply_firmware_configuration_string_P(const char *str);
+
+void update_firmware_configuration(bool final);
+
 
 #endif

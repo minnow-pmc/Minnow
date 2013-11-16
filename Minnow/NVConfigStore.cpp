@@ -28,6 +28,7 @@
 
 #include "Minnow.h"
 #include "response.h"
+#include "initial_pin_state.h"
 
 #if USE_EEPROM
 #include <avr/eeprom.h>
@@ -105,13 +106,17 @@ NVConfigStore::Initialize()
 #if USE_EEPROM
   uint8_t format_num = eeprom_read_byte((uint8_t*)FORMAT_NUMBER_OFFSET);
   uint16_t data_length_num = eeprom_read_word((uint16_t*)DATA_LENGTH_OFFSET);
-  uint16_t device_name_table_offset = eeprom_read_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET);
+  uint16_t device_name_table_offset = eeprom_read_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET_OFFSET);
   uint8_t device_name_length = eeprom_read_byte((uint8_t*)DEVICE_NAME_LENGTH_OFFSET);
+  uint16_t initial_pin_state_table_offset = eeprom_read_word((uint16_t*)INITIAL_PIN_STATE_TABLE_OFFSET_OFFSET);
+  uint8_t initial_pin_state_table_length = eeprom_read_byte((uint8_t*)INITIAL_PIN_STATE_TABLE_LENGTH_OFFSET);
   
   if ((format_num < EEPROM_FORMAT_VERSION || format_num == 0xFF)
       || data_length_num < EEPROM_DATA_LENGTH
       || device_name_table_offset != DEVICE_NAME_TABLE_OFFSET
-      || device_name_length != MAX_DEVICE_NAME_LENGTH)
+      || device_name_length != MAX_DEVICE_NAME_LENGTH
+      || initial_pin_state_table_offset != INITIAL_PIN_STATE_TABLE_OFFSET
+      || initial_pin_state_table_length != 2*MAX_NUM_INITIAL_PIN_STATES)
   {
     WriteDefaults(false);
   }
@@ -130,15 +135,31 @@ NVConfigStore::WriteDefaults(bool reset_all)
   // do we need to reset the device name cache?
   uint16_t old_device_name_table_offset = eeprom_read_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET);
   uint8_t old_device_name_length = eeprom_read_byte((uint8_t*)DEVICE_NAME_LENGTH_OFFSET);
-  if (old_device_name_table_offset != EEPROM_NAME_STORE_OFFSET
+  if (old_device_name_table_offset != DEVICE_NAME_TABLE_OFFSET
       || old_device_name_length != MAX_DEVICE_NAME_LENGTH
       || reset_all)
   {
-    for (uint8_t* addr=(uint8_t*)EEPROM_NAME_STORE_OFFSET; addr<(uint8_t*)E2END; addr += MAX_DEVICE_NAME_LENGTH + 2)
+    for (uint8_t* addr=(uint8_t*)DEVICE_NAME_TABLE_OFFSET; addr<(uint8_t*)E2END; addr += MAX_DEVICE_NAME_LENGTH + 2)
       eeprom_update_byte(addr,0xFF); // we only need to reset the device type to 0xFF
   }
+  eeprom_update_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET, DEVICE_NAME_TABLE_OFFSET);
   eeprom_update_byte((uint8_t*)DEVICE_NAME_LENGTH_OFFSET, MAX_DEVICE_NAME_LENGTH);
-  eeprom_update_word((uint16_t*)DEVICE_NAME_TABLE_OFFSET, EEPROM_NAME_STORE_OFFSET);
+  
+  // do we need to reset the initial pin state cache?
+  uint16_t old_initial_pin_state_table_offset = eeprom_read_word((uint16_t*)INITIAL_PIN_STATE_TABLE_OFFSET_OFFSET);
+  uint8_t old_initial_pin_state_table_length = eeprom_read_byte((uint8_t*)INITIAL_PIN_STATE_TABLE_LENGTH_OFFSET);
+  if (old_initial_pin_state_table_offset != INITIAL_PIN_STATE_TABLE_OFFSET
+      || old_initial_pin_state_table_length != 2*MAX_NUM_INITIAL_PIN_STATES
+      || reset_all)
+  {
+    for (uint8_t* addr=(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET; 
+      addr<(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET + (2*MAX_NUM_INITIAL_PIN_STATES); addr += 2)
+    {
+      eeprom_update_byte(addr,0xFF); // we only need to reset the pin to 0xFF
+    }
+  }
+  eeprom_update_word((uint16_t*)INITIAL_PIN_STATE_TABLE_OFFSET_OFFSET, INITIAL_PIN_STATE_TABLE_OFFSET);
+  eeprom_update_byte((uint8_t*)INITIAL_PIN_STATE_TABLE_LENGTH_OFFSET, 2*MAX_NUM_INITIAL_PIN_STATES);
 
   // reset other values
   eeprom_update_byte((uint8_t*)HARDWARE_TYPE_OFFSET, DEFAULT_HARDWARE_TYPE);
@@ -208,7 +229,7 @@ NVConfigStore::GetHardwareRevision()
 int8_t NVConfigStore::GetDeviceName(uint8_t device_type, uint8_t device_number, char *buffer, uint8_t buffer_len)
 {
 #if USE_EEPROM
-  uint8_t *address = (uint8_t *)EEPROM_NAME_STORE_OFFSET;
+  uint8_t *address = (uint8_t *)DEVICE_NAME_TABLE_OFFSET;
   while (address < (uint8_t*)E2END)
   {
     if (device_type == eeprom_read_byte(address) && device_number == eeprom_read_byte(address+1))
@@ -276,7 +297,7 @@ uint8_t NVConfigStore::SetHardwareRevision(uint8_t rev)
 uint8_t NVConfigStore::SetDeviceName(uint8_t device_type, uint8_t device_number, const char *buffer)
 {
 #if USE_EEPROM
-  uint8_t *address = (uint8_t*)EEPROM_NAME_STORE_OFFSET;
+  uint8_t *address = (uint8_t*)DEVICE_NAME_TABLE_OFFSET;
   while (address < (uint8_t*)E2END)
   {
     uint8_t type = eeprom_read_byte(address);
@@ -299,3 +320,76 @@ uint8_t NVConfigStore::SetDeviceName(uint8_t device_type, uint8_t device_number,
 #endif  
 }
 
+uint8_t NVConfigStore::GetInitialPinState(uint8_t pin)
+{
+#if USE_EEPROM
+  for (uint8_t *address=(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET; 
+          address<(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET+(2*MAX_NUM_INITIAL_PIN_STATES); address+=2)
+  {
+    uint8_t read_pin = eeprom_read_byte(address);
+    if (read_pin == pin)
+      return eeprom_read_byte(address + 1);
+  }
+  return INITIAL_PIN_STATE_HIGHZ;
+#else
+  return INITIAL_PIN_STATE_HIGHZ;
+#endif  
+}
+
+uint8_t NVConfigStore::SetInitialPinState(uint8_t pin, uint8_t initial_state)
+{
+#if USE_EEPROM
+  uint8_t *free_slot_address = 0;
+  for (uint8_t *address=(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET; 
+          address<(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET+(2*MAX_NUM_INITIAL_PIN_STATES); address+=2)
+  {
+    uint8_t read_pin = eeprom_read_byte(address);
+    if (read_pin == 0xFF)
+    {
+      if (free_slot_address == 0)
+        free_slot_address = address;
+    }
+    else if (read_pin == pin)
+    {
+      if (initial_state == INITIAL_PIN_STATE_HIGHZ)
+      {
+        // as this is the default initial pin state we actually just remove the entry
+        eeprom_update_byte(address,0xFF);
+      }
+      else
+      {
+        eeprom_update_byte(address + 1, initial_state);
+      }
+      return APP_ERROR_TYPE_SUCCESS;
+    }
+  }
+  if (free_slot_address == 0)
+    return PARAM_APP_ERROR_TYPE_FAILED;
+  eeprom_update_byte(free_slot_address, pin);
+  eeprom_update_byte(free_slot_address + 1, initial_state);
+  return APP_ERROR_TYPE_SUCCESS;
+#else
+  generate_response_msg_addPGM(PMSG(MSG_ERR_EEPROM_NOT_ENABLED));
+  return PARAM_APP_ERROR_TYPE_FAILED;
+#endif  
+}
+
+uint8_t NVConfigStore::GetNextInitialPinState(uint8_t *index, uint8_t *initial_state)
+{
+#if USE_EEPROM
+  for (uint8_t *address=(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET + (2 * *index); 
+          address<(uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET+(2*MAX_NUM_INITIAL_PIN_STATES); address+=2)
+  {
+    uint8_t read_pin = eeprom_read_byte(address);
+    if (read_pin == 0xFF)
+      continue;
+    // found next entry
+    *index = ((address - (uint8_t*)INITIAL_PIN_STATE_TABLE_OFFSET) / 2) + 1;
+    *initial_state = eeprom_read_byte(address + 1);
+    return read_pin;
+  }
+  return 0xFF;
+#else
+  return 0xFF;
+#endif  
+}

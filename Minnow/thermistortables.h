@@ -64,10 +64,10 @@
 #define TT_NAME(_N) _TT_NAME(_N)
 #define _TT_NAME(_N) temptable_ ## _N
 
-#define ADC_OCSC_FAULT_MARGIN   (OVERSAMPLENR/2)  // Open-circuit/ short-circuit measurement margin
+#define ADC_OCSC_FAULT_MARGIN   (4*OVERSAMPLENR)  // Open-circuit/ short-circuit measurement margin
 
-#define THERMMISTOR_RAW_HI_TEMP (0+ADC_OCSC_FAULT_MARGIN)
-#define THERMMISTOR_RAW_LO_TEMP (16383-ADC_OCSC_FAULT_MARGIN)
+#define THERMISTOR_RAW_HI_TEMP (0+ADC_OCSC_FAULT_MARGIN)
+#define THERMISTOR_RAW_LO_TEMP (16383-ADC_OCSC_FAULT_MARGIN)
 
 #if ENABLE_THERMISTOR_TYPE_1 //100k EPCOS bed thermistor (4.7K pullup)
 const int16_t temptable_1[][2] PROGMEM = {

@@ -50,6 +50,10 @@ public:
   
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
+  
+  // These are applied to/from NVConfigStore.  
+  static uint8_t SetEnablePullup(uint8_t device_number, bool enable);
+  static bool GetEnablePullup(uint8_t device_number);
 
   FORCE_INLINE static bool ReadState(uint8_t device_number)
   {

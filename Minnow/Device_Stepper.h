@@ -73,6 +73,8 @@ public:
   static uint8_t SetStepInvert(uint8_t device_number, bool value);
   static bool ValidateConfig(uint8_t device_number);
 
+  static void UpdateInitialPinState(uint8_t device_number);
+  
   // TODO add get and sets for advanced state
 private:
 

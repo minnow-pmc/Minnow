@@ -21,6 +21,7 @@
 #include "Device_TemperatureSensor.h"
 #include "temperature_ISR.h"
 #include "response.h"
+#include "initial_pin_state.h"
 
 extern uint8_t checkAnalogOrDigitalPin(uint8_t pin);
 
@@ -86,6 +87,8 @@ uint8_t Device_Heater::SetHeaterPin(uint8_t device_number, uint8_t heater_pin)
     return retval;
   
   heater_info_array[device_number].heater_pin = heater_pin;
+  
+  set_initial_pin_state(heater_pin, INITIAL_PIN_STATE_LOW);
   
   if (DEFAULT_HEATER_USE_SOFT_PWM)
   {

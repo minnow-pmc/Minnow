@@ -68,7 +68,7 @@ class AxisInfo
 public:
 
   static uint8_t Init(uint8_t num_axes);
-  
+   
   FORCE_INLINE static uint8_t GetNumAxes()
   {
     return num_axes;
@@ -86,12 +86,12 @@ public:
 
   FORCE_INLINE static bool GetStepperDirectionInvert(uint8_t axis_number)
   {
-    return axis_info_array[axis_number].stepper_enable_invert;
+    return axis_info_array[axis_number].stepper_direction_invert;
   }
 
   FORCE_INLINE static bool GetStepperStepInvert(uint8_t axis_number)
   {
-    return axis_info_array[axis_number].stepper_enable_invert;
+    return axis_info_array[axis_number].stepper_step_invert;
   }
 
   FORCE_INLINE static uint16_t GetAxisMaxRate(uint8_t axis_number)
