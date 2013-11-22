@@ -369,6 +369,14 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
     case NODE_TYPE_CONFIG_LEAF_HEATER_USE_SOFT_PWM:
       generate_response_data_addbyte(Device_Heater::GetSoftPwmState(parent_instance_id) ? '1' : '0');
       break;
+    case NODE_TYPE_CONFIG_LEAF_HEATER_USE_BANG_BANG:
+      generate_response_data_addbyte(
+        (Device_Heater::GetControlMode(parent_instance_id) == HEATER_CONTROL_MODE_BANG_BANG) ? '1' : '0');
+      break;
+    case NODE_TYPE_CONFIG_LEAF_HEATER_USE_PID:
+      generate_response_data_addbyte(
+        (Device_Heater::GetControlMode(parent_instance_id) == HEATER_CONTROL_MODE_PID) ? '1' : '0');
+      break;
     case NODE_TYPE_CONFIG_LEAF_HEATER_BANG_BANG_HYSTERESIS:
       if (Device_Heater::GetControlMode(parent_instance_id) == HEATER_CONTROL_MODE_BANG_BANG)
         generate_response_data_addbyte(Device_Heater::GetBangBangHysteresis(parent_instance_id));

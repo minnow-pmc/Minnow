@@ -73,10 +73,10 @@ void enqueue_command()
     if (length < 2 || ptr + length < parameter_value + parameter_length)
     {
       generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-      generate_response_msg_addbyte((parameter_value + parameter_length) - (ptr + length));
-      generate_response_msg_add(", ");
+      generate_response_msg_add_ascii_number((parameter_value + parameter_length) - (ptr + length));
+      generate_response_msg_addPGM(PSTR(", "));
       generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-      generate_response_msg_addbyte(parameter_length + length); 
+      generate_response_msg_add_ascii_number(parameter_length + length); 
       send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_MALFORMED_BLOCK, index);
       return;
     }
@@ -106,9 +106,7 @@ void enqueue_command()
         break;
       default:
         generate_response_msg_addPGM(PMSG(ERR_MSG_QUEUE_ORDER_NOT_PERMITTED));
-        char code[4];
-        utoa(*(ptr-1), code, 10);
-        generate_response_msg_add(code);
+        generate_response_msg_add_ascii_number(*(ptr-1));
         send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_ERROR_IN_COMMAND_BLOCK, index, PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER);
         return;
       }
@@ -157,10 +155,10 @@ void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t error_c
 uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes)
 {
   generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-  generate_response_msg_addbyte(rcvd_num_bytes);
-  generate_response_msg_add(", ");
+  generate_response_msg_add_ascii_number(rcvd_num_bytes);
+  generate_response_msg_addPGM(PSTR(", "));
   generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-  generate_response_msg_addbyte(expected_num_bytes);
+  generate_response_msg_add_ascii_number(expected_num_bytes);
   return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
 }
  

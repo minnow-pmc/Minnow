@@ -55,6 +55,7 @@ bool response_squelch = false;
 //============================= ROUTINES =============================
 //===========================================================================
 
+
 // TODO - refactor these routines to do better validity checking of data & msg lengths
 
 void generate_response_start(uint8_t response_code, uint8_t expected_length_excluding_msg)
@@ -228,6 +229,36 @@ void generate_response_msg_clear()
 {
   reply_msg_len = 0;
 }
+void generate_response_msg_add_ascii_number(int32_t num, uint8_t base)
+{
+  uint8_t buf[8 * sizeof(long)]; // Assumes 8-bit chars. 
+  uint8_t i = 0;
+
+  if (num == 0) 
+  {
+    generate_response_msg_addbyte((uint8_t)'0');
+    return;
+  } 
+
+  if (base == 10 && num < 0)
+  {
+    generate_response_msg_addbyte((uint8_t)'-');
+    num = -num;
+  }
+  
+  while (num > 0) 
+  {
+    buf[i++] = num % base;
+    num /= base;
+  }
+
+  for (; i > 0; i--)
+  {
+    generate_response_msg_addbyte(buf[i - 1] < 10 ?
+      '0' + buf[i - 1] :
+      'A' + buf[i - 1] - 10);
+  }
+}
 uint8_t *generate_response_msg_ptr()
 {
   return &reply_buf[reply_expected_length_excluding_msg + reply_msg_len];
@@ -304,10 +335,10 @@ void send_insufficient_bytes_error_response(uint8_t expected_num_bytes, uint8_t 
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT);
   generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-  generate_response_msg_add(actual_bytes); // TODO print as ascii
-  generate_response_msg_add(", ");
+  generate_response_msg_add_ascii_number(actual_bytes);
+  generate_response_msg_addPGM(PSTR(", "));
   generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-  generate_response_msg_addbyte(expected_num_bytes); // TODO print as ascii
+  generate_response_msg_add_ascii_number(expected_num_bytes);
   generate_response_send();
 }
 
@@ -316,7 +347,7 @@ void send_app_error_at_offset_response(uint8_t error_type, uint8_t parameter_off
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(error_type);
   generate_response_msg_addPGM(PMSG(ERR_MSG_GENERIC_APP_AT_OFFSET));
-  generate_response_msg_add(parameter_offset); // TODO print as ascii
+  generate_response_msg_add_ascii_number(parameter_offset);
   generate_response_send();
 }
 
@@ -329,13 +360,13 @@ void send_app_error_response(uint8_t error_type, const char *msg_pstr)
   generate_response_send();
 }
 
-void send_app_error_response(uint8_t error_type, const char *msg_pstr, uint16_t msg_num_value)
+void send_app_error_response(uint8_t error_type, const char *msg_pstr, int32_t msg_num_value)
 {
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   generate_response_data_addbyte(error_type);
   if (msg_pstr != 0)
     generate_response_msg_addPGM(msg_pstr);
-  generate_response_msg_add(msg_num_value);    
+  generate_response_msg_add_ascii_number(msg_num_value);    
   generate_response_send();
 }
 

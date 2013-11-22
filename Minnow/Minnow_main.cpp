@@ -188,6 +188,17 @@ void apply_debug_commands()
 
 //    COMMAND("system.reset_eeprom=1")
       
+      COMMAND("system.num_temp_sensors=3")
+      COMMAND("devices.temp_sensor.0.name = HEND1")
+      COMMAND("devices.temp_sensor.0.pin = 8")
+      COMMAND("devices.temp_sensor.0.type = -1")
+      COMMAND("devices.temp_sensor.1.name = HEND2")
+      COMMAND("devices.temp_sensor.1.pin = 9")
+      COMMAND("devices.temp_sensor.1.type = 7")
+      COMMAND("devices.temp_sensor.2.name = HBED")
+      COMMAND("devices.temp_sensor.2.pin = 10")
+      COMMAND("devices.temp_sensor.2.type = 1")
+
       COMMAND("system.num_digital_inputs = 4")
       COMMAND("devices.digital_input.0.name=XMIN")
       COMMAND("devices.digital_input.0.pin=3")
@@ -204,7 +215,7 @@ void apply_debug_commands()
       COMMAND("devices.digital_output.0.initial_state = highz")
 
       COMMAND("devices.digital_output.1.pin = 5")
-      COMMAND("devices.digital_output.1.initial_state = high")
+      COMMAND("devices.digital_output.1.initial_state = low")
 
       COMMAND("devices.digital_output.2.pin = 6")
       COMMAND("devices.digital_output.2.initial_state = low")
@@ -213,17 +224,6 @@ void apply_debug_commands()
       COMMAND("devices.pwm_output.0.name = FAN")
       COMMAND("devices.pwm_output.0.pin = 7")
       COMMAND("devices.pwm_output.0.use_soft_pwm = 0")
-
-      COMMAND("system.num_temp_sensors=3")
-      COMMAND("devices.temp_sensor.0.name = HEND1")
-      COMMAND("devices.temp_sensor.0.pin = 8")
-      COMMAND("devices.temp_sensor.0.type = 7")
-      COMMAND("devices.temp_sensor.1.name = HEND2")
-      COMMAND("devices.temp_sensor.1.pin = 9")
-      COMMAND("devices.temp_sensor.1.type = 7")
-      COMMAND("devices.temp_sensor.2.name = HBED")
-      COMMAND("devices.temp_sensor.2.pin = 10")
-      COMMAND("devices.temp_sensor.2.type = 1")
 
       COMMAND("system.num_steppers=5")
       COMMAND("devices.stepper.0.name=X")
@@ -547,6 +547,7 @@ void loop()
   uint32_t now = millis();
   if (now - last_idle_check > 1000) // checked every second
   {
+#if !DEBUG_DISABLE_HOST_TIMEOUT
     // have we heard from the host within the timeout?
     if (now - last_order_time > (HOST_TIMEOUT_SECS * 1000) && is_host_active)
     {
@@ -556,7 +557,7 @@ void loop()
         emergency_stop(PARAM_STOPPED_CAUSE_HOST_TIMEOUT);
       }
     }
-    
+#endif
     last_idle_check = now;
   }
 }
