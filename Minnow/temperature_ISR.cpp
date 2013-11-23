@@ -131,8 +131,8 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     const uint8_t sensor = temp_index / 2;
     if (sensor < num_sensors)
     {
-      const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
+      const int8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
+      if (type != TEMP_SENSOR_TYPE_INVALID)
       {
         if ((temp_index & 1) == 0)
         {
@@ -173,8 +173,8 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     if (num_sensors >= 8 || (temp_index > 0 && temp_index <= num_sensors))
     {
       const uint8_t sensor = (temp_index > 0) ? temp_index - 1 : num_sensors - 1;
-      const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
-      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
+      const int8_t type = Device_TemperatureSensor::temperature_sensor_types[sensor];
+      if (type != TEMP_SENSOR_TYPE_INVALID)
       {
         Device_TemperatureSensor::temperature_sensor_isr_raw_values[sensor] += ADC;
       }
@@ -187,8 +187,8 @@ FORCE_INLINE void updateTemperatureSensorRawValues()
     if (temp_index < num_sensors) 
     {
       // sensor == temp_index in this case
-      const uint8_t type = Device_TemperatureSensor::temperature_sensor_types[temp_index];
-      if (type != TEMP_SENSOR_TYPE_INVALID && type < LAST_THERMISTOR_SENSOR_TYPE)
+      const int8_t type = Device_TemperatureSensor::temperature_sensor_types[temp_index];
+      if (type != TEMP_SENSOR_TYPE_INVALID)
       {
         const uint8_t pin = Device_TemperatureSensor::temperature_sensor_pins[temp_index];
 #ifdef MUX5
