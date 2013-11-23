@@ -68,6 +68,7 @@ uint8_t Device_Heater::Init(uint8_t num_devices)
     heater_info_array[i].max_temp = SENSOR_TEMPERATURE_INVALID;
     heater_info_array[i].target_temp = SENSOR_TEMPERATURE_INVALID;
     heater_info_array[i].power_on_level = DEFAULT_HEATER_POWER_ON_LEVEL;
+    heater_info_array[i].is_heating = false;
   }
   
   soft_pwm_state = 0;
