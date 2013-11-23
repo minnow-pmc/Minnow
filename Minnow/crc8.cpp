@@ -71,3 +71,13 @@ uint8_t crc8(uint8_t *data, uint16_t length)
   }
   return crc;
 }
+
+uint8_t crc8_continue(uint8_t *data, uint16_t length, uint8_t crc)
+{
+  while (length-- > 0)
+  {
+    crc = pgm_read_byte_near(crc_array + (*data ^ crc));
+    data += 1;
+  }
+  return crc;
+}

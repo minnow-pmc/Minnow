@@ -27,5 +27,6 @@
 #include <stdint.h>
 
 uint8_t crc8(uint8_t *data, uint16_t length);
+uint8_t crc8_continue(uint8_t *data, uint16_t length, uint8_t initial_crc_value);
 
 #endif

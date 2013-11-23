@@ -40,8 +40,8 @@
 //=============================public variables=============================
 //===========================================================================
 
-uint8_t reply_header[PM_HEADER_SIZE];
-uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH]; // must follow directly after reply_header
+uint8_t reply_header[PM_HEADER_SIZE] = { SYNC_BYTE_RESPONSE_VALUE };
+uint8_t reply_buf[MAX_RESPONSE_PARAM_LENGTH];
 
 bool reply_sent = false;
 bool reply_started = false;
@@ -61,7 +61,6 @@ bool response_squelch = false;
 void generate_response_start(uint8_t response_code, uint8_t expected_length_excluding_msg)
 { 
   reply_started = true;
-  reply_header[PM_SYNC_BYTE_OFFSET] = SYNC_BYTE_RESPONSE_VALUE;
   reply_header[PM_ORDER_BYTE_OFFSET] = response_code;
   reply_control_byte = (control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_header[PM_CONTROL_BYTE_OFFSET] = reply_control_byte;
@@ -75,7 +74,6 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
 void generate_response_transport_error_start(uint8_t transport_error, uint8_t local_control_byte)
 {
   reply_started = true;
-  reply_header[PM_SYNC_BYTE_OFFSET] = SYNC_BYTE_RESPONSE_VALUE;
   reply_header[PM_ORDER_BYTE_OFFSET] = RSP_FRAME_RECEIPT_ERROR;
   reply_header[PM_CONTROL_BYTE_OFFSET] = (local_control_byte & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
   reply_buf[0] = transport_error;
@@ -305,12 +303,17 @@ void generate_response_send()
   }
   DEBUG_EOL();
 #endif  
-  
+
   for (i = 0; i < PM_HEADER_SIZE; i++)
     PSERIAL.write(reply_header[i]);
   for (i = 0; i < param_length; i++)
     PSERIAL.write(reply_buf[i]);
-  PSERIAL.write(crc8(&reply_header[1],(PM_HEADER_SIZE-1)+param_length));
+    
+  // take crc over header and parameter (except sync byte)
+  uint8_t crc = crc8(&reply_header[1], PM_HEADER_SIZE-1);
+  if (param_length > 0)
+    crc = crc8_continue(reply_buf, param_length, crc);
+  PSERIAL.write(crc);
   reply_started = false;
   reply_sent = true;
 }
