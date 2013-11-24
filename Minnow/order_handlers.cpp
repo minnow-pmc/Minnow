@@ -907,7 +907,7 @@ void handle_configure_endstops_order()
     uint8_t trigger_level = parameter_value[i+2];
     
     uint8_t retval;
-    if (min_or_max)
+    if (min_or_max == 0)
       retval = AxisInfo::SetMinEndstopDevice(axis_number, device_number, trigger_level);
     else
       retval = AxisInfo::SetMaxEndstopDevice(axis_number, device_number, trigger_level);
@@ -970,9 +970,13 @@ void handle_configure_axis_movement_rates_order()
     send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,1);
     return;
   }
-
-  AxisInfo::SetAxisMaxRate(device_number, max_rate);
-
+  
+  uint8_t retval = AxisInfo::SetAxisMaxRate(device_number, (uint16_t)max_rate);
+  if (retval != APP_ERROR_TYPE_SUCCESS)
+  {
+    send_app_error_response(retval, 0);
+    return;
+  }
   send_OK_response();  
 }
 

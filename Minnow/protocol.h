@@ -215,6 +215,7 @@
 #define QUEUE_COMMAND_DELAY                               2
 #define QUEUE_COMMAND_LINEAR_MOVE                         3
 #define QUEUE_COMMAND_SET_ACTIVE_TOOLHEAD                 4
+#define QUEUE_COMMAND_MOVEMENT_CHECKPOINT                 5
 
 //
 // Queue Command Error Types

@@ -121,6 +121,8 @@ volatile uint16_t CommandQueue::total_attempted_queue_command_count;
 extern uint16_t last_enqueued_final_speed;
 
 bool come_to_stop_and_flush_queue;
+bool is_checkpoint_last; // is last movement command in queue a checkpoint?
+
 
 // Function declarations
 FORCE_INLINE void movement_ISR(); // needs to be non-static due to friend usage elsewhere
@@ -129,7 +131,7 @@ FORCE_INLINE bool handle_linear_move();
 FORCE_INLINE bool handle_delay_command();    
 FORCE_INLINE void setup_new_move();
 FORCE_INLINE void update_directions_and_initial_counts();
-FORCE_INLINE void check_endstops();
+FORCE_INLINE bool check_endstops();
 FORCE_INLINE void write_steps();
 FORCE_INLINE void recalculate_speed();
 FORCE_INLINE bool check_underrun_condition();
@@ -183,10 +185,10 @@ static uint16_t steps_to_final_speed_from_underrun_rate; // steps required to de
 static uint16_t steps_to_stop_from_underrun_rate; // steps required to decel from min(underrun_max_rate,nominal_rate) to full stop
 static uint16_t underrun_max_rate; // underrun nominal rate for current primary axis
 static uint32_t underrun_acceleration_rate; // underrun acceleration rate for current primary axis
-static bool is_checkpoint_last; // is last movement command in queue a checkpoint?
 
 // Endstop State
 static BITMASK(MAX_ENDSTOPS) endstop_hit;
+static BITMASK(MAX_ENDSTOPS) stopped_axes;
 
 // General state
 static bool continuing;
@@ -489,12 +491,10 @@ FORCE_INLINE bool handle_queue_command()
     uint8_t bit = 0;
     do
     {
-      while (((uint8_t)cmd->endstops_to_change & 1) == 0)
-      {
-        cmd->endstops_to_change >>= 1;
-        bit++;
-      }
-      AxisInfo::WriteEndstopEnableState(bit, cmd->endstop_enable_state & (1 << bit));
+      if (((uint8_t)cmd->endstops_to_change & 1) != 0)
+        AxisInfo::WriteEndstopEnableState(bit, cmd->endstop_enable_state & (1 << bit));
+      cmd->endstops_to_change >>= 1;
+      bit++;
     }
     while (cmd->endstops_to_change != 0);
     return false;
@@ -588,7 +588,9 @@ FORCE_INLINE bool handle_linear_move()
       return false; // finished
   }
   
-  check_endstops();
+  if (!check_endstops())
+    return false; // finished
+    
   for(int8_t i=0; i < step_loops; i++) // Take multiple steps per interrupt (For high speed moves)
   {
     #ifndef AT90USB
@@ -600,6 +602,10 @@ FORCE_INLINE bool handle_linear_move()
     if (--step_events_remaining == 0)
       break;
   }
+  
+  // recalculation is done after outputting the current steps to achieve greatest step consistency
+  // (the counter is already running, what we are doing here is calculating the 
+  // point at which it next triggers an interrupt and resets)
   recalculate_speed();
   return true;
 }  
@@ -621,6 +627,7 @@ FORCE_INLINE void setup_new_move()
   nominal_block_time = cmd->nominal_block_time;
   acceleration_time = 0;
   start_axis_move_info = cmd->axis_move_info;
+  stopped_axes = 0;
 
   queued_microseconds_remaining -= nominal_block_time;
   queued_steps_remaining -= total_step_events;
@@ -652,6 +659,53 @@ FORCE_INLINE void setup_new_move()
       setup_underrun_mode();
     }
   }
+  
+#if TRACE_MOVEMENT
+  DEBUGPGM("New ISR move: axes:");
+  DEBUG(cmd->num_axes);
+  DEBUGPGM(", homing:");
+  DEBUG(cmd->homing_bit);
+  DEBUGPGM(", tot steps:");
+  DEBUG(cmd->total_steps);
+  DEBUGPGM(" (P2:");
+  DEBUG(cmd->steps_phase_2);
+  DEBUGPGM("/P3:");
+  DEBUG(cmd->steps_phase_3);
+  DEBUGPGM("), rates(i/n/f):");
+  DEBUG(initial_rate);
+  DEBUGPGM(",");
+  DEBUG(cmd->nominal_rate);
+  DEBUGPGM(",");
+  DEBUG(cmd->final_rate);
+  DEBUGPGM(", accels(i/f):");
+  DEBUG(cmd->acceleration_rate);
+  DEBUGPGM(",");
+  DEBUG(cmd->deceleration_rate);
+  DEBUGPGM(", estops(i/e/h):");
+  DEBUG_F(cmd->endstops_of_interest,HEX);
+  DEBUGPGM("/");
+  DEBUG_F(AxisInfo::endstop_enable_state,HEX);
+  DEBUGPGM("/");
+  DEBUG_F(endstop_hit,HEX);
+  DEBUGPGM(", dirs:");
+  DEBUG_F(cmd->directions,HEX);
+  DEBUGPGM(", loops:");
+  DEBUG(step_loops);
+  DEBUGPGM(", blk time:");
+  DEBUG(cmd->nominal_block_time);
+  DEBUGPGM(", queued(t/s):");
+  DEBUG(queued_microseconds_remaining);
+  DEBUGPGM(",");
+  DEBUG(queued_steps_remaining);
+  DEBUGPGM(", urun:");
+  DEBUG(underrun_active);
+  DEBUGPGM(", last?:");
+  DEBUG(is_checkpoint_last);
+  DEBUGPGM(", stop?:");
+  DEBUG(come_to_stop_and_flush_queue);
+  DEBUG_EOL();
+#endif  
+    
 }
 
 FORCE_INLINE void update_directions_and_initial_counts()
@@ -708,7 +762,7 @@ FORCE_INLINE void update_directions_and_initial_counts()
   }
 }   
   
-FORCE_INLINE void check_endstops()
+FORCE_INLINE bool check_endstops()
 {
   const LinearMoveCommand *cmd = (LinearMoveCommand *)command_in_progress;
   BITMASK(MAX_ENDSTOPS) endstops_to_check = cmd->endstops_of_interest & AxisInfo::endstop_enable_state;
@@ -728,7 +782,7 @@ FORCE_INLINE void check_endstops()
     {
       if (cmd->homing_bit)
       {
-        // find axes using this endstop
+        // find all axes using this endstop
         const AxisMoveInfo *axis_move_info = start_axis_move_info;
         uint8_t cnt = num_axes;
         while (true)
@@ -739,8 +793,12 @@ FORCE_INLINE void check_endstops()
             if ((axis_info->min_endstops_configured & endstop_bit) != 0)
             {
               // stop this axis - keep others going
+              if (axis_move_info->step_count != 0)
+                stopped_axes += 1;
               ((AxisMoveInfo *)axis_move_info)->step_count = 0;
               axis_info->step_event_counter = 0;
+              if (stopped_axes == num_axes)
+                return false;
             }
           }
           else
@@ -748,8 +806,12 @@ FORCE_INLINE void check_endstops()
             if ((axis_info->max_endstops_configured & endstop_bit) != 0)
             {
               // stop this axis - keep others going
+              if (axis_move_info->step_count != 0)
+                stopped_axes += 1;
               ((AxisMoveInfo *)axis_move_info)->step_count = 0;
               axis_info->step_event_counter = 0;
+              if (stopped_axes == num_axes)
+                return false;
             }
           }
           if (--cnt == 0)
@@ -773,7 +835,8 @@ FORCE_INLINE void check_endstops()
     
     endstops_to_check >>= 1;
     index++;
-  }    
+  }
+  return true;
 }
 
 FORCE_INLINE void write_steps()

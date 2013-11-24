@@ -104,6 +104,14 @@ public:
   
   FORCE_INLINE static float ReadCurrentTemperature(uint8_t device_number)
   {
+    if (temperature_sensor_current_temps[device_number] == SENSOR_TEMPERATURE_INVALID)
+    {
+      // TODO - improve this.
+      DEBUGPGM("Invalid Temp: ");
+      DEBUG((int)device_number);
+      DEBUGPGM(" ");
+      DEBUGLN(temperature_sensor_raw_values[device_number]);
+    }
     return temperature_sensor_current_temps[device_number];
   }
   

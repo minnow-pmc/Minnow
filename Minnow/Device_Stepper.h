@@ -71,7 +71,7 @@ public:
   static uint8_t SetEnableInvert(uint8_t device_number, bool value);
   static uint8_t SetDirectionInvert(uint8_t device_number, bool value);
   static uint8_t SetStepInvert(uint8_t device_number, bool value);
-  static bool ValidateConfig(uint8_t device_number);
+  static uint8_t ValidateConfig(uint8_t device_number);
 
   static void UpdateInitialPinState(uint8_t device_number);
   

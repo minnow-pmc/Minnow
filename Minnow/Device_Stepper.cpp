@@ -155,19 +155,21 @@ uint8_t Device_Stepper::SetStepInvert(uint8_t device_number, bool value)
   return AxisInfo::SetStepperStepInvert(device_number, value);
 }
 
-bool Device_Stepper::ValidateConfig(uint8_t device_number)
+uint8_t Device_Stepper::ValidateConfig(uint8_t device_number)
 {
   if (device_number >= num_steppers)
-    return false;
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   StepperInfoInternal *stepper_info = &stepper_info_array[device_number];
-  return (stepper_info->enable_pin != 0xFF 
-      && stepper_info->direction_pin != 0xFF
-      && stepper_info->step_pin != 0xFF);
+  if (stepper_info->enable_pin == 0xFF 
+      || stepper_info->direction_pin == 0xFF
+      || stepper_info->step_pin == 0xFF)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+  return APP_ERROR_TYPE_SUCCESS;
 }
 
 void Device_Stepper::UpdateInitialPinState(uint8_t device_number)
 {
-  if (ValidateConfig(device_number) && 
+  if (ValidateConfig(device_number) == APP_ERROR_TYPE_SUCCESS && 
       !AxisInfo::GetStepperEnableState(device_number))
   {
     uint8_t current_state;

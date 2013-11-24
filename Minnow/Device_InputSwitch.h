@@ -57,8 +57,10 @@ public:
 
   FORCE_INLINE static bool ReadState(uint8_t device_number)
   {
-    const InputSwitchInfoInternal *info = &input_switch_info[device_number];
-    return (*info->switch_register & info->switch_bit) != 0;
+    return digitalRead(input_switch_info[device_number].pin) != 0;
+// FIXME    
+//    const InputSwitchInfoInternal *info = &input_switch_info[device_number];
+//    return (*info->switch_register & info->switch_bit) != 0;
   }
 
 private:

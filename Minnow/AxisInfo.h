@@ -76,7 +76,7 @@ public:
   
   FORCE_INLINE static bool IsInUse(uint8_t axis_number)
   {
-    return Device_Stepper::ValidateConfig(axis_number);
+    return (Device_Stepper::ValidateConfig(axis_number) == APP_ERROR_TYPE_SUCCESS);
   }
 
   FORCE_INLINE static bool GetStepperEnableInvert(uint8_t axis_number)
@@ -202,9 +202,10 @@ public:
 
 private:
 
-  friend void check_endstops();
+  friend bool check_endstops();
   friend bool check_underrun_condition();
   friend uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_length);
+  friend void setup_new_move();
   friend void update_directions_and_initial_counts();
 
   static uint8_t num_axes;

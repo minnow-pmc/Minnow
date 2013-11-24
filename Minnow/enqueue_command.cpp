@@ -31,6 +31,7 @@
 #include "Device_InputSwitch.h"
 #include "AxisInfo.h"
 
+extern bool is_checkpoint_last;
 
 static void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t reply_error_code = 0xFF);
 static uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes);
@@ -44,6 +45,7 @@ FORCE_INLINE static uint8_t enqueue_set_output_tone_command(const uint8_t *queue
 FORCE_INLINE static uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *queue_command, uint8_t queue_command_length);
 FORCE_INLINE static uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
 FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_move_checkpoint_command(const uint8_t *queue_command, uint8_t queue_command_length);
 uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command_length);
 
 uint16_t last_enqueued_final_speed;
@@ -71,23 +73,26 @@ void enqueue_command()
   while (ptr < parameter_value + parameter_length)
   {
     const uint8_t length = *ptr++;
-    // 2 is currently minimum length of defined command blocks
-    if (length < 2 || ptr + length < parameter_value + parameter_length)
+    const uint8_t cmd = ptr[0];
+    
+    if (length < 1 || ptr + length < parameter_value + parameter_length
+      || (cmd == QUEUE_COMMAND_ORDER_WRAPPER && length < 2))
     {
       generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));
-      generate_response_msg_add_ascii_number((parameter_value + parameter_length) - (ptr + length));
-      generate_response_msg_addPGM(PSTR(", "));
-      generate_response_msg_addPGM(PMSG(MSG_EXPECTING));
-      generate_response_msg_add_ascii_number(parameter_length + length); 
+      generate_response_msg_add_ascii_number(length);
       send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_MALFORMED_BLOCK, index);
       return;
     }
     
     uint8_t retval;
-    switch (ptr[0])
+    switch (cmd)
     {
     case QUEUE_COMMAND_LINEAR_MOVE:
       retval = enqueue_linear_move_command(ptr+1, length-1);
+      break;
+    
+    case QUEUE_COMMAND_MOVEMENT_CHECKPOINT:
+      retval = enqueue_move_checkpoint_command(ptr+1, length-1);
       break;
     
     case QUEUE_COMMAND_DELAY:
@@ -391,7 +396,7 @@ FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8
   
   SetEndstopEnableStateQueueCommand *cmd = (SetEndstopEnableStateQueueCommand *)insertion_point;
     
-  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_OUTPUT_SWITCH_STATE;
+  cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_ENDSTOP_ENABLE_STATE;
   cmd->endstops_to_change = 0;
   cmd->endstop_enable_state = 0;
   
@@ -416,37 +421,35 @@ FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8
 
 uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  uint8_t expected_length = 8; // minimum short header size
+  uint8_t expected_length = 7; // minimum short header size
     
   uint16_t axes_selected = 0;
   uint16_t directions = 0;
   bool use_long_counts = false;
   bool use_long_axis_mask = queue_command[0] & 0x80;
   
-  if (queue_command_length >= expected_length)
+  if (use_long_axis_mask)
   {
-    if (use_long_axis_mask)
-    {
-      expected_length += 2;
-      axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
-      directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
-      use_long_counts = queue_command[2] & 0x80;
-      queue_command += 4;
-    }
-    else
-    {
-      axes_selected = queue_command[0];
-      directions = queue_command[1] & ~0x80;
-      use_long_counts = queue_command[1] & 0x80;
-      queue_command += 2;
-    }
-    if (use_long_counts)
-      expected_length += 2;
+    expected_length += 2;
+    axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
+    directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
+    use_long_counts = queue_command[2] & 0x80;
+    queue_command += 4;
   }
+  else
+  {
+    axes_selected = queue_command[0];
+    directions = queue_command[1] & ~0x80;
+    use_long_counts = queue_command[1] & 0x80;
+    queue_command += 2;
+  }
+  if (use_long_counts)
+    expected_length += 2;
+
   if (queue_command_length < expected_length)
     return generate_enqueue_insufficient_bytes_error(expected_length, queue_command_length);
   
-  uint8_t primary_axis = *queue_command & 0x0F;
+  uint8_t primary_axis = *queue_command++ & 0x0F; // (don't need homing bit for validation)
   uint8_t nominal_speed_fraction = *queue_command++;
   uint8_t final_speed_fraction = *queue_command++;
   
@@ -475,7 +478,8 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
     {
       if (!AxisInfo::IsInUse(axis_number))
       {
-        generate_response_msg_addPGM(PSTR("Invalid axis included")); // TODO: Language-ify
+        generate_response_msg_addPGM(PSTR("Invalid axis included ")); // TODO: Language-ify
+        generate_response_msg_add(axis_number);
         return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
       }
       num_axes += 1;
@@ -519,7 +523,7 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   }
 
-  uint16_t nominal_speed = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction) / 255;  
+  uint16_t nominal_speed = (uint32_t)AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction / 255;  
   uint16_t initial_speed= last_enqueued_final_speed;
 
   if (nominal_speed < initial_speed)
@@ -667,11 +671,11 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
       if (directions & (1 << axis_number))
       {
         cmd->directions |= (1 << index);
-        cmd->endstops_of_interest |= AxisInfo::GetAxisMinEndstops(axis_number);
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMaxEndstops(axis_number);
       }
       else
       {
-        cmd->endstops_of_interest |= AxisInfo::GetAxisMaxEndstops(axis_number);
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMinEndstops(axis_number);
       }
         
       index += 1;
@@ -681,36 +685,37 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
   }
 
   cmd->total_steps = max_steps;
-  cmd->nominal_rate = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction) / 255;
-  cmd->final_rate = (uint32_t)(AxisInfo::GetAxisMaxRate(primary_axis) * final_speed_fraction) / 255;
+  cmd->nominal_rate = (uint32_t)AxisInfo::GetAxisMaxRate(primary_axis) * nominal_speed_fraction / 255;
+  cmd->final_rate = (uint32_t)AxisInfo::GetAxisMaxRate(primary_axis) * final_speed_fraction / 255;
 
   if (max_steps == primary_axis_steps)
   {
-    cmd->steps_phase_2 = accel_count;
-    cmd->steps_phase_3 = primary_axis_steps - decel_count;
+    cmd->steps_phase_2 = primary_axis_steps - accel_count;
+    cmd->steps_phase_3 = decel_count;
   }
   else
   {
-    cmd->steps_phase_2 = (uint32_t)(max_steps * accel_count) / primary_axis_steps;
-    cmd->steps_phase_3 = max_steps - ((uint32_t)(max_steps * decel_count) / primary_axis_steps);
+    cmd->steps_phase_2 = max_steps - ((uint32_t)max_steps * accel_count / primary_axis_steps);
+    cmd->steps_phase_3 = (uint32_t)max_steps * decel_count / primary_axis_steps;
   }
   
   uint16_t initial_speed = last_enqueued_final_speed;
   
   // a = (v^2 - u^2) / (2*distance)
   if (cmd->steps_phase_2 != max_steps)
-    cmd->acceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (initial_speed * initial_speed)) 
-                                / (2 * (max_steps - cmd->steps_phase_2));
+    cmd->acceleration_rate = ((((uint32_t)cmd->nominal_rate * cmd->nominal_rate) - ((uint32_t)initial_speed * initial_speed)) 
+                                / (max_steps - cmd->steps_phase_2)) / 2;
   else
     cmd->acceleration_rate = 0;
   
   if (cmd->steps_phase_3 != 0)
-    cmd->deceleration_rate = ((cmd->nominal_rate * cmd->nominal_rate) - (cmd->final_rate * cmd->final_rate)) 
-                                / (2 * cmd->steps_phase_3);
+    cmd->deceleration_rate = ((((uint32_t)cmd->nominal_rate * cmd->nominal_rate) - ((uint32_t)cmd->final_rate * cmd->final_rate)) 
+                                / cmd->steps_phase_3) / 2;
   else
     cmd->deceleration_rate = 0;
   
   // t = (v - u) / a  and  t = d / v
+  // TODO - work through again
   uint32_t nominal_block_time = 0;
   if (cmd->acceleration_rate != 0)
     nominal_block_time += (cmd->nominal_rate - initial_speed) * 10000UL / cmd->acceleration_rate;
@@ -718,7 +723,10 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
     nominal_block_time += (cmd->steps_phase_2 - cmd->steps_phase_3) * 10000UL / cmd->nominal_rate;
   if (cmd->deceleration_rate != 0)
     nominal_block_time += (cmd->nominal_rate - cmd->final_rate) * 10000UL / cmd->deceleration_rate;
-  cmd->nominal_block_time = max(nominal_block_time,0xFFFF);
+  if (nominal_block_time < 0xFFFF)
+    cmd->nominal_block_time = nominal_block_time;
+  else
+    cmd->nominal_block_time = 0xFFFF;
   
   cmd->homing_bit = homing_bit;
   
@@ -726,12 +734,22 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
   
   // d = (v^2 - u^2) / (2*a)
   if (underrun_rate > cmd->final_rate)
-    cmd->steps_to_final_speed_from_underrun_rate = ((uint32_t)(underrun_rate*underrun_rate) - (uint32_t)(cmd->final_rate*cmd->final_rate)) 
+    cmd->steps_to_final_speed_from_underrun_rate = ((uint32_t)underrun_rate*underrun_rate) - ((uint32_t)cmd->final_rate*cmd->final_rate) 
                                                       / (2 * AxisInfo::GetUnderrunAccelRate(primary_axis));
   else
     cmd->steps_to_final_speed_from_underrun_rate = 0;
  
+  is_checkpoint_last = false;
+ 
+  // TODO safely increment   
+  // queued_microseconds_remaining -= nominal_block_time;
+  // queued_steps_remaining -= total_step_events;
+
   CommandQueue::EnqueueCommand(expected_output_length);
   return ENQUEUE_SUCCESS;
 }
 
+uint8_t enqueue_move_checkpoint_command(const uint8_t *queue_command, uint8_t queue_command_length)
+{
+  is_checkpoint_last = true;
+}

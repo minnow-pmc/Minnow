@@ -202,10 +202,13 @@ void apply_debug_commands()
       COMMAND("system.num_digital_inputs = 4")
       COMMAND("devices.digital_input.0.name=XMIN")
       COMMAND("devices.digital_input.0.pin=3")
+      COMMAND("devices.digital_input.0.enable_pullup=1")
       COMMAND("devices.digital_input.1.name=YMIN")
       COMMAND("devices.digital_input.1.pin=14")
+      COMMAND("devices.digital_input.1.enable_pullup=1")
       COMMAND("devices.digital_input.2.name=ZMIN")
       COMMAND("devices.digital_input.2.pin=18")
+      COMMAND("devices.digital_input.2.enable_pullup=1")
 
       COMMAND("devices.digital_input.3.pin = 11")
       COMMAND("devices.digital_input.3.enable_pullup=1")
@@ -313,13 +316,16 @@ void apply_debug_commands()
    
 //  DEBUG_COMMAND_ARRAY("Set Buzzer Output 0", ORDER_SET_PWM_OUTPUT_STATE, ARRAY({ PM_DEVICE_TYPE_BUZZER, 0, 128, 0 }) );
 
-  DEBUG_COMMAND_ARRAY("Configure Endstops 0", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 0, 0, 0, 0  }) );
+  DEBUG_COMMAND_ARRAY("Configure Endstops 0", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 0, 0, 0, 0 }) );
   DEBUG_COMMAND_ARRAY("Configure Endstops 1", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 1, 1, 0, 0, 2, 0, 0 }) );
 
   DEBUG_COMMAND_ARRAY("Configure Axis Rate 0", ORDER_CONFIGURE_AXIS_MOVEMENT_RATES, ARRAY({ 0, 0, 0, (28000/256), (28000%256)}) ); 
   DEBUG_COMMAND_ARRAY("Configure Axis Rate 1", ORDER_CONFIGURE_AXIS_MOVEMENT_RATES, ARRAY({ 1, 0, 0, (28000/256), (28000%256)}) ); 
   DEBUG_COMMAND_ARRAY("Configure Axis Rate 2", ORDER_CONFIGURE_AXIS_MOVEMENT_RATES, ARRAY({ 2, 0, 0, (11200/256), (11200%256)}) ); 
   DEBUG_COMMAND_ARRAY("Configure Axis Rate 3", ORDER_CONFIGURE_AXIS_MOVEMENT_RATES, ARRAY({ 3, 0, 0, (56700/256), (56700%256)}) ); 
+
+  DEBUG_COMMAND_ARRAY("Configure Underrun Rate 0", ORDER_CONFIGURE_UNDERRUN_PARAMS, ARRAY({ 0, 
+    0, 0, (28000/256), (28000%256), 0, 0, (65000/256), (65000%256)}) ); 
 
   DEBUG_COMMAND_ARRAY("Activate Stepper Control", ORDER_ACTIVATE_STEPPER_CONTROL, ARRAY({ 1 }) );
 
@@ -412,8 +418,28 @@ void apply_debug_commands()
       4, QUEUE_COMMAND_ORDER_WRAPPER,
       ORDER_ENABLE_DISABLE_ENDSTOPS, 0, 0 }) );  
 
+  // movement test
+  
+  DEBUG_COMMAND_ARRAY("Configure Min Endstop 1 for Stepper 0", ORDER_CONFIGURE_ENDSTOPS, ARRAY({ 0, 1, 0, 0 }) );
+
+  DEBUG_COMMAND_ARRAY("Enqueue Enable Endstop 1", ORDER_QUEUE_COMMAND_BLOCKS, ARRAY({ 
+      4, QUEUE_COMMAND_ORDER_WRAPPER,
+      ORDER_ENABLE_DISABLE_ENDSTOPS, 1, 1 }) );  
+
+  DEBUG_COMMAND_ARRAY("Home To Axis 0 Min", ORDER_QUEUE_COMMAND_BLOCKS, ARRAY({ 
+      9, QUEUE_COMMAND_LINEAR_MOVE, /*axes:*/ 1 , /*count size & directions:*/0, /* flags & prim axis */ 0x10,
+      /*nom speed:*/ 25 , /* final speed: */ 0, /* initial accel*/ 100, /* final accel */100, /* steps on 0 */ 255}));
+      
+  DEBUG_COMMAND_ARRAY("Move checkpoint", ORDER_QUEUE_COMMAND_BLOCKS, ARRAY({ 1, QUEUE_COMMAND_MOVEMENT_CHECKPOINT}));
+     
+  DEBUG_COMMAND_ARRAY("Home To Axis 0 Min", ORDER_QUEUE_COMMAND_BLOCKS, ARRAY({ 
+      9, QUEUE_COMMAND_LINEAR_MOVE, /*axes:*/ 1 , /*count size & directions:*/0, /* flags & prim axis */ 0x10,
+      /*nom speed:*/ 25 , /* final speed: */ 0, /* initial accel*/ 100, /* final accel */100, /* steps on 0 */ 255}));
+      
+  DEBUG_COMMAND_ARRAY("Move checkpoint", ORDER_QUEUE_COMMAND_BLOCKS, ARRAY({ 1, QUEUE_COMMAND_MOVEMENT_CHECKPOINT}));
+
   // read sensors a few times (allows time to stabilize)
-  for (uint8_t i = 0; i < 3; i++)
+  for (uint8_t i = 0; i < 8; i++)
   {
     while (!temp_meas_ready)
       ;
