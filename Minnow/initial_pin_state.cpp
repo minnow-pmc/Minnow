@@ -146,7 +146,7 @@ uint8_t set_initial_pin_state(uint8_t pin, uint8_t new_initial_state, bool write
 #if TRACE_INITIAL_PIN_STATE    
     DEBUGPGM("Setting new state for pin ");
     DEBUG((int)pin);
-    DEBUG(' ');
+    DEBUG_CH(' ');
     DEBUGLNPGM_P(stringify_initial_pin_state_value(new_initial_state));
 #endif    
 
@@ -221,7 +221,7 @@ void apply_boot_initial_pin_state()
 #if TRACE_INITIAL_PIN_STATE    
     DEBUGPGM_P(msg);
     DEBUG((int)pin);
-    DEBUG(' ');
+    DEBUG_CH(' ');
     DEBUGLNPGM_P(stringify_initial_pin_state_value(INITIAL_PIN_STATE_PULLUP));
 #endif    
     set_initial_pin_state(pin, INITIAL_PIN_STATE_PULLUP, false);
@@ -232,7 +232,7 @@ void apply_boot_initial_pin_state()
 #if TRACE_INITIAL_PIN_STATE    
     DEBUGPGM_P(msg);
     DEBUG((int)pin);
-    DEBUG(' ');
+    DEBUG_CH(' ');
     DEBUGLNPGM_P(stringify_initial_pin_state_value(INITIAL_PIN_STATE_LOW));
 #endif    
     set_initial_pin_state(pin, INITIAL_PIN_STATE_LOW, false);
@@ -243,7 +243,7 @@ void apply_boot_initial_pin_state()
 #if TRACE_INITIAL_PIN_STATE    
     DEBUGPGM_P(msg);
     DEBUG((int)pin);
-    DEBUG(' ');
+    DEBUG_CH(' ');
     DEBUGLNPGM_P(stringify_initial_pin_state_value(INITIAL_PIN_STATE_HIGH));
 #endif
     set_initial_pin_state(pin, INITIAL_PIN_STATE_HIGH, false);
@@ -254,7 +254,7 @@ void apply_boot_initial_pin_state()
 #if TRACE_INITIAL_PIN_STATE    
     DEBUGPGM("Setting config pin ");
     DEBUG((int)pin);
-    DEBUG(' ');
+    DEBUG_CH(' ');
     DEBUGLNPGM_P(stringify_initial_pin_state_value(state));
 #endif    
     set_initial_pin_state(pin, state, false);

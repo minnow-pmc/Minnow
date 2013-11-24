@@ -855,7 +855,7 @@ void apply_firmware_configuration_string_P(const char *pstr)
     
   DEBUGPGM("Applying firmware configuration: ");
   DEBUG(buf_start);
-  DEBUG('=');
+  DEBUG_CH('=');
   DEBUG(value);
   DEBUGPGM(" ... ");
 
@@ -880,7 +880,8 @@ void apply_firmware_configuration_string_P(const char *pstr)
       reply_buf[reply_msg_len + 1] = '\0';
       DEBUG((char *)&reply_buf[1]);
     }
-    DEBUGLN(')');
+    DEBUG_CH(')');
+    DEBUG_EOL();
   }
   response_squelch = false;
   

@@ -35,14 +35,16 @@
 static void send_enqueue_error(uint8_t error_type, uint8_t block_index, uint8_t reply_error_code = 0xFF);
 static uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, uint8_t rcvd_num_bytes);
 
-FORCE_INLINE static uint8_t enqueue_delay_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_output_switch_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_pwm_output_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_output_tone_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length);
-uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length);
+FORCE_INLINE uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_command_length);
+
+FORCE_INLINE static uint8_t enqueue_delay_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_output_switch_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_pwm_output_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_output_tone_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
+FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length);
+uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command_length);
 
 uint16_t last_enqueued_final_speed;
 
@@ -82,35 +84,45 @@ void enqueue_command()
     }
     
     uint8_t retval;
-    switch (*ptr++)
+    switch (ptr[0])
     {
+    case QUEUE_COMMAND_LINEAR_MOVE:
+      retval = enqueue_linear_move_command(ptr+1, length-1);
+      break;
+    
     case QUEUE_COMMAND_DELAY:
-      retval = enqueue_delay_command(ptr, length-1);
+      retval = enqueue_delay_command(ptr+1, length-1);
       break;
     
     case QUEUE_COMMAND_ORDER_WRAPPER:
-    {
-      switch (*ptr++)
+      switch (ptr[1])
       {
       case ORDER_SET_OUTPUT_SWITCH_STATE:
-        retval = enqueue_set_output_switch_state_command(ptr, length-2);
+        retval = enqueue_set_output_switch_state_command(ptr+2, length-2);
         break;
       case ORDER_SET_PWM_OUTPUT_STATE:
-        retval = enqueue_set_pwm_output_state_command(ptr, length-2);
+        retval = enqueue_set_pwm_output_state_command(ptr+2, length-2);
         break;
       case ORDER_SET_OUTPUT_TONE:
-        retval = enqueue_set_output_tone_command(ptr, length-2);
+        retval = enqueue_set_output_tone_command(ptr+2, length-2);
         break;
       case ORDER_SET_HEATER_TARGET_TEMP:
-        retval = enqueue_set_heater_target_temperature_command(ptr, length-2);
+        retval = enqueue_set_heater_target_temperature_command(ptr+2, length-2);
+        break;
+      case ORDER_ENABLE_DISABLE_STEPPERS:
+        retval = enqueue_set_stepper_enable_state_command(ptr+2, length-2);
+        break;
+      case ORDER_ENABLE_DISABLE_ENDSTOPS:
+        retval = enqueue_set_endstop_enable_state_command(ptr+2, length-2);
         break;
       default:
         generate_response_msg_addPGM(PMSG(ERR_MSG_QUEUE_ORDER_NOT_PERMITTED));
-        generate_response_msg_add_ascii_number(*(ptr-1));
+        generate_response_msg_add_ascii_number(ptr[1]);
         send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_ERROR_IN_COMMAND_BLOCK, index, PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER);
         return;
       }
-    }
+      break;
+      
     default:
       send_enqueue_error(QUEUE_COMMAND_ERROR_TYPE_UNKNOWN_COMMAND_BLOCK, index);
       return;
@@ -162,10 +174,10 @@ uint8_t generate_enqueue_insufficient_bytes_error(uint8_t expected_num_bytes, ui
   return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT; 
 }
  
-FORCE_INLINE uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_delay_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if (parameter_length != sizeof(uint16_t))
-    return generate_enqueue_insufficient_bytes_error(sizeof(uint16_t), parameter_length);
+  if (queue_command_length != sizeof(uint16_t))
+    return generate_enqueue_insufficient_bytes_error(sizeof(uint16_t), queue_command_length);
 
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(DelayQueueCommand));
   
@@ -175,18 +187,20 @@ FORCE_INLINE uint8_t enqueue_delay_command(const uint8_t *parameter, uint8_t par
   DelayQueueCommand *cmd = (DelayQueueCommand *)insertion_point;
     
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_DELAY;
-  cmd->delay = ((parameter[0] << 8) | parameter[1]) * 10; // use us for delay 
+  
+  uint16_t delay = (queue_command[0] << 8) | queue_command[1];
+  cmd->delay = delay * 10UL; // use us for delay 
   
   CommandQueue::EnqueueCommand(sizeof(DelayQueueCommand));
   return ENQUEUE_SUCCESS;
 }
 
-FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  const uint8_t number_of_switches = parameter_length/3;
+  const uint8_t number_of_switches = queue_command_length/3;
 
-  if ((number_of_switches * 3) != parameter_length)
-    return generate_enqueue_insufficient_bytes_error(3*(number_of_switches+1), parameter_length);
+  if ((number_of_switches * 3) != queue_command_length)
+    return generate_enqueue_insufficient_bytes_error(3*(number_of_switches+1), queue_command_length);
   
   const uint8_t length = sizeof(SetOutputSwitchStateQueueCommand) + 
                             ((number_of_switches - 1) * sizeof(DeviceBitState));
@@ -202,12 +216,12 @@ FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *para
   
   uint8_t device_number, device_state;
 
-  for (uint8_t i = 0; i < parameter_length; i+=3)
+  for (uint8_t i = 0; i < queue_command_length; i+=3)
   {
-    device_number = parameter_value[i+1];
-    device_state = parameter_value[i+2];
+    device_number = queue_command[i+1];
+    device_state = queue_command[i+2];
     
-    switch(parameter_value[i])
+    switch(queue_command[i])
     {
     case PM_DEVICE_TYPE_SWITCH_OUTPUT:
     {
@@ -225,6 +239,7 @@ FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *para
       output_state->device_reg = (uint8_t *)portOutputRegister(digitalPinToPort(pin));
       output_state->device_bit = digitalPinToBitMask(pin);
       output_state->device_state = device_state;
+      break;
     }    
     default:
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE;
@@ -235,19 +250,19 @@ FORCE_INLINE uint8_t enqueue_set_output_switch_state_command(const uint8_t *para
   return ENQUEUE_SUCCESS;
 }
 
-FORCE_INLINE uint8_t enqueue_set_pwm_output_state_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_pwm_output_state_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if (parameter_length < 4)
-    return generate_enqueue_insufficient_bytes_error(4, parameter_length);
+  if (queue_command_length < 4)
+    return generate_enqueue_insufficient_bytes_error(4, queue_command_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetPwmOutputStateQueueCommand));
   
   if (insertion_point == 0)
     return ENQUEUE_ERROR_QUEUE_FULL;
      
-  const uint8_t device_number = parameter_value[1];
+  const uint8_t device_number = queue_command[1];
   
-  switch(parameter_value[0])
+  switch(queue_command[0])
   {
   case PM_DEVICE_TYPE_PWM_OUTPUT:
   {
@@ -257,7 +272,7 @@ FORCE_INLINE uint8_t enqueue_set_pwm_output_state_command(const uint8_t *paramet
     SetPwmOutputStateQueueCommand *cmd = (SetPwmOutputStateQueueCommand *)insertion_point;
     cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_PWM_OUTPUT_STATE;
     cmd->device_number = device_number;
-    cmd->value = parameter_value[2]; // the LSB is ignored
+    cmd->value = queue_command[2]; // the LSB is ignored
     CommandQueue::EnqueueCommand(sizeof(SetPwmOutputStateQueueCommand));
     return ENQUEUE_SUCCESS;
   }    
@@ -266,19 +281,19 @@ FORCE_INLINE uint8_t enqueue_set_pwm_output_state_command(const uint8_t *paramet
   }  
 }
 
-FORCE_INLINE uint8_t enqueue_set_output_tone_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_output_tone_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if (parameter_length < 4)
-    return generate_enqueue_insufficient_bytes_error(4, parameter_length);
+  if (queue_command_length < 4)
+    return generate_enqueue_insufficient_bytes_error(4, queue_command_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetBuzzerStateQueueCommand));
   
   if (insertion_point == 0)
     return ENQUEUE_ERROR_QUEUE_FULL;
      
-  const uint8_t device_number = parameter_value[1];
+  const uint8_t device_number = queue_command[1];
   
-  switch(parameter_value[0])
+  switch(queue_command[0])
   {
   case PM_DEVICE_TYPE_BUZZER:
   {
@@ -288,7 +303,7 @@ FORCE_INLINE uint8_t enqueue_set_output_tone_command(const uint8_t *parameter, u
     SetBuzzerStateQueueCommand *cmd = (SetBuzzerStateQueueCommand *)insertion_point;
     cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_BUZZER_STATE;
     cmd->device_number = device_number;
-    cmd->value = parameter_value[2]; // the LSB is ignored
+    cmd->value = queue_command[2]; // the LSB is ignored
     CommandQueue::EnqueueCommand(sizeof(SetBuzzerStateQueueCommand));
     return ENQUEUE_SUCCESS;
   }    
@@ -297,18 +312,18 @@ FORCE_INLINE uint8_t enqueue_set_output_tone_command(const uint8_t *parameter, u
   }  
 }
 
-FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *parameter, uint8_t parameter_length)
+FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if (parameter_length < 3)
-    return generate_enqueue_insufficient_bytes_error(3, parameter_length);
+  if (queue_command_length < 3)
+    return generate_enqueue_insufficient_bytes_error(3, queue_command_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetHeaterTargetTempCommand));
   
   if (insertion_point == 0)
     return ENQUEUE_ERROR_QUEUE_FULL;
   
-  uint8_t heater_number = parameter_value[0];
-  int16_t target_temp = (parameter_value[1] << 8) | parameter_value[2];
+  uint8_t heater_number = queue_command[0];
+  int16_t target_temp = (queue_command[1] << 8) | queue_command[2];
   float target_ftemp = (float)target_temp / 10;
   
   uint8_t retval = Device_Heater::ValidateTargetTemperature(heater_number, target_ftemp);
@@ -323,17 +338,17 @@ FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t
     
   SetHeaterTargetTempCommand *cmd = (SetHeaterTargetTempCommand *)insertion_point;
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_HEATER_TARGET_TEMP;
-  cmd->heater_number = parameter_value[0];
+  cmd->heater_number = queue_command[0];
   cmd->target_temp = target_ftemp;
 
   CommandQueue::EnqueueCommand(sizeof(SetHeaterTargetTempCommand));
   return ENQUEUE_SUCCESS;
 }
 
-FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length)
+FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if (parameter_length != 0 && parameter_length != 2)
-    return generate_enqueue_insufficient_bytes_error(2, parameter_length);
+  if (queue_command_length != 0 && queue_command_length != 2)
+    return generate_enqueue_insufficient_bytes_error(2, queue_command_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetStepperEnableStateQueueCommand));
   
@@ -343,34 +358,34 @@ FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *pac
   SetStepperEnableStateQueueCommand *cmd = (SetStepperEnableStateQueueCommand *)insertion_point;
     
   cmd->command_type = QUEUE_COMMAND_STRUCTS_TYPE_SET_STEPPER_ENABLE_STATE;
-  if (parameter_length == 0)
+  if (queue_command_length == 0)
   {
     cmd->stepper_number = 0xFF;
     cmd->stepper_state = 0;
   }
   else
   {
-    if (!AxisInfo::IsInUse(pacemaker_command[0]))
+    if (!AxisInfo::IsInUse(queue_command[0]))
     {
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
     }
-    if (is_stopped && pacemaker_command[1] != 0)
+    if (is_stopped && queue_command[1] != 0)
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
       return PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE;
     }
-    cmd->stepper_number = pacemaker_command[0];
-    cmd->stepper_state = pacemaker_command[1];
+    cmd->stepper_number = queue_command[0];
+    cmd->stepper_state = queue_command[1];
   }
 
   CommandQueue::EnqueueCommand(sizeof(SetStepperEnableStateQueueCommand));
   return ENQUEUE_SUCCESS;
 }
 
-FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *pacemaker_command, uint8_t pacemaker_command_length)
+FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
-  if ((parameter_length & 1) != 0)
-    return generate_enqueue_insufficient_bytes_error(parameter_length+1, parameter_length);
+  if ((queue_command_length & 1) != 0)
+    return generate_enqueue_insufficient_bytes_error(queue_command_length+1, queue_command_length);
   
   uint8_t *insertion_point = CommandQueue::GetCommandInsertionPoint(sizeof(SetEndstopEnableStateQueueCommand));
   
@@ -382,71 +397,71 @@ FORCE_INLINE static uint8_t enqueue_set_endstop_enable_state_command(const uint8
   
   uint8_t device_number, device_state;
 
-  for (uint8_t i=0; i < parameter_length; i+=2)
+  for (uint8_t i=0; i < queue_command_length; i+=2)
   {
-    device_number = parameter_value[i];
-    device_state = parameter_value[i+1];
+    device_number = queue_command[i];
+    device_state = queue_command[i+1];
     
     if (!Device_InputSwitch::IsInUse(device_number) || device_number >= MAX_ENDSTOPS)
       return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
-    cmd->endstops_to_change |= (1 << i);
+    cmd->endstops_to_change |= (1 << device_number);
     if (device_state)
-      cmd->endstop_enable_state |= (1 << i);
+      cmd->endstop_enable_state |= (1 << device_number);
   }
   
   CommandQueue::EnqueueCommand(sizeof(SetEndstopEnableStateQueueCommand));
   return ENQUEUE_SUCCESS;
 }
 
-uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length)
+uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command_length)
 {
   uint8_t expected_length = 8; // minimum short header size
     
   uint16_t axes_selected = 0;
   uint16_t directions = 0;
   bool use_long_counts = false;
-  bool use_long_axis_mask = parameter[0] & 0x80;
+  bool use_long_axis_mask = queue_command[0] & 0x80;
   
-  if (parameter_length >= expected_length)
+  if (queue_command_length >= expected_length)
   {
     if (use_long_axis_mask)
     {
       expected_length += 2;
-      axes_selected = ((parameter[0] & ~0x80) << 8) | parameter[1];
-      directions = ((parameter[2] & ~0x80) << 8) | parameter[3];
-      use_long_counts = parameter[2] & 0x80;
-      parameter += 4;
+      axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
+      directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
+      use_long_counts = queue_command[2] & 0x80;
+      queue_command += 4;
     }
     else
     {
-      axes_selected = parameter[0];
-      directions = parameter[1] & ~0x80;
-      use_long_counts = parameter[1] & 0x80;
-      parameter += 2;
+      axes_selected = queue_command[0];
+      directions = queue_command[1] & ~0x80;
+      use_long_counts = queue_command[1] & 0x80;
+      queue_command += 2;
     }
     if (use_long_counts)
       expected_length += 2;
   }
-  if (parameter_length < expected_length)
-    return generate_enqueue_insufficient_bytes_error(expected_length, parameter_length);
+  if (queue_command_length < expected_length)
+    return generate_enqueue_insufficient_bytes_error(expected_length, queue_command_length);
   
-  uint8_t primary_axis = *parameter & 0x0F;
-  uint8_t nominal_speed_fraction = *parameter++;
-  uint8_t final_speed_fraction = *parameter++;
+  uint8_t primary_axis = *queue_command & 0x0F;
+  uint8_t nominal_speed_fraction = *queue_command++;
+  uint8_t final_speed_fraction = *queue_command++;
   
   uint16_t accel_count;
   uint16_t decel_count;
   if (!use_long_counts)
   {
-    accel_count = *parameter++;
-    decel_count = *parameter++;
+    accel_count = *queue_command++;
+    decel_count = *queue_command++;
   }
   else
   {
-    accel_count = (parameter[0] << 8) | parameter[1];
-    decel_count = (parameter[2] << 8) | parameter[3];
-    parameter += 4;
+    accel_count = (queue_command[0] << 8) | queue_command[1];
+    decel_count = (queue_command[2] << 8) | queue_command[3];
+    queue_command += 4;
   }
   
   uint8_t num_axes = 0;
@@ -520,16 +535,16 @@ uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length)
   }
 
   expected_length += (use_long_counts) ? 2*num_axes : num_axes;
-  if (parameter_length < expected_length)
+  if (queue_command_length < expected_length)
   {
-    return generate_enqueue_insufficient_bytes_error(expected_length, parameter_length);
+    return generate_enqueue_insufficient_bytes_error(expected_length, queue_command_length);
   }
 
   uint16_t primary_axis_count;
   if (!use_long_counts)
-    primary_axis_count = parameter[primary_axis_index];
+    primary_axis_count = queue_command[primary_axis_index];
   else
-    primary_axis_count = (parameter[2*primary_axis_index] << 8) | parameter[(2*primary_axis_index) + 1];
+    primary_axis_count = (queue_command[2*primary_axis_index] << 8) | queue_command[(2*primary_axis_index) + 1];
 
   if (accel_count > primary_axis_count)
   {
@@ -552,51 +567,51 @@ uint8_t validate_linear_move(const uint8_t *parameter, uint8_t parameter_length)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_length)
+uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
   // validation code is separated so that it makes it easier to split 
   // the expansion to a secondary queue.
-  uint8_t retval = validate_linear_move(parameter, parameter_length);
+  uint8_t retval = validate_linear_move(queue_command, queue_command_length);
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
     
   uint16_t axes_selected;
   uint16_t directions;
   bool use_long_counts;
-  bool use_long_axis_mask = parameter[0] & 0x80;
+  bool use_long_axis_mask = queue_command[0] & 0x80;
   
   if (use_long_axis_mask)
   {
-    axes_selected = ((parameter[0] & ~0x80) << 8) | parameter[1];
-    directions = ((parameter[2] & ~0x80) << 8) | parameter[3];
-    use_long_counts = parameter[2] & 0x80;
-    parameter += 4;
+    axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
+    directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
+    use_long_counts = queue_command[2] & 0x80;
+    queue_command += 4;
   }
   else
   {
-    axes_selected = parameter[0];
-    directions = parameter[1] & ~0x80;
-    use_long_counts = parameter[1] & 0x80;
-    parameter += 2;
+    axes_selected = queue_command[0];
+    directions = queue_command[1] & ~0x80;
+    use_long_counts = queue_command[1] & 0x80;
+    queue_command += 2;
   }
   
-  uint8_t primary_axis = *parameter & 0x0F;
-  bool homing_bit = *parameter++ & 0x10;
-  uint8_t nominal_speed_fraction = *parameter++;
-  uint8_t final_speed_fraction = *parameter++;
+  uint8_t primary_axis = *queue_command & 0x0F;
+  bool homing_bit = *queue_command++ & 0x10;
+  uint8_t nominal_speed_fraction = *queue_command++;
+  uint8_t final_speed_fraction = *queue_command++;
   
   uint16_t accel_count;
   uint16_t decel_count;
   if (!use_long_counts)
   {
-    accel_count = *parameter++;
-    decel_count = *parameter++;
+    accel_count = *queue_command++;
+    decel_count = *queue_command++;
   }
   else
   {
-    accel_count = (parameter[0] << 8) | parameter[1];
-    decel_count = (parameter[2] << 8) | parameter[3];
-    parameter += 4;
+    accel_count = (queue_command[0] << 8) | queue_command[1];
+    decel_count = (queue_command[2] << 8) | queue_command[3];
+    queue_command += 4;
   }
   
   uint8_t num_axes = 0;
@@ -634,9 +649,9 @@ uint8_t enqueue_linear_move_command(const uint8_t *parameter, uint8_t parameter_
     {
       AxisMoveInfo *axis_move_info = &cmd->axis_move_info[index];
       if (use_long_counts)
-        axis_move_info->step_count = (parameter[2*index] << 8) | parameter[(2*index)+1];
+        axis_move_info->step_count = (queue_command[2*index] << 8) | queue_command[(2*index)+1];
       else
-        axis_move_info->step_count = parameter[index];
+        axis_move_info->step_count = queue_command[index];
 
       if (max_steps < axis_move_info->step_count)
         max_steps = axis_move_info->step_count;

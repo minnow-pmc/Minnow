@@ -41,12 +41,15 @@
 //  uses slightly more instructions to complete however this is mitigated because:
 //    - it can still support 40000 steps per second (as per Marlin/Grbl). 
 //    - all step inputs and output registers are precalculated to minimize execution time (so 
-//       it is fairly close to hard-coded outputs anyway)
-//    - efficent block transmission and queuing means that high rates of small step blocks can be
+//       it is fairly close to hard-coded output times anyway)
+//    - efficient block transmission and queuing means that high rates of small step blocks can be
 //       maintained without motion-planning becoming the bottle-neck (especially a problem with 
 //       non-cartesian co-ordinate systems).
 //    - speed calculation is only done once per ISR invocaton as normal (i.e., regardless of number  
 //       of axes) and is very similar to Marlin/Grbl.
+//    - step spacing consistency is maximized because the current movement steps are output 
+//       before the step interval is recalculated for the next step (and therefore the effect
+//       of any differences in recalculation time are minimized).
 //    - far less non-movement ISR CPU time is needed as there is no motion planning required 
 //    - the underrun avoidance algorithm also avoids lengthy calculations and the extra logic is 
 //       only used in abnormal operating cases when the system needs to be slowed down due 
@@ -101,6 +104,8 @@
 // Some useful constants
 
 #define ALLOWED_SPEED_DIFF 4
+
+#define IDLE_INTERRUPT_RATE 2000 // == 1ms at the 2Mhz counter rate (ensures that serial Rx is still checked regularly)
 
 // queue statics placed in this compilation unit to allow better optimization
 uint8_t *CommandQueue::queue_buffer = 0;
@@ -224,7 +229,7 @@ void movement_ISR_init()
   // create_speed_lookuptable.py
   TCCR1B = (TCCR1B & ~(0x07<<CS10)) | (2<<CS10);
 
-  OCR1A = 0x4000;
+  OCR1A = IDLE_INTERRUPT_RATE;
   TCNT1 = 0;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 
@@ -338,7 +343,7 @@ do_handle_queue_command:
   #endif      
       }
       CommandQueue::current_queue_command_count = 0;
-      OCR1A = 2000; // == 1ms
+      OCR1A = IDLE_INTERRUPT_RATE; 
       return;
     }
 
@@ -425,10 +430,12 @@ FORCE_INLINE bool handle_queue_command()
   {
   case QUEUE_COMMAND_STRUCTS_TYPE_DELAY:
   {
-    const DelayQueueCommand *cmd = (const DelayQueueCommand*)command_in_progress;
+    if (!continuing)
+    {  
+      const DelayQueueCommand *cmd = (const DelayQueueCommand*)command_in_progress;
 
-    tmp_uint32 = micros() + cmd->delay;
-    
+      tmp_uint32 = micros() + cmd->delay; 
+    }
     return handle_delay_command();
   }
   case QUEUE_COMMAND_STRUCTS_TYPE_SET_OUTPUT_SWITCH_STATE:
@@ -553,15 +560,15 @@ FORCE_INLINE bool handle_queue_command()
 
 FORCE_INLINE bool handle_delay_command()
 {
-  int32_t delay = micros() - tmp_uint32;
+  int32_t delay = tmp_uint32 - micros();
   if (delay <= 0)
   {
     return false;
   }
   else
   {
-    if (delay > 15000)
-      OCR1A = 2 * 15000; // == 30ms
+    if (delay > IDLE_INTERRUPT_RATE / 2) // assumes 2Mhz counter frequency
+      OCR1A = IDLE_INTERRUPT_RATE; 
     else
       OCR1A = max(delay * 2, 10L);
     return true;

@@ -82,6 +82,7 @@
 // TODO: treat these differently once event framework is implemented
 #define ERROR(x) DSerial.print(true, x)
 #define ERROR_F(x,y) DSerial.print(true, x,y)
+#define ERROR_CH(x) DSerial.print(true, x, BYTE)
 #define ERRORPGM(x) ERRORPGM_P(PSTR(x))
 #define ERRORPGM_P(x) DSerial.printPGM(true, x)
 #define ERROR_EOL() DSerial.println(true)
@@ -96,6 +97,7 @@
 #define DEBUG(x) 
 #define DEBUG_EOL() 
 #define DEBUG_F(x,y) 
+#define DEBUG_CH(x) 
 #define DEBUGPGM(x) 
 #define DEBUGPGM_P(x) 
 #define DEBUGLN(x) 
@@ -113,6 +115,7 @@ extern DebugSerial DSerial;
 //
 #define DEBUG(x) DSerial.print(false, x)
 #define DEBUG_F(x,y) DSerial.print(false, x, y)
+#define DEBUG_CH(x) DSerial.print(false, x, BYTE)
 #define DEBUGPGM(x) DEBUGPGM_P(PSTR(x))
 #define DEBUGPGM_P(x) DSerial.printPGM(false, x)
 #define DEBUG_EOL() DSerial.println(false)
@@ -157,9 +160,7 @@ class DebugSerial
     //
     // Convenience functions
     //
-
-    void print(bool error, long n, int base);
-    
+  
     FORCE_INLINE void write(bool error, const char *str)
     {
       while (*str)
@@ -184,30 +185,40 @@ class DebugSerial
       write(error, str);
     }
     
-    FORCE_INLINE void print(bool error, char c, int base = BYTE)
+    FORCE_INLINE void print(bool error, char c, int base = DEC)
     {
-      print(error, (long) c, base);
+      if (base == BYTE)
+        write(error, (char)c);
+      else
+        printSignedNumber(error, c, base);
     }
 
-    FORCE_INLINE void print(bool error, unsigned char b, int base = BYTE)
+    FORCE_INLINE void print(bool error, unsigned char b, int base = DEC)
     {
-      print(error, (unsigned long) b, base);
+      if (base == BYTE)
+        write(error, (unsigned char)b);
+      else
+        printUnsignedNumber(error, b, base);
     }
 
     FORCE_INLINE void print(bool error, int n, int base = DEC)
     {
-      print(error, (long) n, base);
+      printSignedNumber(error, n, base);
     }
 
     FORCE_INLINE void print(bool error, unsigned int n, int base = DEC)
     {
-      print(error, (unsigned long) n, base);
+      printUnsignedNumber(error, n, base);
+    }
+
+    FORCE_INLINE void print(bool error, long n, int base = DEC)
+    {
+      printSignedNumber(error, n, base);
     }
 
     FORCE_INLINE void print(bool error, unsigned long n, int base = DEC)
     {
-      if (base == BYTE) write(error, n);
-      else printNumber(error, n, base);
+      printUnsignedNumber(error, n, base);
     }
 
     FORCE_INLINE void print(bool error, double n, int digits = 2)
@@ -217,7 +228,7 @@ class DebugSerial
 
     FORCE_INLINE void println(bool error)
     {
-      print(error, '\n');  
+      write(error, '\n');  
     }
 
     FORCE_INLINE void println(bool error, const String &s)
@@ -232,45 +243,51 @@ class DebugSerial
       println(error);
     }
 
-    FORCE_INLINE void println(bool error, char c, int base = BYTE)
+    FORCE_INLINE void println(bool error, char c, int base = DEC)
     {
-      print(error, c, base);
+      if (base == BYTE)
+        write(error, (char)c);
+      else
+        printSignedNumber(error, c, base);
       println(error);
     }
 
-    FORCE_INLINE void println(bool error, unsigned char b, int base = BYTE)
+    FORCE_INLINE void println(bool error, unsigned char b, int base = DEC)
     {
-      print(error, b, base);
+      if (base == BYTE)
+        write(error, (unsigned char)b);
+      else
+        printUnsignedNumber(error, b, base);
       println(error);
     }
 
     FORCE_INLINE void println(bool error, int n, int base = DEC)
     {
-      print(error, n, base);
+      printSignedNumber(error, n, base);
       println(error);
     }
 
     FORCE_INLINE void println(bool error, unsigned int n, int base = DEC)
     {
-      print(error, n, base);
+      printUnsignedNumber(error, n, base);
       println(error);
     }
 
     FORCE_INLINE void println(bool error, long n, int base = DEC)
     {
-      print(n, base);
+      printSignedNumber(error, n, base);
       println(error);
     }
 
     FORCE_INLINE void println(bool error, unsigned long n, int base = DEC)
     {
-      print(n, base);
+      printUnsignedNumber(error, n, base);
       println(error);
     }
 
     FORCE_INLINE void println(bool error, double n, int digits = 2)
     {
-      print(n, digits);
+      printFloat(error, n, digits);
       println(error);
     }
     
@@ -303,12 +320,13 @@ class DebugSerial
     FORCE_INLINE void printPGM_pair(bool error, const char *s_P, unsigned long v)
     {
       printPGM(error, s_P);
-      printNumber(error, v, DEC);
+      printUnsignedNumber(error, v, DEC);
     }
       
 private:
 
-    void printNumber(bool error, unsigned long value, uint8_t format);
+    void printSignedNumber(bool error, long value, uint8_t format);
+    void printUnsignedNumber(bool error, unsigned long value, uint8_t format);
     void printFloat(bool error, double value, uint8_t decimaldigits);
 
   #if USE_PACEMAKER_FRAMES_FOR_DEBUG

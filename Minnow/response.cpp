@@ -298,7 +298,7 @@ void generate_response_send()
   DEBUGPGM("):");  
   for (i = 0; i < param_length; i++)
   {
-    DEBUG(' '); 
+    DEBUG_CH(' '); 
     DEBUG_F(reply_buf[i], HEX);  
   }
   DEBUG_EOL();
