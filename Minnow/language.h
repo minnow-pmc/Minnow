@@ -339,7 +339,10 @@ PMSG_VARIABLE(MSG_EXPECTING);
 #define CONFIG_STR_ENABLE_PULLUP_ENGLISH          "enable_pullup"
 #define CONFIG_STR_ENABLE_PULLUP_DEUTSCH          CONFIG_STR_ENABLE_PULLUP_ENGLISH
 
-// Config values
+#define CONFIG_STR_TRIGGER_LEVEL_ENGLISH          "trigger_level"
+#define CONFIG_STR_TRIGGER_LEVEL_DEUTSCH          CONFIG_STR_TRIGGER_LEVEL_ENGLISH
+
+// Values for enumerated config elements
 
 #define CONFIG_STR_HIGH_STR_ENGLISH               "high"
 #define CONFIG_STR_HIGH_STR_DEUTSCH               CONFIG_STR_HIGH_STR_ENGLISH

@@ -119,8 +119,8 @@ public:
 
   // Endstop Configuration
   static uint8_t ClearEndstops(uint8_t axis_number);
-  static uint8_t SetMaxEndstopDevice(uint8_t axis_number, uint8_t input_switch_number, bool trigger_level);
-  static uint8_t SetMinEndstopDevice(uint8_t axis_number, uint8_t input_switch_number, bool trigger_level);
+  static uint8_t SetMaxEndstopDevice(uint8_t axis_number, uint8_t input_switch_number);
+  static uint8_t SetMinEndstopDevice(uint8_t axis_number, uint8_t input_switch_number);
 
   // Movement rate configuration
   static uint8_t SetAxisMaxRate(uint8_t axis_number, uint16_t rate);
@@ -216,7 +216,6 @@ private:
   
   // endstop information which is stored independently of axis_number
   static BITMASK(MAX_ENDSTOPS) endstop_enable_state;
-  static BITMASK(MAX_ENDSTOPS) endstop_trigger_level;
   
   // underrun info
   static uint16_t underrun_disable_queue_time;

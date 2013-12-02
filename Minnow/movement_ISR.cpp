@@ -777,7 +777,7 @@ FORCE_INLINE bool check_endstops()
     }
     
     BITMASK(MAX_ENDSTOPS) endstop_bit = 1 << index;
-    bool new_endstop_hit = Device_InputSwitch::ReadState(index) == ((AxisInfo::endstop_trigger_level & endstop_bit) != 0);
+    bool new_endstop_hit = Device_InputSwitch::ReadState(index);
     if (new_endstop_hit && (endstop_hit & endstop_bit))
     {
       if (cmd->homing_bit)

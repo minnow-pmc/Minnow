@@ -40,16 +40,22 @@ public:
   FORCE_INLINE static bool IsInUse(uint8_t device_number)
   {
     return (device_number < num_input_switches 
-      && input_switch_info[device_number].pin != 0xFF);
+      && input_switch_pins[device_number] != 0xFF);
   }
 
   FORCE_INLINE static uint8_t GetPin(uint8_t device_number)
   {
-    return input_switch_info[device_number].pin;
+    return input_switch_pins[device_number];
+  }
+  
+  FORCE_INLINE static uint8_t GetTriggerLevel(uint8_t device_number)
+  {
+    return input_switch_info[device_number].trigger_level;
   }
   
   // returns APP_ERROR_TYPE_SUCCESS or error code
   static uint8_t SetPin(uint8_t device_number, uint8_t pin);
+  static uint8_t SetTriggerLevel(uint8_t device_number, bool level);
   
   // These are applied to/from NVConfigStore.  
   static uint8_t SetEnablePullup(uint8_t device_number, bool enable);
@@ -57,10 +63,12 @@ public:
 
   FORCE_INLINE static bool ReadState(uint8_t device_number)
   {
-    return digitalRead(input_switch_info[device_number].pin) != 0;
+    return (digitalRead(input_switch_pins[device_number]) == HIGH) == 
+            input_switch_info[device_number].trigger_level;
 // FIXME    
 //    const InputSwitchInfoInternal *info = &input_switch_info[device_number];
-//    return (*info->switch_register & info->switch_bit) != 0;
+//    return ((*info->switch_register & info->switch_bit) != 0)
+//                == input_switch_info[device_number].trigger_level;
   }
 
 private:
@@ -69,10 +77,12 @@ private:
   // so that accessing it doesn't require multiplication.
   struct InputSwitchInfoInternal
   {
-    uint8_t pin;
+    bool trigger_level;
     volatile uint8_t *switch_register;
     uint8_t switch_bit;
   };
+
+  static uint8_t *input_switch_pins;
   
   static uint8_t num_input_switches;
   static InputSwitchInfoInternal *input_switch_info;

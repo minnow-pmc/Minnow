@@ -107,7 +107,7 @@
 #define PARAM_APP_ERROR_TYPE_BUSY                         0x7
 #define PARAM_APP_ERROR_TYPE_FAILED                       0x8
 #define PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR               0x9
-#define PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE       0xa
+#define PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE           0xa
 
 // Stopped Response Parameter values
 #define PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED            0x0
@@ -204,9 +204,10 @@
 // Device Status Values
 #define DEVICE_STATUS_ACTIVE                              0x0
 #define DEVICE_STATUS_INACTIVE                            0x1
-#define DEVICE_STATUS_CONFIG_ERROR                        0x2
-#define DEVICE_STATUS_DEVICE_FAULT                        0x3
-#define DEVICE_STATUS_STOPPED                             0x4
+#define DEVICE_STATUS_DISABLED                            0x2
+#define DEVICE_STATUS_CONFIG_ERROR                        0x3
+#define DEVICE_STATUS_DEVICE_FAULT                        0x4
+#define DEVICE_STATUS_STOPPED                             0x5
 
 //
 // Queue Command Types

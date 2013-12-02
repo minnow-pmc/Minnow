@@ -318,6 +318,9 @@ void generate_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
       utoa(Device_InputSwitch::GetPin(parent_instance_id), response_data_buf, 10);
       generate_response_data_addlen(strlen(response_data_buf));
       break;
+    case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_TRIGGER_LEVEL:
+      generate_response_data_addbyte(Device_InputSwitch::GetTriggerLevel(parent_instance_id) ? '1' : '0');
+      break;
     case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_ENABLE_PULLUP:
       generate_response_data_addbyte(Device_InputSwitch::GetEnablePullup(parent_instance_id) ? '1' : '0');
       break;
@@ -544,6 +547,9 @@ bool set_bool_value(uint8_t node_type, uint8_t parent_instance_id,  uint8_t inst
 
   switch (node_type)
   {
+  case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_TRIGGER_LEVEL:
+    retval = Device_InputSwitch::SetTriggerLevel(parent_instance_id, value);
+    break;
   case NODE_TYPE_CONFIG_LEAF_INPUT_SWITCH_ENABLE_PULLUP:
     retval = Device_InputSwitch::SetEnablePullup(parent_instance_id, value);
     break;

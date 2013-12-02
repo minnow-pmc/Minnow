@@ -433,7 +433,8 @@ void handle_device_status_order()
     if (!Device_OutputSwitch::IsInUse(device_number))
       generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
     else if (!Device_OutputSwitch::GetEnableState(device_number))
-      generate_response_data_addbyte(DEVICE_STATUS_INACTIVE);
+      generate_response_data_addbyte(DEVICE_STATUS_DISABLE);    
+      // TODO handle inactive state
     else
       generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
     break;
@@ -630,7 +631,7 @@ void handle_set_heater_target_temperature_order()
 
   if (is_stopped && ftemp != SENSOR_TEMPERATURE_INVALID)
   {
-    send_app_error_response(PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE,
+    send_app_error_response(PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE,
         PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
     return;
   }
@@ -872,7 +873,7 @@ void handle_enable_disable_steppers_order()
     }
     if (is_stopped && device_state != 0)
     {
-      send_app_error_response(PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE,
+      send_app_error_response(PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE,
           PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
       return;
     }
@@ -883,11 +884,11 @@ void handle_enable_disable_steppers_order()
 
 void handle_configure_endstops_order()
 {
-  uint8_t num_endstops = (parameter_length-1) / 3;
+  uint8_t num_endstops = (parameter_length-1) / 2;
   
-  if (parameter_length < 4 || parameter_length != (3 * num_endstops) + 1)
+  if (parameter_length < 3 || parameter_length != (2 * num_endstops) + 1)
   {
-    send_insufficient_bytes_error_response(3 * (num_endstops+1) + 1);
+    send_insufficient_bytes_error_response(2 * (num_endstops+1) + 1);
     return;
   }
   
@@ -900,17 +901,16 @@ void handle_configure_endstops_order()
   
   AxisInfo::ClearEndstops(axis_number);
   
-  for (uint8_t i=1; i < parameter_length; i+=3)
+  for (uint8_t i=1; i < parameter_length; i+=2)
   {
     uint8_t device_number = parameter_value[i];
     uint8_t min_or_max = parameter_value[i+1];
-    uint8_t trigger_level = parameter_value[i+2];
     
     uint8_t retval;
     if (min_or_max == 0)
-      retval = AxisInfo::SetMinEndstopDevice(axis_number, device_number, trigger_level);
+      retval = AxisInfo::SetMinEndstopDevice(axis_number, device_number);
     else
-      retval = AxisInfo::SetMaxEndstopDevice(axis_number, device_number, trigger_level);
+      retval = AxisInfo::SetMaxEndstopDevice(axis_number, device_number);
 
     if (retval != APP_ERROR_TYPE_SUCCESS)
     {

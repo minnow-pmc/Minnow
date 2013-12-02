@@ -9,7 +9,7 @@ The Minnow firmware was originally created by Robert Fairlie-Cuninghame based la
 
 The firmware is intended for both standalone Arduino-based controller boards (using a PC or similar host platform) as well integrated Arduino + ARM controller boards. 
 
-The Minnow firmware and Pacemaker protocol have been specifically designed to support a sustained, high rate of individual movement control segments with minimal processing overhead on the client, thereby allowing a far more sophisticated level of motion planning, co-ordinate remapping and better support for non-linear co-ordinate systems without requiring a real time operating system on the host.
+The Minnow firmware and Pacemaker protocol have been specifically designed to support a sustained, high rate of individual movement control segments with minimal processing overhead on the client, thereby allowing the use of a cheaper controller whilst also yielding a far more sophisticated level of motion planning, co-ordinate remapping and better support for non-linear co-ordinate systems than most current solutions without requiring a real time operating system on the host.
 
 The firmware has also been designed to provide a flexible host-based configuration system so that individual firmware builds are not required for different printer and controller configurations. 
 
@@ -17,7 +17,7 @@ The Minnow firmware also supports an arbitrary number of devices - steppers, dig
 
 System requirements:
  - a 16Mhz or 20Mhz AVR Arduino (i.e., not Due)
- - at least 64KB flash memory (currently although this could be reduced using static configuration)
+ - at least 64KB flash memory (currently although this can be reduced using static configuration)
  - at least 2KB SRAM memory
 
 TODO List 
@@ -44,6 +44,7 @@ Currently supported firmware configuration commands:
 * Device configuration elements
   - devices.digital_input.<device number>.name
   - devices.digital_input.<device number>.pin
+  - devices.digital_input.<device number>.trigger_level
   - devices.digital_input.<device number>.enable_pullup
   
   - devices.digital_output.<device number>.name

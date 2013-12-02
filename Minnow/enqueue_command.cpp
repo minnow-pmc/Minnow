@@ -338,7 +338,7 @@ FORCE_INLINE uint8_t enqueue_set_heater_target_temperature_command(const uint8_t
   if (is_stopped && target_ftemp != SENSOR_TEMPERATURE_INVALID)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
-    return PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE;
+    return PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE;
   }
     
   SetHeaterTargetTempCommand *cmd = (SetHeaterTargetTempCommand *)insertion_point;
@@ -377,7 +377,7 @@ FORCE_INLINE uint8_t enqueue_set_stepper_enable_state_command(const uint8_t *que
     if (is_stopped && queue_command[1] != 0)
     {
       generate_response_msg_addPGM(PMSG(MSG_ERR_CANNOT_ACTIVATE_DEVICE_WHEN_STOPPED));
-      return PARAM_APP_ERROR_TYPE_CANNOT_ACTIVATE_DEVICE;
+      return PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE;
     }
     cmd->stepper_number = queue_command[0];
     cmd->stepper_state = queue_command[1];
@@ -752,4 +752,5 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
 uint8_t enqueue_move_checkpoint_command(const uint8_t *queue_command, uint8_t queue_command_length)
 {
   is_checkpoint_last = true;
+  return ENQUEUE_SUCCESS;
 }

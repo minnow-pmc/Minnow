@@ -33,7 +33,6 @@ uint16_t AxisInfo::underrun_queue_high_time;
 
 BITMASK(MAX_STEPPERS) AxisInfo::stepper_enable_state;
 BITMASK(MAX_ENDSTOPS) AxisInfo::endstop_enable_state;
-BITMASK(MAX_ENDSTOPS) AxisInfo::endstop_trigger_level;
 
 //
 // Methods
@@ -133,31 +132,23 @@ uint8_t AxisInfo::ClearEndstops(uint8_t axis_number)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t AxisInfo::SetMinEndstopDevice(uint8_t axis_number, uint8_t input_switch_number, bool trigger_level)
+uint8_t AxisInfo::SetMinEndstopDevice(uint8_t axis_number, uint8_t input_switch_number)
 {
   if (axis_number >= num_axes)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   if (input_switch_number >= MAX_ENDSTOPS || !Device_InputSwitch::IsInUse(input_switch_number))
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   axis_info_array[axis_number].min_endstops_configured |= (1 << input_switch_number);
-  if (trigger_level)
-    endstop_trigger_level |= (1 << input_switch_number);
-  else
-    endstop_trigger_level &= ~(1 << input_switch_number);
   return APP_ERROR_TYPE_SUCCESS;
 }
 
-uint8_t AxisInfo::SetMaxEndstopDevice(uint8_t axis_number, uint8_t input_switch_number, bool trigger_level)
+uint8_t AxisInfo::SetMaxEndstopDevice(uint8_t axis_number, uint8_t input_switch_number)
 {
   if (axis_number >= num_axes)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   if (input_switch_number >= MAX_ENDSTOPS || !Device_InputSwitch::IsInUse(input_switch_number))
     return PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE;
   axis_info_array[axis_number].max_endstops_configured |= (1 << input_switch_number);
-  if (trigger_level)
-    endstop_trigger_level |= (1 << input_switch_number);
-  else
-    endstop_trigger_level &= ~(1 << input_switch_number);
   return APP_ERROR_TYPE_SUCCESS;
 }
 

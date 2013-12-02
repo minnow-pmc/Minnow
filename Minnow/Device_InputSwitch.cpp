@@ -28,6 +28,7 @@
 extern uint8_t checkDigitalPin(uint8_t pin);
 
 uint8_t Device_InputSwitch::num_input_switches = 0;
+uint8_t *Device_InputSwitch::input_switch_pins;
 Device_InputSwitch::InputSwitchInfoInternal *Device_InputSwitch::input_switch_info;
 
 //
@@ -44,18 +45,20 @@ uint8_t Device_InputSwitch::Init(uint8_t num_devices)
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
 
-  uint8_t *memory = (uint8_t*)malloc(num_devices * sizeof(InputSwitchInfoInternal));
+  uint8_t *memory = (uint8_t*)malloc(num_devices * (sizeof(*input_switch_pins) + sizeof(InputSwitchInfoInternal)));
   if (memory == 0)
   {
     generate_response_msg_addPGM(PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
     return PARAM_APP_ERROR_TYPE_FAILED;
   }
 
-  input_switch_info = (InputSwitchInfoInternal *)memory;
+  input_switch_pins = memory;
+  input_switch_info = (InputSwitchInfoInternal *)(input_switch_pins + num_devices);
   
   for (uint8_t i=0; i < num_devices; i++)
   {
-    input_switch_info[i].pin = 0xFF;
+    input_switch_pins[i] = 0xFF;
+    input_switch_info[i].trigger_level = 1;
   }
 
   num_input_switches = num_devices;
@@ -71,8 +74,8 @@ uint8_t Device_InputSwitch::SetPin(uint8_t device_number, uint8_t pin)
   if (retval != APP_ERROR_TYPE_SUCCESS)
     return retval;
   
-  input_switch_info[device_number].pin = pin;
-  input_switch_info[device_number].switch_register = portOutputRegister(digitalPinToPort(pin));
+  input_switch_pins[device_number] = pin;
+  input_switch_info[device_number].switch_register = portInputRegister(digitalPinToPort(pin));
   input_switch_info[device_number].switch_bit = digitalPinToBitMask(pin);
 
   pinMode(pin, INPUT);
@@ -85,7 +88,7 @@ uint8_t Device_InputSwitch::SetEnablePullup(uint8_t device_number, bool enable)
   if (device_number >= num_input_switches)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
 
-  uint8_t pin = input_switch_info[device_number].pin;
+  uint8_t pin = input_switch_pins[device_number];
   if (pin == 0xFF)
     return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
   
@@ -94,12 +97,21 @@ uint8_t Device_InputSwitch::SetEnablePullup(uint8_t device_number, bool enable)
   return APP_ERROR_TYPE_SUCCESS;
 }
 
+uint8_t Device_InputSwitch::SetTriggerLevel(uint8_t device_number, bool level)
+{
+  if (device_number >= num_input_switches)
+    return PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER;
+
+  input_switch_info[device_number].trigger_level = level; 
+  return APP_ERROR_TYPE_SUCCESS;
+}
+
 bool Device_InputSwitch::GetEnablePullup(uint8_t device_number)
 {
   if (device_number >= num_input_switches)
     return false;
 
-  uint8_t pin = input_switch_info[device_number].pin;
+  uint8_t pin = input_switch_pins[device_number];
   if (pin == 0xFF)
     return false;
   
