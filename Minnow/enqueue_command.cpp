@@ -484,7 +484,7 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
       }
       num_axes += 1;
 
-      if (index == primary_axis)
+      if (axis_number == primary_axis)
       {
         if (AxisInfo::GetAxisMaxRate(axis_number) == 0)
         {
