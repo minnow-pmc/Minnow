@@ -33,6 +33,10 @@ void movement_ISR_wake_up();
 // Set to true to do what the name says.
 extern bool come_to_stop_and_flush_queue;
 
+
+// For debugging.
+void print_movement_ISR_state(); 
+
 //
 // Fast multiplication functions used by the ISR 
 // (Copied from marlin)

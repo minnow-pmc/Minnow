@@ -57,7 +57,11 @@ void DebugSerial::flush()
     debug_header[PM_CONTROL_BYTE_OFFSET] = CONTROL_BYTE_RESPONSE_DEBUG_BIT | (debug_sequence_number++ & CONTROL_BYTE_SEQUENCE_NUMBER_MASK);
     PSERIAL.write(debug_header, sizeof(debug_header));
     PSERIAL.write(debug_buf, debug_buf_len);
-    PSERIAL.write(crc8(&debug_header[1], PM_HEADER_SIZE + debug_buf_len - 1));
+    // take crc over header and parameter (except sync byte)
+    uint8_t crc = crc8(&debug_header[1], PM_HEADER_SIZE-1);
+    if (debug_buf_len > 0)
+      crc = crc8_continue(debug_buf, debug_buf_len, crc);
+    PSERIAL.write(crc);
     debug_buf_len = 0;
   }
 #elif USE_SERIAL_PORT_FOR_DEBUG

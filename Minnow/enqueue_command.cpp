@@ -75,7 +75,7 @@ void enqueue_command()
     const uint8_t length = *ptr++;
     const uint8_t cmd = ptr[0];
     
-    if (length < 1 || ptr + length < parameter_value + parameter_length
+    if (length < 1 || ptr + length > parameter_value + parameter_length
       || (cmd == QUEUE_COMMAND_ORDER_WRAPPER && length < 2))
     {
       generate_response_msg_addPGM(PMSG(ERR_MSG_INSUFFICENT_BYTES));

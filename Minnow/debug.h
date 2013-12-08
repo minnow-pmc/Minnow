@@ -31,20 +31,25 @@
 //
 // Switches to make development testing easier
 //
-#define DEBUG_DONT_CHECK_CRC8_VALUE   0
-#define DEBUG_NOT_STOPPED_INITIALLY   0
-#define DEBUG_DISABLE_HOST_TIMEOUT    0
+#define DEBUG_DONT_CHECK_CRC8_VALUE       0
+#define DEBUG_NOT_STOPPED_INITIALLY       0
+#define DEBUG_DISABLE_HOST_TIMEOUT        0
+#define DEBUG_DISABLE_UNDERRUN_AVOIDANCE  0
 
 #define TRACE_ORDER                   0
 #define TRACE_RESPONSE                0
 #define TRACE_INITIAL_PIN_STATE       0
+#define TRACE_MOVEMENT                0
+#define TRACE_HEATER                  0
 
-#define QUEUE_DEBUG                   0
-#define MOVEMENT_DEBUG                0
-#define HEATER_DEBUG                  0
+// These only add additional consistency checks
+#define QUEUE_DEBUG                   1
+#define MOVEMENT_DEBUG                1
+
+// These are for quantitative profiling of performance
+#define MOVEMENT_PROFILE              1
 
 // Some unit test support
-
 #define QUEUE_TEST                    0
 
 

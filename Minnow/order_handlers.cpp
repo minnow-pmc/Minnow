@@ -433,7 +433,7 @@ void handle_device_status_order()
     if (!Device_OutputSwitch::IsInUse(device_number))
       generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
     else if (!Device_OutputSwitch::GetEnableState(device_number))
-      generate_response_data_addbyte(DEVICE_STATUS_DISABLE);    
+      generate_response_data_addbyte(DEVICE_STATUS_DISABLED);    
       // TODO handle inactive state
     else
       generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);

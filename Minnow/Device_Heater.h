@@ -247,7 +247,7 @@ private:
   FORCE_INLINE static void SetHeaterPower(HeaterInfo *heater_info, uint8_t power)
   {
     uint8_t device_number = heater_info->device_number;
-#if HEATER_DEBUG
+#if TRACE_HEATER
     DEBUG("SetHeater("); DEBUG((int)device_number); DEBUG("): "); DEBUG((int)power); DEBUG("/"); DEBUGLN((int)Device_TemperatureSensor::ReadCurrentTemperature(heater_info->temp_sensor));
 #endif    
     if ((soft_pwm_device_bitmask & (1<<device_number)) == 0)
