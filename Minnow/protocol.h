@@ -110,9 +110,9 @@
 #define PARAM_APP_ERROR_TYPE_DEVICE_UNAVAILABLE           0xa
 
 // Stopped Response Parameter values
-#define PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED            0x0
-#define PARAM_STOPPED_TYPE_PERSISTS                       0x1
-#define PARAM_STOPPED_TYPE_UNRECOVERABLE                  0x2
+#define PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED            0x1
+#define PARAM_STOPPED_TYPE_PERSISTS                       0x2
+#define PARAM_STOPPED_TYPE_UNRECOVERABLE                  0x3
 
 #define PARAM_STOPPED_CAUSE_RESET                         0x0
 #define PARAM_STOPPED_CAUSE_ENDSTOP_HIT                   0x1

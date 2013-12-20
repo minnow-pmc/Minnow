@@ -150,7 +150,7 @@ static const AxisMoveInfo *start_axis_move_info;
 static uint8_t num_axes;
 static uint16_t step_rate;
 static uint8_t step_loops;
-static uint32_t acceleration_time;
+static int32_t acceleration_time;
 
 static uint16_t step_events_next_phase;
 static uint16_t step_events_remaining;
@@ -162,7 +162,7 @@ static bool in_phase_3;
 
 static uint16_t nominal_rate;
 static uint16_t nominal_rate_timer;
-static uint16_t nominal_rate_step_loops;
+static uint8_t nominal_rate_step_loops;
 
 static uint16_t initial_rate;
 static uint16_t final_rate;
@@ -707,8 +707,7 @@ FORCE_INLINE void setup_new_move()
   DEBUGPGM(", stop?:");
   DEBUG(come_to_stop_and_flush_queue);
   DEBUG_EOL();
-#endif  
-    
+#endif //TRACE_MOVEMENT    
 }
 
 FORCE_INLINE void update_directions_and_initial_counts()
@@ -720,7 +719,19 @@ FORCE_INLINE void update_directions_and_initial_counts()
   {
     AxisInfoInternal *axis_info = axis_move_info->axis_info;
     BITMASK(MAX_STEPPERS) axis_bit = (1 << axis_info->stepper_number);
-
+    
+#if TRACE_MOVEMENT
+    DEBUGPGM(" AMI[");
+    DEBUG(num_axes - cnt);
+    DEBUGPGM("]: index:");
+    DEBUG(axis_info->stepper_number);
+    DEBUGPGM(", steps:");
+    DEBUG(axis_move_info->step_count);
+    if (cnt == 1)
+      DEBUG_EOL();
+#endif
+    
+    // enable stepper if not already enabled
     if ((AxisInfo::stepper_enable_state & axis_bit) == 0)
     {
       if (!axis_info->stepper_enable_invert)
@@ -730,8 +741,8 @@ FORCE_INLINE void update_directions_and_initial_counts()
       AxisInfo::stepper_enable_state |= axis_bit;
     }
     
-    // update count
-    axis_info->step_event_counter = -(total_step_events >> 1);
+    // set starting count (the extra -1 prevents rollover in the 0xFFFF step count case)
+    axis_info->step_event_counter = -(total_step_events >> 1) - 1;  
 
     // update directions
     if (((uint8_t)directions & 1) != 0)
@@ -800,7 +811,7 @@ FORCE_INLINE bool check_endstops()
               if (axis_move_info->step_count != 0)
                 stopped_axes += 1;
               ((AxisMoveInfo *)axis_move_info)->step_count = 0;
-              axis_info->step_event_counter = 0;
+              axis_info->step_event_counter = -1;
               if (stopped_axes == num_axes)
                 return false;
             }
@@ -813,7 +824,7 @@ FORCE_INLINE bool check_endstops()
               if (axis_move_info->step_count != 0)
                 stopped_axes += 1;
               ((AxisMoveInfo *)axis_move_info)->step_count = 0;
-              axis_info->step_event_counter = 0;
+              axis_info->step_event_counter = -1;
               if (stopped_axes == num_axes)
                 return false;
             }
@@ -846,22 +857,28 @@ FORCE_INLINE bool check_endstops()
 FORCE_INLINE void write_steps()
 {
   const AxisMoveInfo *axis_move_info = start_axis_move_info;
+  AxisInfoInternal *axis_info;
   uint8_t cnt = num_axes;
   while (true)
   {
-    AxisInfoInternal *axis_info = axis_move_info->axis_info;
-    volatile uint8_t *step_reg = axis_info->stepper_step_reg;
-    if ((axis_info->step_event_counter += axis_move_info->step_count) > 0) 
+    axis_info = axis_move_info->axis_info;
+    axis_info->step_event_counter += axis_move_info->step_count;
+    if (axis_info->step_event_counter >= 0) 
     {
+      volatile uint8_t *step_reg = axis_info->stepper_step_reg;
       if (!axis_info->stepper_step_invert)
       {
         *step_reg |= axis_info->stepper_step_bit;
+        // step duration is the length of updating the step event counter value
+        // (which should be long enough)
         axis_info->step_event_counter -= total_step_events;
         *step_reg &= ~(axis_info->stepper_step_bit);
       }
       else
       {
         *step_reg &= ~(axis_info->stepper_step_bit);
+        // step duration is length of updating the step event counter value
+        // (which should be long enough)
         axis_info->step_event_counter -= total_step_events;
         *step_reg |= axis_info->stepper_step_bit;
       }        
@@ -902,7 +919,7 @@ FORCE_INLINE void recalculate_speed()
     acceleration_time = 0;
   }
   
-  // normal system operatoin
+  // normal system operation
   if (in_phase_1)
   {
     // phase 1: accelerate from initial_rate to nominal_rate
@@ -1251,7 +1268,32 @@ void print_movement_ISR_state()
   DEBUGPGM(", urun:");
   DEBUG(underrun_active);
   DEBUG_EOL();
-#endif  
+  
+#if 0  
+  if (continuing)
+  {
+    const AxisMoveInfo *axis_move_info = start_axis_move_info;
+    uint8_t cnt = num_axes;
+    while (cnt > 0)
+    {
+      AxisInfoInternal *axis_info = axis_move_info->axis_info;
+      
+      DEBUGPGM(" AMI[");
+      DEBUG(num_axes - cnt);
+      DEBUGPGM("]: index:");
+      DEBUG(axis_info->stepper_number);
+      DEBUGPGM(", steps:");
+      DEBUG(axis_move_info->step_count);
+      DEBUGPGM(", cnt:");
+      DEBUG(axis_info->step_event_counter);
+      cnt -= 1;
+      axis_move_info++;
+    }
+    DEBUG_EOL();  
+  }
+#endif
+  
+#endif //TRACE_MOVEMENT
 }
 
 #if QUEUE_TEST

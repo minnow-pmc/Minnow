@@ -57,7 +57,7 @@ struct AxisInfoInternal
   uint32_t underrun_accel_rate;
   
   // used by ISR
-  uint16_t step_event_counter;
+  int16_t step_event_counter;
 };
 
 //
