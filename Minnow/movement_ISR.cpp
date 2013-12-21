@@ -151,6 +151,8 @@ static uint8_t num_axes;
 static uint16_t step_rate;
 static uint8_t step_loops;
 static int32_t acceleration_time;
+static uint16_t accel_start_rate;
+static uint16_t timer;
 
 static uint16_t step_events_next_phase;
 static uint16_t step_events_remaining;
@@ -627,6 +629,7 @@ FORCE_INLINE void setup_new_move()
   nominal_rate = cmd->nominal_rate;
   nominal_block_time = cmd->nominal_block_time;
   acceleration_time = 0;
+  accel_start_rate = initial_rate;
   start_axis_move_info = cmd->axis_move_info;
   stopped_axes = 0;
   endstops_to_check = cmd->endstops_of_interest & AxisInfo::endstop_enable_state;
@@ -892,7 +895,6 @@ FORCE_INLINE void write_steps()
 FORCE_INLINE void recalculate_speed()
 { 
   const LinearMoveCommand *cmd = (const LinearMoveCommand *)command_in_progress;
-  uint16_t timer;
   
   if (underrun_active || come_to_stop_and_flush_queue)
   {
@@ -917,14 +919,22 @@ FORCE_INLINE void recalculate_speed()
     in_phase_2 = false;
     in_phase_3 = true;
     acceleration_time = 0;
+    accel_start_rate = step_rate;
   }
   
   // normal system operation
   if (in_phase_1)
   {
+    // handle acceleration time roll over (24bit)
+    if ((acceleration_time >> 24) != 0)
+    {
+      acceleration_time = timer;
+      accel_start_rate = step_rate;
+    }
+    
     // phase 1: accelerate from initial_rate to nominal_rate
     MultiU24X24toH16(step_rate, acceleration_time, cmd->acceleration_rate);
-    step_rate += initial_rate;
+    step_rate += accel_start_rate;
 
     // upper limit
     if(step_rate > nominal_rate)
@@ -937,16 +947,23 @@ FORCE_INLINE void recalculate_speed()
   }
   else if (in_phase_3)
   {
+    // handle acceleration time roll over (24bit)
+    if ((acceleration_time >> 24) != 0)
+    {
+      acceleration_time = timer;
+      accel_start_rate = step_rate;
+    }
+    
     // phase 3: decelerate from nominal_rate to final_rate
     MultiU24X24toH16(step_rate, acceleration_time, cmd->deceleration_rate);
 
-    if(step_rate > nominal_rate) 
+    if(step_rate > accel_start_rate) 
     { // Check step_rate stays positive
       step_rate = final_rate;
     }
     else 
     {
-      step_rate = nominal_rate - step_rate; // Decelerate from aceleration end point.
+      step_rate = accel_start_rate - step_rate; // Decelerate from aceleration end point.
     }
 
     // lower limit
@@ -1166,17 +1183,29 @@ FORCE_INLINE void accelerate_to_underrun_target_rate(uint16_t target_rate, bool 
 
   if (current_underrun_accel_sign > 0)
   {
+    // handle acceleration time roll over (24bit)
+    if ((current_underrun_accel_time >> 24) != 0)
+    {
+      current_underrun_accel_time = timer;
+      current_underrun_accel_start_rate = step_rate;
+    }
     MultiU24X24toH16(step_rate, current_underrun_accel_time, underrun_acceleration_rate);
     step_rate += current_underrun_accel_start_rate;
   }
   else if (current_underrun_accel_sign < 0)
   {
+    // handle acceleration time roll over (24bit)
+    if ((current_underrun_accel_time >> 24) != 0)
+    {
+      current_underrun_accel_time = timer;
+      current_underrun_accel_start_rate = step_rate;
+    }
     MultiU24X24toH16(step_rate, current_underrun_accel_time, underrun_acceleration_rate);
     step_rate = current_underrun_accel_start_rate - step_rate;
   }
 
   // step_rate to timer interval
-  uint16_t timer = calc_timer(step_rate);
+  timer = calc_timer(step_rate);
   OCR1A = timer;
   current_underrun_accel_time += timer;
   return;
@@ -1253,6 +1282,8 @@ void print_movement_ISR_state()
   DEBUG(step_events_remaining);
   DEBUGPGM(", srate: ");
   DEBUG(step_rate);
+  DEBUGPGM(", atime: ");
+  DEBUG(acceleration_time);
   DEBUGPGM(" phase: ");
   DEBUG_CH(in_phase_1 ? '1' : '0');
   DEBUG_CH(in_phase_2 ? '1' : '0');
