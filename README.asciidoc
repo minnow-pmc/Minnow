@@ -33,68 +33,98 @@ TODO List
 - World domination
 
 Currently supported firmware configuration commands:
----------------------------------------------------
+----------------------------------------------------
 
-* System level configuration elements
-  - system.board_identity
-  - system.board_serialnum
-  - system.hardware_name
-  - system.hardware_type
-  - system.hardware_rev
-  - system.reset_eeprom (operation)
+[width="100%",cols="12,^2,^2,^2,3",options="header"]
+|=============================
+| Name of element| datatype | read/write | allowed values| comment
+| System level configuration elements | | | |
+| system.hardware_name | string | rw |  |
+| system.hardware_type | uint8 | rw | 0..255 |
+| system.hardware_rev | uint8 | rw | 0..255 |
+| system.board_identity | string | rw |  |
+| system.board_serialnum | string | rw |  |
+| system.num_digital_inputs | uint8 | rw | 0..255 |
+| system.num_digital_outputs | uint8 | rw | 0..255 |
+| system.num_pwm_outputs | uint8 | rw | 0..255 |
+| system.num_buzzers | uint8 | rw | 0..255 |
+| system.num_heaters | uint8 | rw | 0..255 |
+| system.num_temp_sensors | uint8 | rw | 0..255 |
+| system.num_steppers | uint8 | rw | 0..255 |
+| system.reset_eeprom (operation) | string | w |  |
+| Device configuration elements | | | |
+| devices.digital_input.<device number>.name | string | rw |  |
+| devices.digital_input.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.digital_input.<device number>.trigger_level | bool | rw | "true", "1" or "false", "0" |
+| devices.digital_input.<device number>.enable_pullup | bool | rw | "true", "1" or "false", "0" |
+| devices.digital_output.<device number>.name | string | rw |  |
+| devices.digital_output.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.digital_output.<device number>.initial_state | string | rw |  |
+| devices.pwm_output.<device number>.name | string | rw |  |
+| devices.pwm_output.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.pwm_output.<device number>.use_soft_pwm | bool | rw | "true", "1" or "false", "0" |
+| devices.buzzer.<device number>.name | string | rw |  |
+| devices.buzzer.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.temp_sensor.<device number>.name | string | rw |  |
+| devices.temp_sensor.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.temp_sensor.<device number>.type | int16 | rw | −32768..+32767 | see below
+| devices.heater.<device number>.name | string | rw |  |
+| devices.heater.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.heater.<device number>.power_on_level | uint8 | rw | 0..255 |
+| devices.heater.<device number>.use_soft_pwm | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.use_bang_bang | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.use_pid | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.temp_sensor | uint8 | rw | 0..255 |
+| devices.heater.<device number>.max_temp | int16 | rw | −32768..+32767 |
+| devices.heater.<device number>.bang_bang_hysteresis | uint8 | rw | 0..255 |
+| devices.heater.<device number>.pid_range | uint8 | rw | 0..255 |
+| devices.heater.<device number>.kp | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.ki | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.kd | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.dpi_do_autotune (operation) | string | rw |  |
+| devices.stepper.<device number>.name | string | rw |  |
+| devices.stepper.<device number>.enable_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.enable_invert | bool | rw | "true", "1" or "false", "0" | (0 = active low, 1 = active high)
+| devices.stepper.<device number>.direction_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.direction_invert | bool | rw | "true", "1" or "false", "0" |
+| devices.stepper.<device number>.step_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.step_invert | bool | rw | "true", "1" or "false", "0" |
+| Statistics elements | | | |
+| stats.rx_count | invalid | r | - |
+| stats.rx_errors | invalid | r | - |
+| stats.queue_memory | invalid | r | - |
+| debug.stack_memory | invalid | r | - |
+| Diagnostic/development elements | | | |
+| debug.stack_low_water_mark | invalid | r | - |
+|=============================
 
-* Device configuration elements
-  - devices.digital_input.<device number>.name
-  - devices.digital_input.<device number>.pin
-  - devices.digital_input.<device number>.trigger_level
-  - devices.digital_input.<device number>.enable_pullup
 
-  - devices.digital_output.<device number>.name
-  - devices.digital_output.<device number>.pin
-  - devices.digital_output.<device number>.initial_state
+Values for devices.temp_sensor.<device number>.type:
+----------------------------------------------------
 
-  - devices.pwm_output.<device number>.name
-  - devices.pwm_output.<device number>.pin
-  - devices.pwm_output.<device number>.use_soft_pwm
+ Thermistor sensor types: (>0)
 
-  - devices.buzzer.<device number>.name
-  - devices.buzzer.<device number>.pin
+ 1 is 100k thermistor - best choice for EPCOS 100k (4.7k pullup)
+ 2 is 200k thermistor - ATC Semitec 204GT-2 (4.7k pullup)
+ 3 is mendel-parts thermistor (4.7k pullup)
+ 4 is 10k thermistor !! do not use it for a hotend. It gives bad resolution at high temp. !!
+ 5 is 100K thermistor - ATC Semitec 104GT-2 (Used in ParCan) (4.7k pullup)
+ 6 is 100k EPCOS - Not as accurate as table 1 (created using a fluke thermocouple) (4.7k pullup)
+ 7 is 100k Honeywell thermistor 135-104LAG-J01 (4.7k pullup)
+ 71 is 100k Honeywell thermistor 135-104LAF-J01 (4.7k pullup)
+ 8 is 100k 0603 SMD Vishay NTCS0603E3104FXT (4.7k pullup)
+ 9 is 100k GE Sensing AL03006-58.2K-97-G1 (4.7k pullup)
+ 10 is 100k RS thermistor 198-961 (4.7k pullup)
+ 60 is 100k Maker's Tool Works Kapton Bed Thermister
 
-  - devices.temp_sensor.<device number>.name
-  - devices.temp_sensor.<device number>.pin
-  - devices.temp_sensor.<device number>.type
+    1k ohm pullup tables - This is not normal, you would have to have changed out your 4.7k for 1k
+                          (but gives greater accuracy and more stable PID on hotend)
+ 51 is 100k thermistor - EPCOS (1k pullup)
+ 52 is 200k thermistor - ATC Semitec 204GT-2 (1k pullup)
+ 55 is 100k thermistor - ATC Semitec 104GT-2 (Used in ParCan) (1k pullup)
 
-  - devices.heater.<device number>.name
-  - devices.heater.<device number>.pin
-  - devices.heater.<device number>.temp_sensor
-  - devices.heater.<device number>.max_temp
-  - devices.heater.<device number>.power_on_level
-  - devices.heater.<device number>.use_soft_pwm
-  - devices.heater.<device number>.use_bang_bang
-  - devices.heater.<device number>.bang_bang_hysteresis
-  - devices.heater.<device number>.use_pid
-  - devices.heater.<device number>.pid_range
-  - devices.heater.<device number>.kp
-  - devices.heater.<device number>.ki
-  - devices.heater.<device number>.kd
-  - devices.heater.<device number>.dpi_do_autotune (operation)
+ Thermocouple sensor types: (<0)
 
-  - devices.stepper.<device number>.name
-  - devices.stepper.<device number>.enable_pin
-  - devices.stepper.<device number>.enable_invert (0 = active low, 1 = active high)
-  - devices.stepper.<device number>.direction_pin
-  - devices.stepper.<device number>.direction_invert
-  - devices.stepper.<device number>.step_pin
-  - devices.stepper.<device number>.step_invert
-
-* Statistics elements
-  - stats.rx_count
-  - stats.rx_errors
-  - stats.queue_memory
-  - debug.stack_memory
-
-* Diagnostic/development elements
-  - debug.stack_low_water_mark
-
+ -1 is thermocouple with AD595
 
 
