@@ -86,9 +86,9 @@ Currently supported firmware configuration commands:
 | devices.stepper.<device number>.enable_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
 | devices.stepper.<device number>.enable_invert | bool | rw | "true", "1" or "false", "0" | (0 = active low, 1 = active high)
 | devices.stepper.<device number>.direction_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
-| devices.stepper.<device number>.direction_invert | bool | rw | "true", "1" or "false", "0" |
+| devices.stepper.<device number>.direction_invert | bool | rw | "true", "1" or "false", "0" | 0 = high is increasing, 1 = high is decreasing
 | devices.stepper.<device number>.step_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
-| devices.stepper.<device number>.step_invert | bool | rw | "true", "1" or "false", "0" |
+| devices.stepper.<device number>.step_invert | bool | rw | "true", "1" or "false", "0" | 0 = active high, 1 = active low
 | Statistics elements | | | |
 | stats.rx_count | invalid | r | - |
 | stats.rx_errors | invalid | r | - |
