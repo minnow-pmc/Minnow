@@ -668,13 +668,18 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
 
       axis_move_info->axis_info = &AxisInfo::axis_info_array[axis_number];
 
+      // after homing one end Switch is triggered, but we still want the stepper to move away from it.
+      // -> we can only check the end switch in direction of movement.
       if (directions & (1 << axis_number))
       {
         cmd->directions |= (1 << index);
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMaxEndstops(axis_number);
       }
-      // always look at both end Stops - for safety reasons and easier (inverted)
-      cmd->endstops_of_interest |= AxisInfo::GetAxisMaxEndstops(axis_number);
-      cmd->endstops_of_interest |= AxisInfo::GetAxisMinEndstops(axis_number);
+      else
+      {
+        cmd->endstops_of_interest |= AxisInfo::GetAxisMinEndstops(axis_number);
+      }
+
       index += 1;
     }
     tmp_axes >>= 1;
