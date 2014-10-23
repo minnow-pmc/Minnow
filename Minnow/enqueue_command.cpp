@@ -431,8 +431,8 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
   if (use_long_axis_mask)
   {
     expected_length += 2;
-    axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
-    directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
+    axes_selected = ((uint16_t)(queue_command[0] & ~0x80) << 8) | queue_command[1];
+    directions = ((uint16_t)(queue_command[2] & ~0x80) << 8) | queue_command[3];
     use_long_counts = queue_command[2] & 0x80;
     queue_command += 4;
   }
@@ -462,8 +462,8 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
   }
   else
   {
-    accel_count = (queue_command[0] << 8) | queue_command[1];
-    decel_count = (queue_command[2] << 8) | queue_command[3];
+    accel_count = ((uint16_t)(queue_command[0]) << 8) | queue_command[1];
+    decel_count = ((uint16_t)(queue_command[2]) << 8) | queue_command[3];
     queue_command += 4;
   }
 
@@ -548,7 +548,7 @@ uint8_t validate_linear_move(const uint8_t *queue_command, uint8_t queue_command
   if (!use_long_counts)
     primary_axis_count = queue_command[primary_axis_index];
   else
-    primary_axis_count = (queue_command[2*primary_axis_index] << 8) | queue_command[(2*primary_axis_index) + 1];
+    primary_axis_count = ( (uint16_t)(queue_command[2*primary_axis_index]) << 8) | queue_command[(2*primary_axis_index) + 1];
 
   if (accel_count > primary_axis_count)
   {
@@ -586,8 +586,8 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
 
   if (use_long_axis_mask)
   {
-    axes_selected = ((queue_command[0] & ~0x80) << 8) | queue_command[1];
-    directions = ((queue_command[2] & ~0x80) << 8) | queue_command[3];
+    axes_selected = ((uint16_t)(queue_command[0] & ~0x80) << 8) | queue_command[1];
+    directions = ((uint16_t)(queue_command[2] & ~0x80) << 8) | queue_command[3];
     use_long_counts = queue_command[2] & 0x80;
     queue_command += 4;
   }
@@ -613,8 +613,8 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
   }
   else
   {
-    accel_count = (queue_command[0] << 8) | queue_command[1];
-    decel_count = (queue_command[2] << 8) | queue_command[3];
+    accel_count = ((uint16_t)(queue_command[0]) << 8) | queue_command[1];
+    decel_count = ((uint16_t)(queue_command[2]) << 8) | queue_command[3];
     queue_command += 4;
   }
 
@@ -653,7 +653,7 @@ uint8_t enqueue_linear_move_command(const uint8_t *queue_command, uint8_t queue_
     {
       AxisMoveInfo *axis_move_info = &cmd->axis_move_info[index];
       if (use_long_counts)
-        axis_move_info->step_count = (queue_command[2*index] << 8) | queue_command[(2*index)+1];
+        axis_move_info->step_count = ((uint16_t)(queue_command[2*index]) << 8) | queue_command[(2*index)+1];
       else
         axis_move_info->step_count = queue_command[index];
 
