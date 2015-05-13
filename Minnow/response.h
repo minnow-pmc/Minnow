@@ -1,6 +1,6 @@
 /*
  Minnow Pacemaker client firmware.
-    
+
  Copyright (C) 2013 Robert Fairlie-Cuninghame
 
  This program is free software: you can redistribute it and/or modify
@@ -27,11 +27,11 @@
 #include <stdint.h>
 
 //
-// Setup a new response buffer. 
+// Setup a new response buffer.
 //
-// The expected_length_excluding_msg argument indicates the offset where an optional 
-// trailing UTF8 string message can be built. This argument has no effect if none of the 
-// generate_response_msg_add functions are called. 
+// The expected_length_excluding_msg argument indicates the offset where an optional
+// trailing UTF8 string message can be built. This argument has no effect if none of the
+// generate_response_msg_add functions are called.
 //
 // A value of 0xFF for expected_length_excluding_msg indicates that no message is expected
 //
@@ -39,7 +39,7 @@ void generate_response_start(uint8_t response_code, uint8_t expected_length_excl
 void generate_response_transport_error_start(uint8_t transport_error, uint8_t control_byte);
 
 //
-// These method append data to the reponse Parameter.
+// These method append data to the response Parameter.
 //
 void generate_response_data_addbyte(uint8_t value);
 void generate_response_data_add(uint8_t value);
@@ -58,7 +58,7 @@ uint8_t generate_response_data_len();
 
 //
 // The following methods allow for a trailing UTF8 string to be appended
-// after the expected data length (expected_length_excluding_msg) in the 
+// after the expected data length (expected_length_excluding_msg) in the
 // response Parameter buffer.
 //
 void generate_response_msg_addbyte(uint8_t value);
