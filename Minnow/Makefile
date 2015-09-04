@@ -97,10 +97,10 @@ MSG_CLEANING = Cleaning project:
 
 
 # Define all object files.
-OBJ = $(SRC:.cpp=.o)  $(SRC:.c=.o) $(ASRC:.S=.o) 
+OBJ = $(CPP_SRC:.cpp=.o)  $(C_SRC:.c=.o) $(ASRC:.S=.o) 
 
 # Define all listing files.
-LST = $(ASRC:.S=.lst) $(SRC:.cpp=.lst) $(SRC:.c=.lst)
+LST = $(ASRC:.S=.lst) $(CPP_SRC:.cpp=.lst) $(C_SRC:.c=.lst)
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
