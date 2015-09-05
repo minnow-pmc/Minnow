@@ -4,7 +4,7 @@ MCU = atmega2560
 # Target file name (without extension).
 TARGET = Minnow_main
 
-OPT = 
+OPT = s
 
 FORMAT = ihex
 
@@ -37,26 +37,31 @@ CPP_SRC += order_helpers.cpp
 CPP_SRC += response.cpp
 CPP_SRC += SoftPwmState.cpp
 CPP_SRC += temperature_ISR.cpp
+CPP_SRC += Tone.cpp
+CPP_SRC += main.cpp
 C_SRC += wiring.c
 C_SRC += wiring_analog.c
 C_SRC += wiring_digital.c
+C_SRC += hooks.c
 
 SRC = $(CPP_SRC) $(C_SRC)
 
-
 CFLAGS = -g -O$(OPT) \
+-mmcu=$(MCU) -I. \
 -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
 -Wall \
 -DF_CPU=16000000 \
--Wa,-adhlns=$(<:.cpp=.lst <:.c=.lst) \
+-Wa,-adhlns=$(<:.c=.lst) \
 $(patsubst %,-I%,$(EXTRAINCDIRS))
 
-DEVICE_CONF = 
-# -DHAVE_HWSERIAL0
-
-
-CFLAGS += -std=c++03
-CFLAGS += $(DEVICE_CONF)
+CPP_FLAGS = -g -O$(OPT) \
+-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
+-Wall \
+-DF_CPU=16000000 \
+-std=c++03 \
+-Wa,-adhlns=$(<:.cpp=.lst) \
+$(patsubst %,-I%,$(EXTRAINCDIRS))
+ 
 ASFLAGS = -Wa,-adhlns=$(<:.S=.lst),-gstabs 
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 
@@ -105,9 +110,8 @@ LST = $(ASRC:.S=.lst) $(CPP_SRC:.cpp=.lst) $(C_SRC:.c=.lst)
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
 ALL_CFLAGS = -mmcu=$(MCU) -I. $(CFLAGS)
+ALL_CPP_FLAGS = -mmcu=$(MCU) -I. $(CPP_FLAGS)
 ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
-
-
 
 # Default target: make program!
 all: begin gccversion sizebefore $(TARGET).elf $(TARGET).hex $(TARGET).eep \
@@ -203,10 +207,12 @@ extcoff: $(TARGET).elf
 %.o : %.cpp
 	@echo
 	@echo $(MSG_COMPILING) $<
-	$(CC) -c $(ALL_CFLAGS) $< -o $@
+	$(CC) -c $(ALL_CPP_FLAGS) $< -o $@
 
 # Compile: create assembler files from C source files.
 %.s : %.c
+	@echo
+	@echo $(MSG_COMPILING) $<
 	$(CC) -S $(ALL_CFLAGS) $< -o $@
 
 
@@ -215,11 +221,6 @@ extcoff: $(TARGET).elf
 	@echo
 	@echo $(MSG_ASSEMBLING) $<
 	$(CC) -c $(ALL_ASFLAGS) $< -o $@
-
-
-
-
-
 
 # Target: clean project.
 clean: begin clean_list finished end
