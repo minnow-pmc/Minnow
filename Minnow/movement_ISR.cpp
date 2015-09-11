@@ -599,7 +599,7 @@ FORCE_INLINE bool handle_linear_move()
     write_steps();
 
     if (--step_events_remaining == 0)
-      break;
+        return false; // finished
   }
 
   // recalculation is done after outputting the current steps to achieve greatest step consistency
