@@ -1,3 +1,8 @@
+PROGRAMMER=wiring
+#auskommentieren für automatische Wahl
+PORT=-P/dev/ttyACM0
+BAUD=-b115200
+
 # Microcontroller Type
 MCU = atmega2560
 
@@ -8,9 +13,6 @@ OPT = s
 
 FORMAT = ihex
 
-# List C source files here. (C dependencies are automatically generated.)
-#SRC =  $(wildcard ./*.cpp)
-#SRC +=  $(wildcard ./*.c)
 CPP_SRC = Minnow_main.cpp
 CPP_SRC += AxisInfo.cpp
 CPP_SRC += CommandQueue.cpp
@@ -246,6 +248,9 @@ clean_list :
 	$(REMOVE) $(CPP_SRC:.cpp=.d)
 	$(REMOVE) $(C_SRC:.c=.d)
 	$(REMOVE) *~
+	
+program:
+	avrdude -p$(MCU) $(PORT) $(BAUD) -c$(PROGRAMMER) -D -Uflash:w:$(TARGET).hex:i
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion coff extcoff \
