@@ -1,6 +1,6 @@
 /*
  Minnow Pacemaker client firmware.
-    
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
@@ -60,6 +60,8 @@
 #define ENABLE_THERMISTOR_TYPE_51    1
 #define ENABLE_THERMISTOR_TYPE_52    1
 #define ENABLE_THERMISTOR_TYPE_55    1
+#define ENABLE_THERMISTOR_TYPE_57    1
+#define ENABLE_THERMISTOR_TYPE_58    1
 
 #define TT_NAME(_N) _TT_NAME(_N)
 #define _TT_NAME(_N) temptable_ ## _N
@@ -378,7 +380,7 @@ const int16_t temptable_7[][2] PROGMEM = {
    {991*OVERSAMPLENR, 17},
    {1009*OVERSAMPLENR, 1},
    {1023*OVERSAMPLENR, 0}  //to allow internal 0 degrees C
-}; 
+};
 #endif//ENABLE_THERMISTOR_TYPE_7
 
 #if ENABLE_THERMISTOR_TYPE_71 // 100k Honeywell 135-104LAF-J01
@@ -558,37 +560,37 @@ const int16_t temptable_8[][2] PROGMEM = {
 #endif //ENABLE_THERMISTOR_TYPE_8
 #if ENABLE_THERMISTOR_TYPE_9 // 100k GE Sensing AL03006-58.2K-97-G1 (4.7k pullup)
 const int16_t temptable_9[][2] PROGMEM = {
-	{1*OVERSAMPLENR, 936},
-	{36*OVERSAMPLENR, 300},
-	{71*OVERSAMPLENR, 246},
-	{106*OVERSAMPLENR, 218},
-	{141*OVERSAMPLENR, 199},
-	{176*OVERSAMPLENR, 185},
-	{211*OVERSAMPLENR, 173},
-	{246*OVERSAMPLENR, 163},
-	{281*OVERSAMPLENR, 155},
-	{316*OVERSAMPLENR, 147},
-	{351*OVERSAMPLENR, 140},
-	{386*OVERSAMPLENR, 134},
-	{421*OVERSAMPLENR, 128},
-	{456*OVERSAMPLENR, 122},
-	{491*OVERSAMPLENR, 117},
-	{526*OVERSAMPLENR, 112},
-	{561*OVERSAMPLENR, 107},
-	{596*OVERSAMPLENR, 102},
-	{631*OVERSAMPLENR, 97},
-	{666*OVERSAMPLENR, 92},
-	{701*OVERSAMPLENR, 87},
-	{736*OVERSAMPLENR, 81},
-	{771*OVERSAMPLENR, 76},
-	{806*OVERSAMPLENR, 70},
-	{841*OVERSAMPLENR, 63},
-	{876*OVERSAMPLENR, 56},
-	{911*OVERSAMPLENR, 48},
-	{946*OVERSAMPLENR, 38},
-	{981*OVERSAMPLENR, 23},
-	{1005*OVERSAMPLENR, 5},
-	{1016*OVERSAMPLENR, 0}
+    {1*OVERSAMPLENR, 936},
+    {36*OVERSAMPLENR, 300},
+    {71*OVERSAMPLENR, 246},
+    {106*OVERSAMPLENR, 218},
+    {141*OVERSAMPLENR, 199},
+    {176*OVERSAMPLENR, 185},
+    {211*OVERSAMPLENR, 173},
+    {246*OVERSAMPLENR, 163},
+    {281*OVERSAMPLENR, 155},
+    {316*OVERSAMPLENR, 147},
+    {351*OVERSAMPLENR, 140},
+    {386*OVERSAMPLENR, 134},
+    {421*OVERSAMPLENR, 128},
+    {456*OVERSAMPLENR, 122},
+    {491*OVERSAMPLENR, 117},
+    {526*OVERSAMPLENR, 112},
+    {561*OVERSAMPLENR, 107},
+    {596*OVERSAMPLENR, 102},
+    {631*OVERSAMPLENR, 97},
+    {666*OVERSAMPLENR, 92},
+    {701*OVERSAMPLENR, 87},
+    {736*OVERSAMPLENR, 81},
+    {771*OVERSAMPLENR, 76},
+    {806*OVERSAMPLENR, 70},
+    {841*OVERSAMPLENR, 63},
+    {876*OVERSAMPLENR, 56},
+    {911*OVERSAMPLENR, 48},
+    {946*OVERSAMPLENR, 38},
+    {981*OVERSAMPLENR, 23},
+    {1005*OVERSAMPLENR, 5},
+    {1016*OVERSAMPLENR, 0}
 };
 #endif //ENABLE_THERMISTOR_TYPE_9
 
@@ -771,6 +773,161 @@ const int16_t temptable_55[][2] PROGMEM = {
    {1020*OVERSAMPLENR, 0}
 };
 #endif //ENABLE_THERMISTOR_TYPE_55
+
+
+#if ENABLE_THERMISTOR_TYPE_57
+// ./createTemperatureLookupMarlin.py --rp=4680 --t1=21.4:106300 --t2=187:1023 --t3=248:281 --num-temps=72
+// thermistor table for extruder i3Berlin
+const int16_t temptable_57[][2] PROGMEM = {
+{159, 340},
+{172, 335},
+{186, 330},
+{202, 325},
+{219, 320},
+{238, 315},
+{258, 310},
+{281, 305},
+{306, 300},
+{333, 295},
+{363, 209},
+{396, 285},
+{432, 280},
+{472, 275},
+{516, 270},
+{565, 265},
+{618, 260},
+{677, 255},
+{742, 240},
+{814, 245},
+{894, 240},
+{981, 235},
+{1078, 230},
+{1184, 225},
+{1302, 220},
+{1432, 215},
+{1574, 210},
+{1732, 205},
+{1904, 200},
+{2094, 195},
+{2302, 190},
+{2530, 185},
+{2779, 180},
+{3050, 175},
+{3344, 170},
+{3662, 165},
+{4006, 160},
+{4375, 155},
+{4770, 150},
+{5190, 145},
+{5634, 140},
+{6101, 135},
+{6589, 130},
+{7095, 125},
+{7617, 120},
+{8149, 115},
+{8689, 110},
+{9230, 105},
+{9770, 100},
+{10302, 95},
+{11810, 90},
+{12271, 85},
+{12705, 80},
+{13111, 75},
+{13487, 70},
+{13833, 65},
+{14149, 60},
+{14435, 55},
+{14693, 50},
+{14923, 45},
+{15127, 40},
+{15308, 35},
+{15466, 30},
+{15604, 25},
+{15725, 20},
+{15828, 15},
+{15918, 10},
+{15994, 5},
+{16060, 0}
+};
+#endif // ENABLE_THERMISTOR_TYPE_57
+
+#if ENABLE_THERMISTOR_TYPE_58
+// ./createTemperatureLookup.py --rp=4670 --t1=21.7:110700.0 --t2=190.0:623.0 --t3=259.0:192.0 --num-temps=72
+// thermistor table for heatbed i3Berlin
+const int16_t temptable_58[][2] PROGMEM = {
+{198, 350},
+{210, 345},
+{223, 340},
+{236, 335},
+{251, 330},
+{267, 325},
+{284, 320},
+{303, 315},
+{323, 310},
+{345, 305},
+{369, 300},
+{395, 295},
+{423, 290},
+{453, 285},
+{486, 280},
+{522, 275},
+{562, 270},
+{605, 265},
+{652, 260},
+{704, 255},
+{760, 250},
+{822, 245},
+{890, 240},
+{964, 235},
+{1046, 230},
+{1136, 225},
+{1235, 220},
+{1344, 215},
+{1464, 210},
+{1597, 205},
+{1743, 200},
+{1903, 195},
+{2080, 190},
+{2275, 185},
+{2489, 180},
+{2725, 175},
+{2983, 170},
+{3267, 165},
+{3576, 160},
+{3913, 155},
+{4280, 150},
+{4676, 145},
+{5104, 140},
+{5561, 135},
+{6049, 130},
+{6565, 125},
+{7108, 120},
+{7673, 115},
+{8256, 110},
+{8852, 105},
+{9455, 100},
+{10058, 95},
+{10654, 90},
+{11237, 85},
+{11799, 80},
+{12334, 75},
+{12838, 70},
+{13306, 65},
+{13734, 60},
+{14123, 55},
+{14471, 50},
+{14779, 45},
+{15048, 40},
+{15282, 35},
+{15481, 30},
+{15651, 25},
+{15793, 20},
+{15912, 15},
+{16010, 10},
+{16090, 5},
+{16154, 0}
+};
+#endif // ENABLE_THERMISTOR_TYPE_58
 
 #if ENABLE_THERMISTOR_TYPE_60 // Maker's Tool Works Kapton Bed Thermister
 const int16_t temptable_60[][2] PROGMEM = {

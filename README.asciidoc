@@ -1,0 +1,132 @@
+Minnow - A High Performance 3D Printer and CNC Firmware for Arduino
+===================================================================
+
+Minnow is an Arduino-based Pacemaker client implementation for 3D printer, CNC and laser cutter controller boards.
+
+The Pacemaker protocol is defined here: https://github.com/JustAnother1/Pacemaker
+
+The Minnow firmware was originally created by Robert Fairlie-Cuninghame based largely on the Marlin printer firmware by Erik van der Zalm.
+
+The firmware is intended for both standalone Arduino-based controller boards (using a PC or similar host platform) as well integrated Arduino + ARM controller boards.
+
+The Minnow firmware and Pacemaker protocol have been specifically designed to support a sustained, high rate of individual movement control segments with minimal processing overhead on the client, thereby allowing the use of a cheaper controller whilst also yielding a far more sophisticated level of motion planning, co-ordinate remapping and better support for non-linear co-ordinate systems than most current solutions without requiring a real time operating system on the host.
+
+The firmware has also been designed to provide a flexible host-based configuration system so that individual firmware builds are not required for different printer and controller configurations.
+
+The Minnow firmware also supports an arbitrary number of devices - steppers, digital input & outputs, heaters, fans, buzzers, etc (limited only by the device's capabilities).
+
+System requirements:
+
+ - a 16Mhz or 20Mhz AVR Arduino (i.e., not Due)
+ - at least 64KB flash memory (currently although this can be reduced using static configuration)
+ - at least 2KB SRAM memory
+
+TODO List
+
+- Makefile and Arduino libraries directory
+- Add event handling
+- Fully test movement control
+- Add advanced stepper & heater configuration
+- Added thermocouple support (thermistor support already available)
+- Add coding guide
+- Define LCD and Rotary encoder extensions
+- World domination
+
+Currently supported firmware configuration commands:
+----------------------------------------------------
+
+[width="100%",cols="12,^2,^2,^2,3",options="header"]
+|=============================
+| Name of element| datatype | read/write | allowed values| comment
+| System level configuration elements | | | |
+| system.hardware_name | string | rw |  |
+| system.hardware_type | uint8 | rw | 0..255 |
+| system.hardware_rev | uint8 | rw | 0..255 |
+| system.board_identity | string | rw |  |
+| system.board_serialnum | string | rw |  |
+| system.num_digital_inputs | uint8 | rw | 0..255 |
+| system.num_digital_outputs | uint8 | rw | 0..255 |
+| system.num_pwm_outputs | uint8 | rw | 0..255 |
+| system.num_buzzers | uint8 | rw | 0..255 |
+| system.num_heaters | uint8 | rw | 0..255 |
+| system.num_temp_sensors | uint8 | rw | 0..255 |
+| system.num_steppers | uint8 | rw | 0..255 |
+| system.reset_eeprom (operation) | string | w |  |
+| Device configuration elements | | | |
+| devices.digital_input.<device number>.name | string | rw |  |
+| devices.digital_input.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.digital_input.<device number>.trigger_level | bool | rw | "true", "1" or "false", "0" |
+| devices.digital_input.<device number>.enable_pullup | bool | rw | "true", "1" or "false", "0" |
+| devices.digital_output.<device number>.name | string | rw |  |
+| devices.digital_output.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.digital_output.<device number>.initial_state | string | rw |  |
+| devices.pwm_output.<device number>.name | string | rw |  |
+| devices.pwm_output.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.pwm_output.<device number>.use_soft_pwm | bool | rw | "true", "1" or "false", "0" |
+| devices.buzzer.<device number>.name | string | rw |  |
+| devices.buzzer.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.temp_sensor.<device number>.name | string | rw |  |
+| devices.temp_sensor.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.temp_sensor.<device number>.type | int16 | rw | −32768..+32767 | see below
+| devices.heater.<device number>.name | string | rw |  |
+| devices.heater.<device number>.pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.heater.<device number>.power_on_level | uint8 | rw | 0..255 |
+| devices.heater.<device number>.use_soft_pwm | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.use_bang_bang | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.use_pid | bool | rw | "true", "1" or "false", "0" |
+| devices.heater.<device number>.temp_sensor | uint8 | rw | 0..255 |
+| devices.heater.<device number>.max_temp | int16 | rw | −32768..+32767 |
+| devices.heater.<device number>.bang_bang_hysteresis | uint8 | rw | 0..255 |
+| devices.heater.<device number>.pid_range | uint8 | rw | 0..255 |
+| devices.heater.<device number>.kp | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.ki | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.kd | float | rw | 1.2E-38 to 3.4E+38 |
+| devices.heater.<device number>.dpi_do_autotune (operation) | string | rw |  |
+| devices.stepper.<device number>.name | string | rw |  |
+| devices.stepper.<device number>.enable_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.enable_invert | bool | rw | "true", "1" or "false", "0" | (0 = active low, 1 = active high)
+| devices.stepper.<device number>.direction_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.direction_invert | bool | rw | "true", "1" or "false", "0" | 0 = high is increasing, 1 = high is decreasing
+| devices.stepper.<device number>.step_pin | pin | rw | 0..255, A0..A15 | Arduino Pin Number
+| devices.stepper.<device number>.step_invert | bool | rw | "true", "1" or "false", "0" | 0 = active high, 1 = active low
+| Statistics elements | | | |
+| stats.rx_count | invalid | r | - |
+| stats.rx_errors | invalid | r | - |
+| stats.queue_memory | invalid | r | - |
+| debug.stack_memory | invalid | r | - |
+| Diagnostic/development elements | | | |
+| debug.stack_low_water_mark | invalid | r | - |
+|=============================
+
+
+Values for devices.temp_sensor.<device number>.type:
+----------------------------------------------------
+
+ Thermistor sensor types: (>0)
+
+ 1 is 100k thermistor - best choice for EPCOS 100k (4.7k pullup)
+ 2 is 200k thermistor - ATC Semitec 204GT-2 (4.7k pullup)
+ 3 is mendel-parts thermistor (4.7k pullup)
+ 4 is 10k thermistor !! do not use it for a hotend. It gives bad resolution at high temp. !!
+ 5 is 100K thermistor - ATC Semitec 104GT-2 (Used in ParCan) (4.7k pullup)
+ 6 is 100k EPCOS - Not as accurate as table 1 (created using a fluke thermocouple) (4.7k pullup)
+ 7 is 100k Honeywell thermistor 135-104LAG-J01 (4.7k pullup)
+ 71 is 100k Honeywell thermistor 135-104LAF-J01 (4.7k pullup)
+ 8 is 100k 0603 SMD Vishay NTCS0603E3104FXT (4.7k pullup)
+ 9 is 100k GE Sensing AL03006-58.2K-97-G1 (4.7k pullup)
+ 10 is 100k RS thermistor 198-961 (4.7k pullup)
+ 57 is 100k i3Berlin Extruder (./createTemperatureLookupMarlin.py --rp=4680 --t1=21.4:106300 --t2=187:1023 --t3=248:281 --num-temps=72)
+ 58 is 100k i3Berlin Bed (./createTemperatureLookup.py --rp=4670 --t1=21.7:110700.0 --t2=190.0:623.0 --t3=259.0:192.0 --num-temps=72)
+ 60 is 100k Maker's Tool Works Kapton Bed Thermister
+
+    1k ohm pullup tables - This is not normal, you would have to have changed out your 4.7k for 1k
+                          (but gives greater accuracy and more stable PID on hotend)
+ 51 is 100k thermistor - EPCOS (1k pullup)
+ 52 is 200k thermistor - ATC Semitec 204GT-2 (1k pullup)
+ 55 is 100k thermistor - ATC Semitec 104GT-2 (Used in ParCan) (1k pullup)
+
+ Thermocouple sensor types: (<0)
+
+ -1 is thermocouple with AD595
+
+

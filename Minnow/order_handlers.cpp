@@ -1,6 +1,6 @@
 /*
  Minnow Pacemaker client firmware.
-    
+
  Copyright (C) 2013 Robert Fairlie-Cuninghame
 
  This program is free software: you can redistribute it and/or modify
@@ -19,24 +19,24 @@
 
 //
 // This file handles each of the Pacemaker Orders
-// 
- 
-#include "order_handlers.h" 
-#include "order_helpers.h" 
-#include "Minnow.h" 
+//
+
+#include "order_handlers.h"
+#include "order_helpers.h"
+#include "Minnow.h"
 #include "protocol.h"
 #include "response.h"
 #include "firmware_configuration.h"
 
 #include "Device_InputSwitch.h"
 #include "Device_OutputSwitch.h"
-#include "Device_PwmOutput.h" 
-#include "Device_Heater.h" 
-#include "Device_Buzzer.h" 
-#include "Device_Stepper.h" 
+#include "Device_PwmOutput.h"
+#include "Device_Heater.h"
+#include "Device_Buzzer.h"
+#include "Device_Stepper.h"
 #include "AxisInfo.h"
 
-#include "NVConfigStore.h" 
+#include "NVConfigStore.h"
 #include "enqueue_command.h"
 #include "CommandQueue.h"
 
@@ -103,12 +103,12 @@ void process_command()
   // device.stepper.0.enable_pin=48
   // device.stepper.0.enable_invert=1
   // ...
-  // will only result in the stepper configuration being applied when all 
+  // will only result in the stepper configuration being applied when all
   // attributes have been applied.
   if (firmware_configuration_change_made || !final_firmware_configuration_update_done)
   {
     if (!final_firmware_configuration_update_done
-        && (order_code == ORDER_SET_HEATER_TARGET_TEMP 
+        && (order_code == ORDER_SET_HEATER_TARGET_TEMP
             || order_code == ORDER_SET_OUTPUT_SWITCH_STATE
             || order_code == ORDER_SET_PWM_OUTPUT_STATE
             || order_code == ORDER_SET_OUTPUT_TONE
@@ -131,7 +131,7 @@ void process_command()
       update_firmware_configuration(false);
     }
   }
-  
+
   switch (order_code)
   {
   case ORDER_RESET:
@@ -225,19 +225,19 @@ void process_command()
     send_app_error_response(PARAM_APP_ERROR_TYPE_UNKNOWN_ORDER, 0);
     break;
   }
-  
+
 }
- 
+
 void handle_resume_order()
 {
   if (parameter_length < 1)
   {
     send_insufficient_bytes_error_response(1);
-    return; 
+    return;
   }
-  
+
   const uint8_t resume_type = parameter_value[0];
-  
+
   if (resume_type == PARAM_RESUME_TYPE_ACKNOWLEDGE)
   {
     stopped_is_acknowledged = true;
@@ -249,100 +249,100 @@ void handle_resume_order()
 
     if (stopped_type == PARAM_STOPPED_TYPE_ONE_TIME_OR_CLEARED)
       is_stopped = false;
-    
-    send_stopped_response();    
+
+    send_stopped_response();
   }
   else
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,0);
   }
 }
- 
+
 void handle_request_information_order()
 {
   if (parameter_length < 1)
   {
     send_insufficient_bytes_error_response(1);
-    return; 
+    return;
   }
 
   const uint8_t request_type = parameter_value[0];
-  
+
   generate_response_start(RSP_OK);
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
   int8_t length;
   uint8_t value;
-  
+
   switch(request_type)
   {
   case PARAM_REQUEST_INFO_FIRMWARE_NAME:
     generate_response_data_addPGM(PSTR(MINNOW_FIRMWARE_NAME));
     break;
-  
+
   case PARAM_REQUEST_INFO_BOARD_SERIAL_NUMBER:
     if ((length = NVConfigStore::GetBoardSerialNumber(response_data_buf, response_data_buf_len)) > 0)
       generate_response_data_addlen(length);
     break;
-  
+
   case PARAM_REQUEST_INFO_BOARD_NAME:
     if ((length = NVConfigStore::GetHardwareName(response_data_buf, response_data_buf_len)) > 0)
       generate_response_data_addlen(length);
     break;
-    
+
   case PARAM_REQUEST_INFO_GIVEN_NAME:
     if ((length = NVConfigStore::GetBoardIdentity(response_data_buf, response_data_buf_len)) > 0)
       generate_response_data_addlen(length);
     break;
-    
+
   case PARAM_REQUEST_INFO_PROTO_VERSION_MAJOR:
     generate_response_data_addbyte(PM_PROTCOL_VERSION_MAJOR);
     break;
-    
+
   case PARAM_REQUEST_INFO_PROTO_VERSION_MINOR:
     generate_response_data_addbyte(PM_PROTCOL_VERSION_MINOR);
     break;
-    
+
   case PARAM_REQUEST_INFO_SUPPORTED_EXTENSIONS:
     generate_response_data_addbyte(PM_EXTENSION_STEPPER_CONTROL);
     generate_response_data_addbyte(PM_EXTENSION_QUEUED_CMD);
     generate_response_data_addbyte(PM_EXTENSION_BASIC_MOVE);
     break;
-    
+
   case PARAM_REQUEST_INFO_FIRMWARE_TYPE:
     generate_response_data_addbyte(PM_FIRMWARE_TYPE_MINNOW);
     break;
-    
+
   case PARAM_REQUEST_INFO_FIRMWARE_VERSION_MAJOR:
     generate_response_data_addbyte(MINNOW_FIRMWARE_VERSION_MAJOR);
     break;
-    
+
   case PARAM_REQUEST_INFO_FIRMWARE_VERSION_MINOR:
     generate_response_data_addbyte(MINNOW_FIRMWARE_VERSION_MINOR);
     break;
-    
+
   case PARAM_REQUEST_INFO_HARDWARE_TYPE:
     generate_response_data_addbyte(NVConfigStore::GetHardwareType());
     break;
-    
+
   case PARAM_REQUEST_INFO_HARDWARE_REVISION:
     if ((value = NVConfigStore::GetHardwareRevision()) != 0xFF)
       generate_response_data_addbyte(value);
     break;
-    
+
   case PARAM_REQUEST_INFO_MAXIMUM_STEP_RATE:
     generate_response_data_add(MAX_STEP_FREQUENCY);
     break;
-    
+
   case PARAM_REQUEST_INFO_HOST_TIMEOUT:
     generate_response_data_addbyte(HOST_TIMEOUT_SECS);
     break;
-    
+
   default:
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,0);
     return;
   }
-  generate_response_send();  
+  generate_response_send();
 }
 
 void handle_device_count_order()
@@ -350,7 +350,7 @@ void handle_device_count_order()
   if (parameter_length < 1)
   {
     send_insufficient_bytes_error_response(1);
-    return; 
+    return;
   }
 
   const uint8_t device_type = parameter_value[0];
@@ -361,18 +361,18 @@ void handle_device_count_order()
     send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
     return;
   }
-  
+
   generate_response_start(RSP_OK,1);
   generate_response_data_addbyte(num_devices);
   generate_response_send();
 }
- 
+
 void handle_device_name_order()
 {
   if (parameter_length < 2)
   {
     send_insufficient_bytes_error_response(2);
-    return; 
+    return;
   }
 
   const uint8_t device_type = parameter_value[0];
@@ -387,7 +387,7 @@ void handle_device_name_order()
       send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
     return;
   }
-  
+
   generate_response_start(RSP_OK);
   char *response_data_buf = (char *)generate_response_data_ptr();
   uint8_t response_data_buf_len = generate_response_data_len();
@@ -403,12 +403,12 @@ void handle_device_status_order()
   if (parameter_length < 2)
   {
     send_insufficient_bytes_error_response(2);
-    return; 
+    return;
   }
 
   const uint8_t device_type = parameter_value[0];
   const uint8_t device_number = parameter_value[1];
-  
+
   uint8_t num_devices = get_num_devices(device_type);
   if (device_number >= num_devices)
   {
@@ -418,7 +418,7 @@ void handle_device_status_order()
       send_app_error_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER,0);
     return;
   }
-  
+
   generate_response_start(RSP_OK, 1);
 
   switch(device_type)
@@ -433,7 +433,7 @@ void handle_device_status_order()
     if (!Device_OutputSwitch::IsInUse(device_number))
       generate_response_data_addbyte(DEVICE_STATUS_CONFIG_ERROR);
     else if (!Device_OutputSwitch::GetEnableState(device_number))
-      generate_response_data_addbyte(DEVICE_STATUS_DISABLED);    
+      generate_response_data_addbyte(DEVICE_STATUS_DISABLED);
       // TODO handle inactive state
     else
       generate_response_data_addbyte(DEVICE_STATUS_ACTIVE);
@@ -486,29 +486,29 @@ void handle_device_status_order()
   }
   generate_response_send();
 }
-  
+
 void handle_request_temperature_reading_order()
 {
   if (parameter_length < 2)
   {
     send_insufficient_bytes_error_response(2);
-    return; 
+    return;
   }
   if ((parameter_length & 1) == 1)
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT, 0);
-    return; 
+    return;
   }
 
   generate_response_start(RSP_OK,parameter_length*2);
-  
+
   for (int i = 0; i < parameter_length; i+=2)
   {
     const uint8_t device_type = parameter_value[i];
     const uint8_t device_number = parameter_value[i+1];
     float ftemp;
     int16_t temp;
-    
+
     switch(device_type)
     {
     case PM_DEVICE_TYPE_HEATER:
@@ -521,7 +521,7 @@ void handle_request_temperature_reading_order()
       ftemp = Device_Heater::ReadCurrentTemperature(device_number);
       break;
     }
-    case PM_DEVICE_TYPE_TEMP_SENSOR: 
+    case PM_DEVICE_TYPE_TEMP_SENSOR:
     {
       if (!Device_TemperatureSensor::IsInUse(device_number))
       {
@@ -541,19 +541,19 @@ void handle_request_temperature_reading_order()
       temp = PM_TEMPERATURE_INVALID;
     generate_response_data_addbyte(highByte(temp));
     generate_response_data_addbyte(lowByte(temp));
-  }  
-  
+  }
+
   generate_response_send();
 }
-  
+
 void handle_get_heater_configuration_order()
 {
   if (parameter_length < 1)
   {
     send_insufficient_bytes_error_response(1);
-    return; 
+    return;
   }
-  
+
   const uint8_t heater_number = parameter_value[0];
 
   if (Device_Heater::GetHeaterPin(heater_number) == 0xFF)
@@ -565,21 +565,21 @@ void handle_get_heater_configuration_order()
   generate_response_start(RSP_OK);
   generate_response_data_addbyte(PARAM_HEATER_CONFIG_HOST_SENSOR_CONFIG);
   generate_response_data_addbyte(Device_Heater::GetTempSensor(heater_number));
-  generate_response_send(); 
+  generate_response_send();
 }
-  
+
 void handle_configure_heater_order()
 {
   if (parameter_length < 2)
   {
     send_insufficient_bytes_error_response(2);
-    return; 
+    return;
   }
-  
+
   const uint8_t heater_number = parameter_value[0];
   const uint8_t temp_sensor = parameter_value[1];
   const uint8_t current_temp_sensor = Device_Heater::GetTempSensor(heater_number);
-  
+
   if (current_temp_sensor != 0xFF)
   {
     if (current_temp_sensor != temp_sensor)
@@ -594,7 +594,7 @@ void handle_configure_heater_order()
     }
     return;
   }
-  
+
   generate_response_start(RSP_APPLICATION_ERROR, 1);
   uint8_t retval = Device_Heater::SetTempSensor(heater_number, temp_sensor);
   if (retval != APP_ERROR_TYPE_SUCCESS)
@@ -607,13 +607,13 @@ void handle_configure_heater_order()
     send_OK_response();
   }
 }
-  
+
 void handle_set_heater_target_temperature_order()
 {
   if (parameter_length < 3)
   {
     send_insufficient_bytes_error_response(3);
-    return; 
+    return;
   }
 
   const uint8_t heater_number = parameter_value[0];
@@ -637,8 +637,8 @@ void handle_set_heater_target_temperature_order()
   }
   Device_Heater::SetTargetTemperature(heater_number, ftemp);
   send_OK_response();
-}  
- 
+}
+
 void handle_get_input_switch_state_order()
 {
   uint8_t device_type, device_number;
@@ -646,21 +646,21 @@ void handle_get_input_switch_state_order()
   if (parameter_length < 2)
   {
     send_insufficient_bytes_error_response(2);
-    return; 
+    return;
   }
   if ((parameter_length & 1) == 1)
   {
     send_app_error_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT, 0);
-    return; 
+    return;
   }
 
   generate_response_start(RSP_OK,parameter_length/2);
-  
+
   for (int i = 0; i < parameter_length; i+=2)
   {
     device_type = parameter_value[i];
     device_number = parameter_value[i+1];
-    
+
     switch(device_type)
     {
     case PM_DEVICE_TYPE_SWITCH_INPUT:
@@ -677,11 +677,11 @@ void handle_get_input_switch_state_order()
       send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE, i);
       return;
     }
-  }  
-  
+  }
+
   generate_response_send();
 }
-  
+
 void handle_set_output_switch_state_order()
 {
   uint8_t device_type, device_number, device_state;
@@ -689,7 +689,7 @@ void handle_set_output_switch_state_order()
   if (parameter_length < 3)
   {
     send_insufficient_bytes_error_response(3);
-    return; 
+    return;
   }
 
   for (uint8_t i = 0; i < parameter_length; i+=3)
@@ -697,12 +697,12 @@ void handle_set_output_switch_state_order()
     if (i + 3 > parameter_length)
     {
       send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_FORMAT,parameter_length);
-      return; 
+      return;
     }
-    
+
     device_type = parameter_value[i];
     device_number = parameter_value[i+1];
-    
+
     switch(device_type)
     {
     case PM_DEVICE_TYPE_SWITCH_OUTPUT:
@@ -718,7 +718,7 @@ void handle_set_output_switch_state_order()
       send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,i);
       return;
     }
-  }  
+  }
 
   // we only write the switches if all are valid
   for (uint8_t i = 0; i < parameter_length; i+=3)
@@ -726,7 +726,7 @@ void handle_set_output_switch_state_order()
     device_type = parameter_value[i];
     device_number = parameter_value[i+1];
     device_state = parameter_value[i+2];
-    
+
     switch(device_type)
     {
     case PM_DEVICE_TYPE_SWITCH_OUTPUT:
@@ -734,25 +734,25 @@ void handle_set_output_switch_state_order()
       break;
     }
   }
-  
+
   send_OK_response();
 }
-   
+
 void handle_set_pwm_output_state_order()
 {
   uint8_t device_type, device_number;
   uint16_t device_state;
-  
+
   if (parameter_length < 4)
   {
     send_insufficient_bytes_error_response(4);
-    return; 
+    return;
   }
 
   device_type = parameter_value[0];
   device_number = parameter_value[1];
   device_state = (parameter_value[2]<<8) | parameter_value[3];
-    
+
   switch(device_type)
   {
   case PM_DEVICE_TYPE_PWM_OUTPUT:
@@ -769,25 +769,25 @@ void handle_set_pwm_output_state_order()
     send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_TYPE,0);
     return;
   }
-  
+
   send_OK_response();
 }
- 
+
 void handle_set_output_tone_order()
 {
   uint8_t device_type, device_number;
   uint16_t device_state;
-  
+
   if (parameter_length < 4)
   {
     send_insufficient_bytes_error_response(4);
-    return; 
+    return;
   }
 
   device_type = parameter_value[0];
   device_number = parameter_value[1];
   device_state = (parameter_value[2]<<8) | parameter_value[3];
-  
+
   switch(device_type)
   {
   case PM_DEVICE_TYPE_BUZZER:
@@ -811,11 +811,11 @@ void handle_set_output_tone_order()
 void handle_write_firmware_configuration_value_order()
 {
   const uint8_t name_length = parameter_value[0];
-  
+
   if (parameter_length < name_length + 1)
   {
     send_insufficient_bytes_error_response(name_length + 1);
-    return; 
+    return;
   }
 
   // make name null terminated
@@ -825,17 +825,17 @@ void handle_write_firmware_configuration_value_order()
   // this function will handle response generation
   // note: get_command() already makes the end of the command (ie. value) null-terminated
   handle_firmware_configuration_request((const char *)&parameter_value[0], (const char *)&parameter_value[name_length+1]);
-} 
+}
 
 void handle_activate_stepper_control_order()
 {
   if (parameter_length < 1)
   {
     send_insufficient_bytes_error_response(1);
-    return; 
+    return;
   }
 
-  // Currently Minnow does not supported disabling on stepper control. This is 
+  // Currently Minnow does not supported disabling on stepper control. This is
   // primarily only necessary for SPI controlled stepper modules which are not
   // supported by Minnow and would complicate the initial_pin_state logic.
   if (!parameter_value[0])
@@ -853,7 +853,7 @@ void handle_enable_disable_steppers_order()
     send_insufficient_bytes_error_response(1);
     return;
   }
-   
+
   if (parameter_length == 0)
   {
     for (uint8_t i=0; i<Device_Stepper::GetNumDevices(); i++)
@@ -885,27 +885,27 @@ void handle_enable_disable_steppers_order()
 void handle_configure_endstops_order()
 {
   uint8_t num_endstops = (parameter_length-1) / 2;
-  
+
   if (parameter_length < 3 || parameter_length != (2 * num_endstops) + 1)
   {
     send_insufficient_bytes_error_response(2 * (num_endstops+1) + 1);
     return;
   }
-  
+
   uint8_t axis_number = parameter_value[0];
   if (!Device_Stepper::IsInUse(axis_number))
   {
     send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_INVALID_DEVICE_NUMBER, 0);
     return;
   }
-  
+
   AxisInfo::ClearEndstops(axis_number);
-  
+
   for (uint8_t i=1; i < parameter_length; i+=2)
   {
     uint8_t device_number = parameter_value[i];
     uint8_t min_or_max = parameter_value[i+1];
-    
+
     uint8_t retval;
     if (min_or_max == 0)
       retval = AxisInfo::SetMinEndstopDevice(axis_number, device_number);
@@ -929,7 +929,7 @@ void handle_enable_disable_endstops_order()
     send_insufficient_bytes_error_response(parameter_length+1);
     return;
   }
-  
+
   for (uint8_t i=0; i < parameter_length; i+=2)
   {
     uint8_t device_number = parameter_value[i];
@@ -939,12 +939,12 @@ void handle_enable_disable_endstops_order()
       return;
     }
   }
-  
+
   for (uint8_t i=0; i < parameter_length; i+=2)
   {
     AxisInfo::WriteEndstopEnableState(parameter_value[i], parameter_value[i+1]);
   }
-  send_OK_response();  
+  send_OK_response();
 }
 
 void handle_configure_axis_movement_rates_order()
@@ -954,7 +954,7 @@ void handle_configure_axis_movement_rates_order()
     send_insufficient_bytes_error_response(5);
     return;
   }
-  
+
   uint8_t device_number = parameter_value[0];
 
   if (!Device_Stepper::IsInUse(device_number))
@@ -963,21 +963,21 @@ void handle_configure_axis_movement_rates_order()
     return;
   }
 
-  uint32_t max_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | (parameter_value[3] << 8) | parameter_value[4];
-  
+  uint32_t max_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | ((uint32_t)parameter_value[3] << 8) | parameter_value[4];
+
   if (max_rate > MAX_STEP_FREQUENCY)
   {
     send_app_error_at_offset_response(PARAM_APP_ERROR_TYPE_BAD_PARAMETER_VALUE,1);
     return;
   }
-  
+
   uint8_t retval = AxisInfo::SetAxisMaxRate(device_number, (uint16_t)max_rate);
   if (retval != APP_ERROR_TYPE_SUCCESS)
   {
     send_app_error_response(retval, 0);
     return;
   }
-  send_OK_response();  
+  send_OK_response();
 }
 
 void handle_configure_underrun_params_order()
@@ -987,7 +987,7 @@ void handle_configure_underrun_params_order()
     send_insufficient_bytes_error_response(9);
     return;
   }
-  
+
   uint8_t device_number = parameter_value[0];
 
   if (!Device_Stepper::IsInUse(device_number))
@@ -996,8 +996,8 @@ void handle_configure_underrun_params_order()
     return;
   }
 
-  uint32_t underrun_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | (parameter_value[3] << 8) | parameter_value[4];
-  uint32_t underrun_accel_rate = ((uint32_t)parameter_value[5] << 24) | ((uint32_t)parameter_value[6] << 16) | (parameter_value[7] << 8) | parameter_value[8];
+  uint32_t underrun_rate = ((uint32_t)parameter_value[1] << 24) | ((uint32_t)parameter_value[2] << 16) | ((uint32_t)parameter_value[3] << 8) | parameter_value[4];
+  uint32_t underrun_accel_rate = ((uint32_t)parameter_value[5] << 24) | ((uint32_t)parameter_value[6] << 16) | ((uint32_t)parameter_value[7] << 8) | parameter_value[8];
 
   if (underrun_rate > MAX_STEP_FREQUENCY)
   {
@@ -1007,34 +1007,34 @@ void handle_configure_underrun_params_order()
 
   AxisInfo::SetUnderrunRate(device_number, underrun_rate);
   AxisInfo::SetUnderrunAccelRate(device_number, underrun_accel_rate);
-  send_OK_response();  
+  send_OK_response();
 }
 
 void handle_clear_command_queue_order()
 {
   generate_response_start(RSP_APPLICATION_ERROR, 1);
-  
+
   if (CommandQueue::GetQueueBufferLength() == 0)
-  {  
+  {
     if (!allocate_command_queue_memory())
     {
-      send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR, 
+      send_app_error_response(PARAM_APP_ERROR_TYPE_FIRMWARE_ERROR,
                               PMSG(MSG_ERR_INSUFFICIENT_MEMORY));
       return;
     }
   }
 
   CommandQueue::FlushQueuedCommands();
-  
+
   uint16_t remaining_slots;
   uint16_t current_command_count;
   uint16_t total_command_count;
   CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
-  
+
   generate_response_start(RSP_OK);
   generate_response_data_add(remaining_slots);
   generate_response_data_add(current_command_count);
   generate_response_data_add(total_command_count);
-  generate_response_send(); 
-} 
+  generate_response_send();
+}
 

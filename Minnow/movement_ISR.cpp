@@ -20,7 +20,7 @@
 
 // Movement Design Description
 //
-// Like Marlin or Grbl, Minnow uses trapezoid speed curves to drive the steppers 
+// Like Marlin or Grbl, Minnow uses trapezoid speed curves to drive the steppers
 //
 //         __________________________
 //        /|                        |\     _________________         ^
@@ -30,7 +30,7 @@
 //    /    |                        |   |  |               |   \     e
 //   +-----+------------------------+---+--+---------------+----+    e
 //   |Phase1         Phase2       Phase3|                       |    d
-//   |               BLOCK 1            |      BLOCK 2          |    
+//   |               BLOCK 1            |      BLOCK 2          |
 //                           time ----->
 //
 //  The trapezoid is the shape the speed curve over time. It starts at initial_rate, accelerates
@@ -39,31 +39,31 @@
 //
 //  Minnow does not hardcode the number of axes or stepper pins and therefore the inner step loop
 //  uses slightly more instructions to complete however this is mitigated because:
-//    - it can still support 40000 steps per second (as per Marlin/Grbl). 
-//    - all step inputs and output registers are precalculated to minimize execution time (so 
+//    - it can still support 40000 steps per second (as per Marlin/Grbl).
+//    - all step inputs and output registers are precalculated to minimize execution time (so
 //       it is fairly close to hard-coded output times anyway)
 //    - efficient block transmission and queuing means that high rates of small step blocks can be
-//       maintained without motion-planning becoming the bottle-neck (especially a problem with 
+//       maintained without motion-planning becoming the bottle-neck (especially a problem with
 //       non-cartesian co-ordinate systems).
-//    - speed calculation is only done once per ISR invocaton as normal (i.e., regardless of number  
+//    - speed calculation is only done once per ISR invocaton as normal (i.e., regardless of number
 //       of axes) and is very similar to Marlin/Grbl.
-//    - step spacing consistency is maximized because the current movement steps are output 
+//    - step spacing consistency is maximized because the current movement steps are output
 //       before the step interval is recalculated for the next step (and therefore the effect
 //       of any differences in recalculation time are minimized).
-//    - far less non-movement ISR CPU time is needed as there is no motion planning required 
-//    - the underrun avoidance algorithm also avoids lengthy calculations and the extra logic is 
-//       only used in abnormal operating cases when the system needs to be slowed down due 
+//    - far less non-movement ISR CPU time is needed as there is no motion planning required
+//    - the underrun avoidance algorithm also avoids lengthy calculations and the extra logic is
+//       only used in abnormal operating cases when the system needs to be slowed down due
 //       to a lack of input data anyway.
 //
 //  Underrun Avoidance Algorithm Description
 //  ----------------------------------------
 //
-//  The Underrun Avoidance Algorithm will slow the movement down to lesser of the nominal underrun 
-//  rate for the primary axis and the requested nominal rate. 
+//  The Underrun Avoidance Algorithm will slow the movement down to lesser of the nominal underrun
+//  rate for the primary axis and the requested nominal rate.
 //  The movement is changed to always accelerate up/down to this speed until the system approaches
-//  the end of the movement block. The LinearMoveCommand block includes a precalculated 
+//  the end of the movement block. The LinearMoveCommand block includes a precalculated
 //  step count required to decelerate from the expected underrun rate to the final speed (when that
-//  is less than the nominal rate). 
+//  is less than the nominal rate).
 //
 //  The underrun avoidance algorithm must also ensure that system comes to a complete stop if the
 //  block has a non-zero final speed but there are no more movement blocks. This is again accomplished
@@ -73,16 +73,16 @@
 //  When the underrun condition is cleared, the system will accelerate to the normal nominal rate.
 //  Once achieved, it will exit underrun mode. The trickiest part is working out when to start
 //  decelerating if the nominal speed is not reached before approaching the end of the block.
-//  If the system does not reach the nominal rate before phase 3, it will begin decelerating to the 
-//  nominal underrun rate. From that speed the system knows when it must decelerate to reach the 
-//  final rate (again using the precalculated step count). 
+//  If the system does not reach the nominal rate before phase 3, it will begin decelerating to the
+//  nominal underrun rate. From that speed the system knows when it must decelerate to reach the
+//  final rate (again using the precalculated step count).
 //
-//  The corner case here is if the system hasn't reached the nominal underrun rate and the remaining 
+//  The corner case here is if the system hasn't reached the nominal underrun rate and the remaining
 //  steps are less than that which is required to decelerate from the underrun rate to the final rate.
-//  In this (rare) case, the system will simply decelerate to the final rate. If the final rate is 
+//  In this (rare) case, the system will simply decelerate to the final rate. If the final rate is
 //  reached before the end of the block then the system will "hop" to the end by accelerating for half
-//  the remaining steps and then decelerating again for the second half of the remaining steps - 
-//  thereby reaching the end of the block at the required exit speed. The system will then exit 
+//  the remaining steps and then decelerating again for the second half of the remaining steps -
+//  thereby reaching the end of the block at the required exit speed. The system will then exit
 //  underrun mode for the next block.
 
 #include <avr/pgmspace.h>
@@ -110,7 +110,7 @@
 // queue statics placed in this compilation unit to allow better optimization
 uint8_t *CommandQueue::queue_buffer = 0;
 uint16_t CommandQueue::queue_buffer_length = 0;
-  
+
 volatile uint8_t *CommandQueue::queue_head = 0;
 volatile uint8_t *CommandQueue::queue_tail = 0; // ISR will never change this value
 
@@ -126,8 +126,8 @@ bool is_checkpoint_last; // is last movement command in queue a checkpoint?
 // Function declarations
 FORCE_INLINE void movement_ISR(); // needs to be non-static due to friend usage elsewhere
 FORCE_INLINE bool handle_queue_command(); // needs to be non-static due to friend usage elsewhere
-FORCE_INLINE bool handle_linear_move();    
-FORCE_INLINE bool handle_delay_command();    
+FORCE_INLINE bool handle_linear_move();
+FORCE_INLINE bool handle_delay_command();
 FORCE_INLINE void setup_new_move();
 FORCE_INLINE void update_directions_and_initial_counts();
 FORCE_INLINE bool check_endstops();
@@ -169,10 +169,10 @@ static uint8_t nominal_rate_step_loops;
 static uint16_t initial_rate;
 static uint16_t final_rate;
 
-static uint16_t nominal_block_time; 
+static uint16_t nominal_block_time;
 
 // queue counts(not including current block)
-static uint32_t queued_microseconds_remaining; 
+static uint32_t queued_microseconds_remaining;
 static uint32_t queued_steps_remaining;
 
 // Underrun avoidance state
@@ -189,7 +189,6 @@ static uint32_t underrun_acceleration_rate; // underrun acceleration rate for cu
 
 // Endstop State
 static BITMASK(MAX_ENDSTOPS) endstops_to_check;
-static BITMASK(MAX_ENDSTOPS) endstop_hit;
 static BITMASK(MAX_ENDSTOPS) stopped_axes;
 
 // General state
@@ -214,7 +213,7 @@ uint32_t isr_elasped_time; // accumulative elapsed time when movement is being p
 // Routines
 //
 
-void movement_ISR_init() 
+void movement_ISR_init()
 {
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -240,7 +239,7 @@ void movement_ISR_init()
   sei();
 }
 
-void movement_ISR_wake_up() 
+void movement_ISR_wake_up()
 {
   //  TCNT1 = 0;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
@@ -255,16 +254,16 @@ ISR(TIMER1_COMPA_vect)
   // we use this for determining the % of CP time that the movement_ISR is using
   if (isr_start_time != 0)
     isr_elasped_time += micros() - isr_start_time;
-#endif 
+#endif
 
   movement_ISR(); // hand-off out of extern C function allows C++ friend to work correctly (don't worry - its inlined)
-  
+
 #ifdef MOVEMENT_PROFILE
   if (continuing)
     isr_handling_time += micros() - isr_start_time;
   else
     isr_start_time = 0;
-#endif  
+#endif
 }
 
 FORCE_INLINE void dump_movement_queue()
@@ -287,14 +286,14 @@ FORCE_INLINE void movement_ISR()
 
 #ifdef MOVEMENT_PROFILE
   isr_start_time = micros();
-#endif  
+#endif
 
   // are we in the middle of a command?
   if (continuing)
   {
     if (!is_stopped)
     {
-do_handle_queue_command:    
+do_handle_queue_command:
       if (*command_in_progress == QUEUE_COMMAND_STRUCTS_TYPE_LINEAR_MOVE)
       {
         continuing = handle_linear_move();
@@ -316,11 +315,11 @@ do_handle_queue_command:
       //  in_progress_length will be updated later
     }
   }
-  
+
   #ifndef AT90USB
   PSERIAL.checkRx(); // Check for serial chars frequently
   #endif
-  
+
   // nothing is in progress so let's start on the next command in the queue
   uint8_t *queue_head = (uint8_t*)CommandQueue::queue_head;
   uint8_t *queue_tail = (uint8_t*)CommandQueue::queue_tail;
@@ -329,7 +328,7 @@ do_handle_queue_command:
   while (true)
   {
     // queue empty or do we need to stop?
-    if (queue_head == queue_tail || is_stopped 
+    if (queue_head == queue_tail || is_stopped
         || (come_to_stop_and_flush_queue && step_rate <= ALLOWED_SPEED_DIFF))
     {
       // nothing else to do or we need to stop
@@ -344,10 +343,10 @@ do_handle_queue_command:
   #if QUEUE_DEBUG
         if (CommandQueue::current_queue_command_count != 0)
           ERRORLNPGM("queue count wrong 1");
-  #endif      
+  #endif
       }
       CommandQueue::current_queue_command_count = 0;
-      OCR1A = IDLE_INTERRUPT_RATE; 
+      OCR1A = IDLE_INTERRUPT_RATE;
       return;
     }
 
@@ -358,14 +357,14 @@ do_handle_queue_command:
       OCR1A = 100; // == 50us
       return;
     }
-    
+
     // have we reached the end of the ring buffer
-    if (queue_head >= CommandQueue::queue_buffer + CommandQueue::queue_buffer_length) 
+    if (queue_head >= CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
     {
   #if QUEUE_DEBUG
       if (CommandQueue::queue_head > CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
         ERRORLNPGM("queue ran off the end");
-  #endif      
+  #endif
       queue_head = CommandQueue::queue_buffer;
       CommandQueue::queue_head = queue_head;
     }
@@ -373,11 +372,11 @@ do_handle_queue_command:
     // get the length of the next command
     length = *queue_head;
     CommandQueue::in_progress_length = length;
-      
+
     if (length == 0)
     {
       // this is a skip marker
-      
+
       // anything left in queue after the skip marker?
       if (queue_tail > queue_head)
       {
@@ -385,19 +384,19 @@ do_handle_queue_command:
   #if QUEUE_DEBUG
         if (queue_tail != CommandQueue::queue_buffer + CommandQueue::queue_buffer_length)
           ERRORLNPGM("unexpected tail position");
-  #endif      
+  #endif
         queue_head = queue_tail;
-        CommandQueue::queue_head = queue_head; 
+        CommandQueue::queue_head = queue_head;
       }
       else
       {
         // next command is at start of buffer
         queue_head = CommandQueue::queue_buffer;
-        CommandQueue::queue_head = queue_head; 
+        CommandQueue::queue_head = queue_head;
       }
       continue;
     }
-    
+
     // we have the next command to execute.
     CommandQueue::total_attempted_queue_command_count += 1;
     cmd_start_cnt += 1;
@@ -416,27 +415,27 @@ do_handle_queue_command:
     DEBUG(CommandQueue::current_queue_command_count);
     DEBUGPGM(" tcc=");
     DEBUGLN(CommandQueue::total_attempted_queue_command_count);
-  #endif    
-     
+  #endif
+
     // this is a bit ugly but saves on a massive duplication of inline code
-    goto do_handle_queue_command; 
+    goto do_handle_queue_command;
   }
 }
 
 FORCE_INLINE bool handle_queue_command()
 {
   int8_t i;
-  
+
   // start command processing
   switch (*command_in_progress)
   {
   case QUEUE_COMMAND_STRUCTS_TYPE_DELAY:
   {
     if (!continuing)
-    {  
+    {
       const DelayQueueCommand *cmd = (const DelayQueueCommand*)command_in_progress;
 
-      tmp_uint32 = micros() + cmd->delay; 
+      tmp_uint32 = micros() + cmd->delay;
     }
     return handle_delay_command();
   }
@@ -451,19 +450,19 @@ FORCE_INLINE bool handle_queue_command()
         if (Device_OutputSwitch::output_switch_disabled[device_info->device_number])
         {
           // expect enabling/disabling a pin is not a common operation - so this not currently optimized
-          pinMode(Device_OutputSwitch::output_switch_pins[device_info->device_number],OUTPUT); 
+          pinMode(Device_OutputSwitch::output_switch_pins[device_info->device_number],OUTPUT);
           Device_OutputSwitch::output_switch_disabled[device_info->device_number] = false;
         }
         volatile uint8_t *output_reg = device_info->device_reg;
         if (device_info->device_state == OUTPUT_SWITCH_STATE_LOW)
-          *output_reg &= ~device_info->device_bit; 
+          *output_reg &= ~device_info->device_bit;
         else
           *output_reg |= device_info->device_bit;
       }
       else
       {
         // expect enabling/disabling a pin is not a common operation - so this not currently optimized
-        pinMode(Device_OutputSwitch::output_switch_pins[device_info->device_number],INPUT); 
+        pinMode(Device_OutputSwitch::output_switch_pins[device_info->device_number],INPUT);
         Device_OutputSwitch::output_switch_disabled[device_info->device_number] = true;
       }
       device_info += 1;
@@ -550,7 +549,7 @@ FORCE_INLINE bool handle_queue_command()
     if (command_in_progress[2] != CommandQueue::in_progress_length - 3)
       ERRORLNPGM("Incorrect payload length in long queue test");
     return false;
-#endif    
+#endif
   default:
     ERRORPGM("Unknown cmd in ISR: cmd=");
     ERRORLN((int)*command_in_progress);
@@ -568,13 +567,13 @@ FORCE_INLINE bool handle_delay_command()
   else
   {
     if (delay > IDLE_INTERRUPT_RATE / 2) // assumes 2Mhz counter frequency
-      OCR1A = IDLE_INTERRUPT_RATE; 
+      OCR1A = IDLE_INTERRUPT_RATE;
     else
       OCR1A = max(delay * 2, 10L);
     return true;
   }
 }
-  
+
 FORCE_INLINE bool handle_linear_move()
 {
   if (!continuing)
@@ -582,18 +581,15 @@ FORCE_INLINE bool handle_linear_move()
     setup_new_move();
     update_directions_and_initial_counts();
   }
-  else 
+  else
   {
     if (step_events_remaining == 0)
       return false; // finished
   }
-  
-  if (endstops_to_check != 0)
-  {
-    if (!check_endstops())
-      return false; // finished
-  }
-    
+
+  if (!check_endstops())
+    return false; // finished
+
   for(int8_t i=0; i < step_loops; i++) // Take multiple steps per interrupt (For high speed moves)
   {
     #ifndef AT90USB
@@ -601,22 +597,22 @@ FORCE_INLINE bool handle_linear_move()
     #endif
 
     write_steps();
-  
+
     if (--step_events_remaining == 0)
-      break;
+        return false; // finished
   }
-  
+
   // recalculation is done after outputting the current steps to achieve greatest step consistency
-  // (the counter is already running, what we are doing here is calculating the 
+  // (the counter is already running, what we are doing here is calculating the
   // point at which it next triggers an interrupt and resets)
   recalculate_speed();
   return true;
-}  
- 
+}
+
 FORCE_INLINE void setup_new_move()
 {
   const LinearMoveCommand *cmd = (LinearMoveCommand *)command_in_progress;
-  
+
   num_axes = cmd->num_axes;
   total_step_events = cmd->total_steps;
   step_events_remaining = total_step_events;
@@ -624,7 +620,7 @@ FORCE_INLINE void setup_new_move()
   in_phase_1 = true;
   in_phase_2 = false;
   in_phase_3 = false;
-  initial_rate = final_rate; 
+  initial_rate = final_rate;
   final_rate = cmd->final_rate;
   nominal_rate = cmd->nominal_rate;
   nominal_block_time = cmd->nominal_block_time;
@@ -632,13 +628,21 @@ FORCE_INLINE void setup_new_move()
   accel_start_rate = initial_rate;
   start_axis_move_info = cmd->axis_move_info;
   stopped_axes = 0;
-  endstops_to_check = cmd->endstops_of_interest & AxisInfo::endstop_enable_state;
+  if(cmd->homing_bit)
+  {
+      // during homing all end stops are enabled !
+      endstops_to_check = cmd->endstops_of_interest;
+  }
+  else
+  {
+      endstops_to_check = cmd->endstops_of_interest & AxisInfo::endstop_enable_state;
+  }
 
   queued_microseconds_remaining -= nominal_block_time;
   queued_steps_remaining -= total_step_events;
-  
+
   // currently only check for underrun condition at the start of the block
-  // (although underrun_condition might be cleared during block if more 
+  // (although underrun_condition might be cleared during block if more
   // movement blocks are enqueued).
   underrun_condition = check_underrun_condition();
   if (!underrun_active && !underrun_condition)
@@ -648,9 +652,9 @@ FORCE_INLINE void setup_new_move()
   }
   else
   {
-    if (!underrun_condition &&  
-        (int16_t)(step_rate - initial_rate) <= ALLOWED_SPEED_DIFF && 
-        (int16_t)(step_rate - initial_rate) >= -ALLOWED_SPEED_DIFF) 
+    if (!underrun_condition &&
+        (int16_t)(step_rate - initial_rate) <= ALLOWED_SPEED_DIFF &&
+        (int16_t)(step_rate - initial_rate) >= -ALLOWED_SPEED_DIFF)
     {
       // can exit underrun mode immediately.
       underrun_active = false;
@@ -659,12 +663,12 @@ FORCE_INLINE void setup_new_move()
     }
     else
     {
-      // leave step_rate and step_loops unchanged but recalculate underrun rates and reset 
+      // leave step_rate and step_loops unchanged but recalculate underrun rates and reset
       // necessary state for block
       setup_underrun_mode();
     }
   }
-  
+
 #if TRACE_MOVEMENT
   // Emitting debug in the ISR is less than ideal - it can cause CRC errors
   DEBUGPGM("New ISR move: axes:");
@@ -692,7 +696,6 @@ FORCE_INLINE void setup_new_move()
   DEBUGPGM("/");
   DEBUG_F(AxisInfo::endstop_enable_state,HEX);
   DEBUGPGM("/");
-  DEBUG_F(endstop_hit,HEX);
   DEBUGPGM(", dirs:");
   DEBUG_F(cmd->directions,HEX);
   DEBUGPGM(", loops:");
@@ -710,7 +713,7 @@ FORCE_INLINE void setup_new_move()
   DEBUGPGM(", stop?:");
   DEBUG(come_to_stop_and_flush_queue);
   DEBUG_EOL();
-#endif //TRACE_MOVEMENT    
+#endif //TRACE_MOVEMENT
 }
 
 FORCE_INLINE void update_directions_and_initial_counts()
@@ -722,7 +725,7 @@ FORCE_INLINE void update_directions_and_initial_counts()
   {
     AxisInfoInternal *axis_info = axis_move_info->axis_info;
     BITMASK(MAX_STEPPERS) axis_bit = (1 << axis_info->stepper_number);
-    
+
 #if TRACE_MOVEMENT
     DEBUGPGM(" AMI[");
     DEBUG(num_axes - cnt);
@@ -733,7 +736,7 @@ FORCE_INLINE void update_directions_and_initial_counts()
     if (cnt == 1)
       DEBUG_EOL();
 #endif
-    
+
     // enable stepper if not already enabled
     if ((AxisInfo::stepper_enable_state & axis_bit) == 0)
     {
@@ -743,9 +746,9 @@ FORCE_INLINE void update_directions_and_initial_counts()
         *((volatile uint8_t *)axis_info->stepper_enable_reg) &= ~(axis_info->stepper_enable_bit);
       AxisInfo::stepper_enable_state |= axis_bit;
     }
-    
+
     // set starting count (the extra -1 prevents rollover in the 0xFFFF step count case)
-    axis_info->step_event_counter = -(total_step_events >> 1) - 1;  
+    axis_info->step_event_counter = -(total_step_events >> 1) - 1;
 
     // update directions
     if (((uint8_t)directions & 1) != 0)
@@ -777,15 +780,14 @@ FORCE_INLINE void update_directions_and_initial_counts()
     axis_move_info++;
     directions >>= 1;
   }
-}   
-  
+}
+
 FORCE_INLINE bool check_endstops()
 {
   const LinearMoveCommand *cmd = (LinearMoveCommand *)command_in_progress;
   uint8_t index = 0;
-  uint16_t directions = cmd->directions;
   BITMASK(MAX_ENDSTOPS) local_endstops_to_check = endstops_to_check;
-  
+  // DEBUGLN(endstops_to_check);
   while (local_endstops_to_check != 0)
   {
     while (((uint8_t)local_endstops_to_check & 1) == 0)
@@ -793,10 +795,10 @@ FORCE_INLINE bool check_endstops()
       local_endstops_to_check >>= 1;
       index++;
     }
-    
+
     BITMASK(MAX_ENDSTOPS) endstop_bit = 1 << index;
     bool new_endstop_hit = Device_InputSwitch::ReadState(index);
-    if (new_endstop_hit && (endstop_hit & endstop_bit))
+    if (new_endstop_hit)
     {
       if (cmd->homing_bit)
       {
@@ -806,31 +808,25 @@ FORCE_INLINE bool check_endstops()
         while (true)
         {
           AxisInfoInternal *axis_info = axis_move_info->axis_info;
-          if ((directions & (1<<axis_info->stepper_number)) == 0)
+          if ((axis_info->min_endstops_configured & endstop_bit) != 0)
           {
-            if ((axis_info->min_endstops_configured & endstop_bit) != 0)
-            {
-              // stop this axis - keep others going
-              if (axis_move_info->step_count != 0)
-                stopped_axes += 1;
-              ((AxisMoveInfo *)axis_move_info)->step_count = 0;
-              axis_info->step_event_counter = -1;
-              if (stopped_axes == num_axes)
-                return false;
-            }
+            // stop this axis - keep others going
+            if (axis_move_info->step_count != 0)
+              stopped_axes += 1;
+            ((AxisMoveInfo *)axis_move_info)->step_count = 0;
+            axis_info->step_event_counter = -1;
+            if (stopped_axes == num_axes)
+              return false;
           }
-          else
+          if ((axis_info->max_endstops_configured & endstop_bit) != 0)
           {
-            if ((axis_info->max_endstops_configured & endstop_bit) != 0)
-            {
-              // stop this axis - keep others going
-              if (axis_move_info->step_count != 0)
-                stopped_axes += 1;
-              ((AxisMoveInfo *)axis_move_info)->step_count = 0;
-              axis_info->step_event_counter = -1;
-              if (stopped_axes == num_axes)
-                return false;
-            }
+            // stop this axis - keep others going
+            if (axis_move_info->step_count != 0)
+              stopped_axes += 1;
+            ((AxisMoveInfo *)axis_move_info)->step_count = 0;
+            axis_info->step_event_counter = -1;
+            if (stopped_axes == num_axes)
+              return false;
           }
           if (--cnt == 0)
             break;
@@ -846,11 +842,6 @@ FORCE_INLINE bool check_endstops()
         return false;
       }
     }
-    if (new_endstop_hit)
-      endstop_hit |= endstop_bit;
-    else
-      endstop_hit &= ~endstop_bit;
-    
     local_endstops_to_check >>= 1;
     index++;
   }
@@ -866,7 +857,7 @@ FORCE_INLINE void write_steps()
   {
     axis_info = axis_move_info->axis_info;
     axis_info->step_event_counter += axis_move_info->step_count;
-    if (axis_info->step_event_counter >= 0) 
+    if (axis_info->step_event_counter >= 0)
     {
       volatile uint8_t *step_reg = axis_info->stepper_step_reg;
       if (!axis_info->stepper_step_invert)
@@ -884,25 +875,25 @@ FORCE_INLINE void write_steps()
         // (which should be long enough)
         axis_info->step_event_counter -= total_step_events;
         *step_reg |= axis_info->stepper_step_bit;
-      }        
+      }
     }
     if (--cnt == 0)
       break;
     axis_move_info++;
   }
-}  
+}
 
 FORCE_INLINE void recalculate_speed()
-{ 
+{
   const LinearMoveCommand *cmd = (const LinearMoveCommand *)command_in_progress;
-  
+
   if (underrun_active || come_to_stop_and_flush_queue)
   {
     // do underrun avoidance handling
     handle_underrun_condition();
     return;
   }
-  
+
   // check if we need to move to the next movement phase
   if (in_phase_1 && step_events_remaining <= step_events_next_phase
       && step_events_remaining > cmd->steps_phase_3)
@@ -915,13 +906,13 @@ FORCE_INLINE void recalculate_speed()
   }
   else if (!in_phase_3 && step_events_remaining <= step_events_next_phase)
   { // this also handles the case where there is no phase 2.
-    in_phase_1 = false; 
+    in_phase_1 = false;
     in_phase_2 = false;
     in_phase_3 = true;
     acceleration_time = 0;
     accel_start_rate = step_rate;
   }
-  
+
   // normal system operation
   if (in_phase_1)
   {
@@ -931,7 +922,7 @@ FORCE_INLINE void recalculate_speed()
       acceleration_time = timer;
       accel_start_rate = step_rate;
     }
-    
+
     // phase 1: accelerate from initial_rate to nominal_rate
     MultiU24X24toH16(step_rate, acceleration_time, cmd->acceleration_rate);
     step_rate += accel_start_rate;
@@ -953,15 +944,15 @@ FORCE_INLINE void recalculate_speed()
       acceleration_time = timer;
       accel_start_rate = step_rate;
     }
-    
+
     // phase 3: decelerate from nominal_rate to final_rate
     MultiU24X24toH16(step_rate, acceleration_time, cmd->deceleration_rate);
 
-    if(step_rate > accel_start_rate) 
+    if(step_rate > accel_start_rate)
     { // Check step_rate stays positive
       step_rate = final_rate;
     }
-    else 
+    else
     {
       step_rate = accel_start_rate - step_rate; // Decelerate from aceleration end point.
     }
@@ -975,7 +966,7 @@ FORCE_INLINE void recalculate_speed()
     OCR1A = timer;
     acceleration_time += timer;
   }
-  else 
+  else
   {
     // phase 2: maintain nominal_rate
     OCR1A = nominal_rate_timer;
@@ -995,28 +986,28 @@ FORCE_INLINE bool check_underrun_condition()
   if ((queue_count < AxisInfo::underrun_queue_low_level && queued_time < AxisInfo::underrun_queue_high_time)
       || queued_time < AxisInfo::underrun_queue_low_time)
     return true;
-#endif   
-  return false;    
+#endif
+  return false;
 }
 
 FORCE_INLINE void setup_underrun_mode()
 {
   const LinearMoveCommand *cmd = (LinearMoveCommand *)command_in_progress;
-  
+
   const AxisInfoInternal *primary_axis_info = start_axis_move_info[cmd->primary_axis].axis_info;
   underrun_acceleration_rate = max(max(cmd->acceleration_rate, cmd->deceleration_rate),
                                     primary_axis_info->underrun_accel_rate);
   underrun_max_rate = primary_axis_info->underrun_max_rate;
   steps_to_final_speed_from_underrun_rate = cmd->steps_to_final_speed_from_underrun_rate;
-  steps_for_underrun_hop_to_end = 0; 
+  steps_for_underrun_hop_to_end = 0;
   current_underrun_accel_sign = 0;
   underrun_active = true;
 }
- 
+
 
 // underrun avoidance algorithm handling
 //
-// there are a few different cases to cover here but none of them involve 
+// there are a few different cases to cover here but none of them involve
 // complex calculations
 //
 // remember also that the system will be operating at lower speeds normally
@@ -1025,7 +1016,7 @@ FORCE_INLINE void handle_underrun_condition()
 {
   uint16_t target_rate;
   bool is_final_rate = false;
-  
+
   // is the underrun condition persisting?
   if (underrun_condition)
   {
@@ -1036,7 +1027,7 @@ FORCE_INLINE void handle_underrun_condition()
     }
 
     // to minimise checking in high speed cases we always decel to underrun rate first
-    if (step_rate > underrun_max_rate) 
+    if (step_rate > underrun_max_rate)
     {
       target_rate = underrun_max_rate;
     }
@@ -1060,10 +1051,10 @@ FORCE_INLINE void handle_underrun_condition()
     }
     else
     {
-      target_rate = underrun_max_rate; 
+      target_rate = underrun_max_rate;
     }
   }
-  else 
+  else
   {
     // underrun condition has cleared - time to attempt to resume normal movement
     if (step_events_remaining <= steps_to_final_speed_from_underrun_rate)
@@ -1075,7 +1066,7 @@ FORCE_INLINE void handle_underrun_condition()
     {
       target_rate = max(final_rate, underrun_max_rate);
     }
-    else 
+    else
     {
       // we aren't near the end of the block - so speed up to nominal again.
       target_rate = nominal_rate;
@@ -1124,7 +1115,7 @@ FORCE_INLINE void accelerate_to_underrun_target_rate(uint16_t target_rate, bool 
     }
   }
   else if (step_rate > target_rate)
-  { 
+  {
     if (current_underrun_accel_sign != 1)
     {
       // we've reach the target plateau speed from below
@@ -1168,11 +1159,11 @@ FORCE_INLINE void accelerate_to_underrun_target_rate(uint16_t target_rate, bool 
   {
     current_underrun_accel_sign = 0;
   }
-  
-  if (is_final_rate 
+
+  if (is_final_rate
       && current_underrun_accel_sign == 0 // i.e., step_rate == target_rate
       && step_rate < underrun_max_rate // (if its higher than this rate, we'll just wait until we reach the end)
-      && step_events_remaining > (uint8_t)(step_loops << 1)) 
+      && step_events_remaining > (uint8_t)(step_loops << 1))
   {
     // this is a corner case. we've reached the target speed too early and it
     // is a very low speed - potentially even 0.
@@ -1243,18 +1234,18 @@ FORCE_INLINE unsigned short calc_timer(unsigned short step_rate) {
     timer = (unsigned short)pgm_read_word_near(table_address);
     timer -= (((unsigned short)pgm_read_word_near(table_address+2) * (unsigned char)(step_rate & 0x0007))>>3);
   }
-  if(timer < 100) 
+  if(timer < 100)
   {
-    timer = 100; 
+    timer = 100;
 #if MOVEMENT_DEBUG        //(100 = 20kHz so this should never happen)
-    ERROR("Stepper too high:"); ERRORLN(step_rate); 
+    ERROR("Stepper too high:"); ERRORLN(step_rate);
 #endif
   }
   return timer;
 }
 
 // this is a subset which just calcs the step_loops value
-uint8_t calc_step_loops(uint16_t my_step_rate) 
+uint8_t calc_step_loops(uint16_t my_step_rate)
 {
   if(my_step_rate > MAX_STEP_FREQUENCY) my_step_rate = MAX_STEP_FREQUENCY;
 
@@ -1299,8 +1290,8 @@ void print_movement_ISR_state()
   DEBUGPGM(", urun:");
   DEBUG(underrun_active);
   DEBUG_EOL();
-  
-#if 0  
+
+#if 0
   if (continuing)
   {
     const AxisMoveInfo *axis_move_info = start_axis_move_info;
@@ -1308,7 +1299,7 @@ void print_movement_ISR_state()
     while (cnt > 0)
     {
       AxisInfoInternal *axis_info = axis_move_info->axis_info;
-      
+
       DEBUGPGM(" AMI[");
       DEBUG(num_axes - cnt);
       DEBUGPGM("]: index:");
@@ -1320,10 +1311,10 @@ void print_movement_ISR_state()
       cnt -= 1;
       axis_move_info++;
     }
-    DEBUG_EOL();  
+    DEBUG_EOL();
   }
 #endif
-  
+
 #endif //TRACE_MOVEMENT
 }
 
@@ -1332,15 +1323,15 @@ void run_queue_test()
 {
   uint8_t buffer[50];
   CommandQueue::Init(buffer, sizeof(buffer));
-  
+
   uint16_t remaining_slots;
   uint16_t current_command_count;
   uint16_t total_command_count;
   uint8_t *ptr;
   int i;
 
-  DEBUGLNPGM("Begin test");  
-  
+  DEBUGLNPGM("Begin test");
+
   for (i = 0; i < 1000; i++)
   {
     while ((ptr = CommandQueue::GetCommandInsertionPoint(1)) == 0)
@@ -1348,7 +1339,7 @@ void run_queue_test()
     *ptr = QUEUE_TEST_SHORT;
     if (!CommandQueue::EnqueueCommand(1))
       ERRORLNPGM("Failed to short enqueue");
-    
+
     if (i % 59 == 0)
     {
       while ((ptr = CommandQueue::GetCommandInsertionPoint(5)) == 0)
@@ -1400,7 +1391,7 @@ void run_queue_test()
         ERRORLNPGM("Failed to short enqueue delay");
     }
   }
-  
+
   CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info2a: slots=");
   DEBUG(remaining_slots);
@@ -1441,7 +1432,7 @@ void run_queue_test()
         ERRORLNPGM("Failed to short enqueue delay");
     }
   }
-    
+
   CommandQueue::GetQueueInfo(remaining_slots, current_command_count, total_command_count);
   DEBUGPGM("Info3a: slots=");
   DEBUG(remaining_slots);
@@ -1459,6 +1450,6 @@ void run_queue_test()
   DEBUG((int)current_command_count);
   DEBUGPGM(" tcc=");
   DEBUGLN(total_command_count);
-#endif  
+#endif
 }
 #endif //if QUEUE_TEST

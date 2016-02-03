@@ -1,6 +1,6 @@
 /*
  Minnow Pacemaker client firmware.
-    
+
  Copyright (C) 2013 Robert Fairlie-Cuninghame
 
  This program is free software: you can redistribute it and/or modify
@@ -17,9 +17,9 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CONFIG_TREE_NODE_H 
+#ifndef CONFIG_TREE_NODE_H
 #define CONFIG_TREE_NODE_H
- 
+
 #include <stdint.h>
 
 //
@@ -104,7 +104,7 @@ public:
 #define NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_PIN            95
 #define NODE_TYPE_CONFIG_LEAF_STEPPER_STEP_INVERT         96
 
-// System configuration   
+// System configuration
 #define NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_NAME        180
 #define NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_TYPE        181
 #define NODE_TYPE_CONFIG_LEAF_SYSTEM_HARDWARE_REV         182
@@ -151,15 +151,16 @@ public:
 #define LEAF_SET_DATATYPE_BOOL      3
 #define LEAF_SET_DATATYPE_STRING    4
 #define LEAF_SET_DATATYPE_FLOAT     5
+#define LEAF_SET_DATATYPE_PIN       6
 
 
   uint8_t GetName(char *buffer, uint8_t buffer_length) const;
   int8_t CompareName(const char *str) const;
-  
+
   uint8_t GetNodeType() const { return node_type; };
 
   uint8_t GetInstanceId() const { return instance_id; };
-  
+
   bool IsValid() const { return (node_info_index != INVALID_NODE_INFO_INDEX); };
   bool IsInstanceNode() const { return (instance_id != INVALID_INSTANCE_ID); };
   bool IsLeafNode() const { return GetLeafClass() != LEAF_CLASS_INVALID; };
@@ -167,7 +168,7 @@ public:
   uint8_t GetLeafClass() const;
   uint8_t GetLeafOperations() const;
   uint8_t GetLeafSetDataType() const;
-  
+
 private:
 
   friend class ConfigurationTree;
@@ -176,13 +177,13 @@ private:
 
   bool InitializeNextChild(ConfigurationTreeNode &child) const;
 
-  void SetAsRootNode(); 
+  void SetAsRootNode();
   void Clear();
   uint8_t FindNodeInfoIndex(uint8_t) const;
 
   uint8_t node_type;
-  uint8_t node_info_index; 
-  uint8_t instance_id; 
+  uint8_t node_info_index;
+  uint8_t instance_id;
 };
 
 #endif
